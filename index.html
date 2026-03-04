@@ -1,215 +1,240 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Volatility Buffer Simulator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
   <style>
     :root{
       --bg:#1a1d23;
-      --panel:#0f1217;
-      --line:rgba(255,255,255,0.06);
-      --muted:rgba(255,255,255,0.25);
-      --muted2:rgba(255,255,255,0.18);
-      --good:#00C805;
-      --bad:#FF5000;
-      --amber:#fbbf24;
-      --card:rgba(255,255,255,0.015);
+      --panel: rgba(255,255,255,0.015);
+      --line: rgba(255,255,255,0.05);
+      --muted: rgba(255,255,255,0.22);
+      --muted2: rgba(255,255,255,0.14);
+      --green:#00C805;
+      --red:#FF5000;
+      --gold:#fbbf24;
     }
+
     *{box-sizing:border-box;margin:0;padding:0}
-    body{background:var(--bg);color:#fff;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
-    .wrap{max-width:980px;margin:0 auto;padding:0 16px}
+    body{background:var(--bg);color:#fff;font-family:Inter,-apple-system,system-ui,Segoe UI,Roboto,Arial,sans-serif}
+    a{color:inherit}
+    .wrap{max-width:940px;margin:0 auto;padding:0 16px}
     .nav{
       display:flex;align-items:center;justify-content:space-between;
-      padding:12px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(26,29,35,0.92);
-      backdrop-filter: blur(10px); z-index:10;
+      padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.05)
     }
-    .brand{display:flex;align-items:center;gap:10px}
+    .brand{display:flex;align-items:center;gap:8}
     .logo{
-      width:28px;height:28px;border-radius:7px;
+      width:26px;height:26px;border-radius:6px;
       background:linear-gradient(135deg,#1a6b3c,#2fa84d);
       display:flex;align-items:center;justify-content:center;
-      font-weight:900;font-size:10px;
+      font-size:10px;font-weight:900
     }
-    .title{font-weight:800;font-size:13px;line-height:1.1}
-    .subtitle{font-weight:600;font-size:9px;color:var(--muted)}
+    .title{font-size:13px;font-weight:700}
+    .sub{font-size:9px;color:rgba(255,255,255,0.25);font-weight:500}
     .btn{
-      border:1px solid var(--line);background:rgba(255,255,255,0.05);
-      color:rgba(255,255,255,0.7);padding:6px 14px;border-radius:999px;
-      font-weight:700;font-size:11px;cursor:pointer;
+      background:rgba(255,255,255,0.06);border:none;border-radius:20px;
+      padding:5px 14px;color:rgba(255,255,255,0.55);
+      font-size:11px;font-weight:700;cursor:pointer
     }
-    .btn:active{transform:scale(0.99)}
+
     .settings{
-      border-bottom:1px solid var(--line);
-      padding:14px 16px;background:rgba(0,0,0,0.22);
-      display:none;
+      padding:14px 16px;border-bottom:1px solid rgba(255,255,255,0.05);
+      background:rgba(0,0,0,0.20)
     }
-    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px}
-    .row{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
-    .lab{font-size:9px;color:rgba(255,255,255,0.35);font-weight:700}
+    .grid{
+      display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14
+    }
+    .row{display:flex;justify-content:space-between;margin-bottom:3}
+    .lab{font-size:9px;color:rgba(255,255,255,0.33);font-weight:600}
     .val{font-size:12px;font-weight:900}
-    input[type="range"]{
-      width:100%;height:3px;border-radius:4px;outline:none;appearance:none;background:rgba(255,255,255,0.10);
+    input[type=range]{-webkit-appearance:none;appearance:none;background:rgba(255,255,255,0.08);border-radius:4px;height:3px;outline:none;cursor:pointer;width:100%}
+    input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#fff;border:none}
+    .pillRow{display:flex;gap:4}
+    .pill{
+      flex:1;padding:6px;border-radius:6px;font-size:11px;font-weight:800;cursor:pointer;
+      border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.03);
+      color:rgba(255,255,255,0.35)
     }
-    input[type="range"]::-webkit-slider-thumb{
-      appearance:none;width:14px;height:14px;border-radius:50%;background:#fff;border:none;
-    }
-    .chips{display:flex;gap:6px}
-    .chip{
-      flex:1;border-radius:8px;padding:8px 10px;border:1px solid var(--line);
-      background:rgba(255,255,255,0.03);color:rgba(255,255,255,0.35);
-      font-weight:900;font-size:11px;cursor:pointer;
-    }
-    .chip.on{border-color:rgba(0,200,5,0.25);background:rgba(0,200,5,0.10);color:var(--good)}
+    .pill.on{background:rgba(0,200,5,0.10);border-color:rgba(0,200,5,0.25);color:var(--green)}
     .how{
-      margin-top:12px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);
-      background:rgba(255,255,255,0.02);font-size:10px;line-height:1.7;color:rgba(255,255,255,0.22)
+      margin-top:12px;padding:10px 12px;background:rgba(255,255,255,0.02);
+      border-radius:8px;border:1px solid rgba(255,255,255,0.04)
     }
-    .how b{color:rgba(255,255,255,0.6)}
-    .hdr{padding-top:20px}
-    .hdrTop{font-size:11px;color:rgba(255,255,255,0.30);font-weight:700;margin-bottom:4px}
-    .big{font-size:38px;font-weight:950;letter-spacing:-1.5;line-height:1}
-    .subLine{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;margin-top:6px}
-    .pnl{font-size:15px;font-weight:900}
-    .pct{font-size:13px;font-weight:800}
-    .when{font-size:11px;color:rgba(255,255,255,0.24);font-weight:700}
-    .flag{
-      font-size:9px;font-weight:950;color:var(--bad);
-      background:rgba(255,80,0,0.10);padding:2px 8px;border-radius:4px;
+    .howT{font-size:10px;font-weight:800;color:rgba(255,255,255,0.45);margin-bottom:4}
+    .howB{font-size:10px;color:rgba(255,255,255,0.22);line-height:1.7}
+
+    .head{padding-top:20px}
+    .headK{font-size:11px;color:rgba(255,255,255,0.30);font-weight:600;margin-bottom:2}
+    .headV{font-size:38px;font-weight:900;line-height:1;letter-spacing:-1.5px}
+    .headMeta{display:flex;align-items:center;gap:6;margin-top:4;flex-wrap:wrap}
+    .pnl{font-size:15px;font-weight:800}
+    .pct{font-size:13px;font-weight:700}
+    .stamp{font-size:11px;color:rgba(255,255,255,0.20);margin-left:4;font-weight:600}
+    .crisis{
+      font-size:9px;font-weight:900;color:var(--red);background:rgba(255,80,0,0.10);
+      padding:2px 7px;border-radius:3px
     }
+
     .tabs{
-      display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;width:fit-content;margin:14px 0 10px;
+      display:flex;margin:12px 0 8px;border-radius:8px;overflow:hidden;
+      border:1px solid rgba(255,255,255,0.06);width:fit-content
     }
     .tab{
-      border:none;background:transparent;color:rgba(255,255,255,0.25);
-      padding:8px 16px;font-size:11px;font-weight:900;cursor:pointer;
+      padding:7px 16px;border:none;cursor:pointer;font-size:11px;font-weight:700;
+      background:transparent;color:rgba(255,255,255,0.22)
     }
-    .tab.on{background:rgba(255,255,255,0.09);color:#fff}
-    .chartBox{position:relative}
-    .legend{font-size:9px;color:rgba(255,255,255,0.14);margin-top:6px;font-weight:700}
+    .tab.on{background:rgba(255,255,255,0.08);color:#fff}
+
+    .chartBox{position:relative;margin-top:4}
+    .legend{font-size:9px;color:rgba(255,255,255,0.12);margin-top:4}
+    svg{display:block;overflow:visible}
+
     .play{
-      display:flex;align-items:center;gap:10px;margin-top:14px;padding:10px 0;border-top:1px solid var(--line);
+      display:flex;align-items:center;gap:10;margin-top:14px;padding:10px 0;
+      border-top:1px solid rgba(255,255,255,0.04)
     }
     .playBtn{
-      width:40px;height:40px;border-radius:50%;border:none;cursor:pointer;
-      font-weight:950;font-size:14px;display:flex;align-items:center;justify-content:center;
-      background:var(--good);color:#000;
+      width:38px;height:38px;border-radius:50%;border:none;cursor:pointer;flex-shrink:0;
+      font-size:14px;font-weight:900;display:flex;align-items:center;justify-content:center
     }
-    .playBtn.pause{background:rgba(255,80,0,0.15);color:var(--bad)}
-    .scrub{flex:1;height:4px;border-radius:4px;background:rgba(255,255,255,0.06);position:relative;cursor:pointer}
-    .scrubFill{height:100%;border-radius:4px;width:0%}
-    .speedBtn{
-      border:none;background:transparent;color:rgba(255,255,255,0.25);
-      font-size:10px;font-weight:900;cursor:pointer;padding:4px 8px;border-radius:6px;
+    .bar{flex:1;position:relative;height:4px;background:rgba(255,255,255,0.05);border-radius:2px;cursor:pointer}
+    .barFill{position:absolute;top:0;left:0;height:100%;border-radius:2px}
+    .sbtn{
+      padding:3px 8px;border-radius:4px;border:none;cursor:pointer;font-size:10px;font-weight:800;
+      background:transparent;color:rgba(255,255,255,0.22)
     }
-    .speedBtn.on{background:rgba(255,255,255,0.10);color:#fff}
+    .sbtn.on{background:rgba(255,255,255,0.10);color:#fff}
     .reset{
-      border:1px solid var(--line);background:transparent;color:rgba(255,255,255,0.30);
-      font-size:10px;font-weight:900;border-radius:8px;padding:5px 10px;cursor:pointer;
+      padding:3px 10px;border-radius:4px;border:1px solid rgba(255,255,255,0.06);
+      background:transparent;color:rgba(255,255,255,0.28);font-size:10px;font-weight:700;cursor:pointer
     }
-    .live{
-      margin-top:8px;border-radius:12px;padding:14px 16px;border:1px solid var(--line);
-      background:var(--card);
+
+    .panel{
+      padding:14px 16px;border-radius:10px;margin-top:4;background:var(--panel);
+      border:1px solid rgba(255,255,255,0.04)
     }
-    .liveTop{display:flex;align-items:center;gap:8px;margin-bottom:10px}
-    .dot{width:6px;height:6px;border-radius:50%;background:var(--bad)}
-    .liveLbl{font-size:10px;font-weight:900;color:rgba(255,255,255,0.42)}
-    .liveCols{display:flex;flex-wrap:wrap}
-    .liveCol{flex:1;min-width:160px;padding:8px 14px}
-    .liveCol + .liveCol{border-left:1px solid var(--line)}
-    .miniLab{font-size:9px;color:rgba(255,255,255,0.22);font-weight:800}
-    .miniVal{font-size:20px;font-weight:950;line-height:1.1}
-    .miniP{font-size:13px;font-weight:950}
-    .miniNote{font-size:8px;color:rgba(255,255,255,0.12);font-weight:800;margin-top:3px}
-    .loan{
-      margin-top:10px;border-radius:10px;padding:8px 10px;
-      border:1px solid rgba(0,200,5,0.12);background:rgba(0,200,5,0.06);
-      font-weight:950;font-size:10px;color:var(--good)
-    }
+    .panel.flash{animation:flash 0.5s ease-out}
+    .liveTop{display:flex;align-items:center;gap:6;margin-bottom:8}
+    .dot{width:5px;height:5px;border-radius:50%;background:var(--red)}
+    .liveT{font-size:10px;font-weight:800;color:rgba(255,255,255,0.40)}
+    .cols{display:flex;flex-wrap:wrap}
+    .col{flex:1;min-width:150px;padding:6px 14px}
+    .col.border{border-right:1px solid rgba(255,255,255,0.04)}
+    .k{font-size:9px;color:rgba(255,255,255,0.22);font-weight:700}
+    .v{font-size:20px;font-weight:900;line-height:1.1}
+    .note{font-size:8px;color:rgba(255,255,255,0.12);margin-top:2;font-weight:600}
+    .loan{margin-top:8px;padding:6px 10px;background:rgba(0,200,5,0.05);border-radius:6px;border:1px solid rgba(0,200,5,0.10);font-size:10px;font-weight:800;color:var(--green)}
+
     .stats{
-      margin-top:12px;border:1px solid rgba(255,255,255,0.03);border-radius:12px;overflow:hidden;
-      display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1px;background:rgba(255,255,255,0.02);
+      display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));
+      gap:1;margin:12px 0 0;background:rgba(255,255,255,0.02);
+      border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,0.03)
     }
-    .stat{background:var(--bg);padding:12px 13px}
-    .statL{font-size:9px;color:rgba(255,255,255,0.18);font-weight:800;margin-bottom:2px}
-    .statV{font-size:14px;font-weight:950}
-    .statS{font-size:9px;font-weight:900;margin-top:3px}
+    .stat{padding:11px 13px;background:var(--bg)}
+    .sl{font-size:9px;color:rgba(255,255,255,0.18);font-weight:600;margin-bottom:1}
+    .sv{font-size:14px;font-weight:900}
+    .ss{font-size:9px;font-weight:800;margin-top:1}
+
     .coi{
-      margin:12px 0;padding:14px 16px;border-radius:12px;border:1px solid rgba(255,255,255,0.03);
-      background:var(--card);
+      margin:12px 0;padding:14px 16px;background:rgba(255,255,255,0.015);
+      border-radius:10px;border:1px solid rgba(255,255,255,0.03)
     }
-    .coiT{font-size:11px;font-weight:900;color:rgba(255,255,255,0.40);margin-bottom:12px}
-    .coiGrid{display:flex;flex-wrap:wrap;gap:6px}
-    .coiCell{
-      min-width:78px;text-align:center;border-radius:10px;padding:8px 10px;
-      border:1px solid rgba(255,255,255,0.03);background:rgba(255,255,255,0.015);
+    .coiT{font-size:11px;font-weight:800;color:rgba(255,255,255,0.35);margin-bottom:10}
+    .coiRow{display:flex;gap:5;flex-wrap:wrap}
+    .chip{
+      padding:6px 10px;border-radius:6px;min-width:75px;text-align:center;
+      background:rgba(255,255,255,0.015);border:1px solid rgba(255,255,255,0.03)
     }
-    .coiCell.hot{border-color:rgba(255,80,0,0.18);background:rgba(255,80,0,0.07)}
-    .coiA{font-size:9px;font-weight:900;color:rgba(255,255,255,0.25)}
-    .coiC{font-size:12px;font-weight:950;color:rgba(255,255,255,0.40)}
-    .coiCell.hot .coiA{color:#fff}
-    .coiCell.hot .coiC{color:var(--bad)}
-    .coiP{font-size:8px;font-weight:900;color:rgba(255,255,255,0.12);margin-top:2px}
+    .chip.on{background:rgba(255,80,0,0.06);border-color:rgba(255,80,0,0.15)}
+    .chipA{font-size:9px;font-weight:800;color:rgba(255,255,255,0.2)}
+    .chipA.on{color:#fff}
+    .chipV{font-size:12px;font-weight:900;color:rgba(255,255,255,0.35)}
+    .chipV.on{color:var(--red)}
+    .chipP{font-size:8px;color:rgba(255,255,255,0.10);font-weight:700}
+
     .ey{
-      margin:0 0 20px;padding:16px;border-radius:12px;border:1px solid rgba(251,191,36,0.08);
-      background:rgba(251,191,36,0.02);
+      margin:0 0 20px;padding:16px;background:rgba(251,191,36,0.02);
+      border-radius:10px;border:1px solid rgba(251,191,36,0.06)
     }
-    .eyTop{display:flex;align-items:center;gap:8px;margin-bottom:12px}
-    .badge{background:var(--amber);color:#000;font-weight:950;font-size:9px;border-radius:4px;padding:2px 8px}
-    .eyLbl{font-size:11px;font-weight:900;color:rgba(255,255,255,0.38)}
-    .eyGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
-    .eyM{font-size:20px;font-weight:950;color:var(--amber)}
-    .eyD{font-size:10px;font-weight:800;color:rgba(255,255,255,0.18);line-height:1.5;margin-top:3px}
-    .fine{padding:10px 0 24px;font-size:8px;color:rgba(255,255,255,0.12);line-height:1.6;font-weight:700}
-    svg{touch-action:none}
+    .eyTop{display:flex;align-items:center;gap:6;margin-bottom:10}
+    .eyTag{background:var(--gold);color:#000;padding:2px 7px;border-radius:3px;font-size:9px;font-weight:900}
+    .eyT{font-size:11px;font-weight:800;color:rgba(255,255,255,0.35)}
+    .eyGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14}
+    .eyM{font-size:20px;font-weight:900;color:var(--gold)}
+    .eyD{font-size:10px;color:rgba(255,255,255,0.18);line-height:1.5;margin-top:2;font-weight:600}
+
+    .foot{padding:10px 0 20px;font-size:8px;color:rgba(255,255,255,0.10);line-height:1.6;font-weight:600}
+
+    @keyframes flash{0%{background:rgba(255,80,0,0.12)}100%{background:transparent}}
   </style>
 </head>
 <body>
+
   <div class="nav">
     <div class="brand">
       <div class="logo">NM</div>
       <div>
         <div class="title">Volatility Buffer</div>
-        <div class="subtitle">AAA or Aaa or A++ · <span id="divLbl"></span> dividend</div>
+        <div class="sub">AAA or Aaa or A++ · <span id="divLbl"></span> Dividend</div>
       </div>
     </div>
     <button class="btn" id="editBtn">Edit</button>
   </div>
 
-  <div class="settings" id="settings">
+  <div id="settings" class="settings" style="display:none">
     <div class="grid">
       <div>
-        <div class="row"><div class="lab">Initial SPX Investment</div><div class="val" id="vInitial"></div></div>
-        <input id="sInitial" type="range" min="25000" max="1000000" step="25000" />
+        <div class="row"><span class="lab">Initial SPX Investment</span><span class="val" id="vInitial"></span></div>
+        <input id="rInitial" type="range" min="25000" max="1000000" step="25000" />
       </div>
       <div>
-        <div class="row"><div class="lab">Monthly to SPX</div><div class="val" id="vMonthly"></div></div>
-        <input id="sMonthly" type="range" min="250" max="10000" step="250" />
+        <div class="row"><span class="lab">Monthly → SPX</span><span class="val" id="vMonthly"></span></div>
+        <input id="rMonthly" type="range" min="250" max="10000" step="250" />
       </div>
       <div>
-        <div class="row"><div class="lab">NM Annual Premium to WL</div><div class="val" id="vPremium"></div></div>
-        <input id="sPremium" type="range" min="3000" max="50000" step="1000" />
+        <div class="row"><span class="lab">NM Annual Premium → WL</span><span class="val" id="vPremium"></span></div>
+        <input id="rPremium" type="range" min="3000" max="50000" step="1000" />
       </div>
       <div>
-        <div class="row"><div class="lab">Client Start Age</div><div class="val" id="vAge"></div></div>
-        <input id="sAge" type="range" min="25" max="55" step="1" />
+        <div class="row"><span class="lab">Client Start Age</span><span class="val" id="vAge"></span></div>
+        <input id="rAge" type="range" min="25" max="55" step="1" />
       </div>
+
       <div>
-        <div class="lab" style="margin-bottom:8px">NM Policy Type</div>
-        <div class="chips">
-          <button class="chip" id="pay65">Pay to 65</button>
-          <button class="chip" id="pay100">Pay to 100</button>
+        <div class="lab" style="margin-bottom:5px">NM Policy Type</div>
+        <div class="pillRow">
+          <button class="pill" id="pay65">Pay to 65</button>
+          <button class="pill" id="pay100">Pay to 100</button>
         </div>
       </div>
     </div>
 
-    <div class="how" id="howBox"></div>
+    <div class="how">
+      <div class="howT">How It Works, Same Total Dollars, Different Strategy</div>
+      <div class="howB" id="howBody"></div>
+    </div>
   </div>
 
   <div class="wrap">
-    <div class="hdr">
-      <div class="hdrTop" id="modeLabel"></div>
-      <div id="hdrMain"></div>
+    <div class="head">
+      <div class="headK" id="modeTitle"></div>
+      <div id="headMain">
+        <div class="headV" id="headValue"></div>
+        <div class="headMeta">
+          <span class="pnl" id="headPnL"></span>
+          <span class="pct" id="headPct"></span>
+          <span class="stamp" id="headStamp"></span>
+          <span class="crisis" id="crisisTag" style="display:none">CRISIS</span>
+        </div>
+      </div>
+
+      <div id="headSplit" style="display:none"></div>
     </div>
 
     <div class="tabs">
@@ -219,32 +244,33 @@
     </div>
 
     <div class="chartBox">
-      <div id="charts"></div>
-      <div class="legend" id="legend"></div>
+      <div id="chart"></div>
+      <div class="legend" id="legend" style="display:none">━ S&P + NM WL · ┅ 100% S&P reference</div>
     </div>
 
     <div class="play">
       <button class="playBtn" id="playBtn">▶</button>
-      <div class="scrub" id="scrub"><div class="scrubFill" id="scrubFill"></div></div>
-      <button class="speedBtn" data-speed="0.5">0.5x</button>
-      <button class="speedBtn on" data-speed="1">1x</button>
-      <button class="speedBtn" data-speed="2">2x</button>
-      <button class="speedBtn" data-speed="3">3x</button>
+      <div class="bar" id="scrubBar"><div class="barFill" id="barFill"></div></div>
+      <button class="sbtn" data-speed="0.5">0.5x</button>
+      <button class="sbtn on" data-speed="1">1x</button>
+      <button class="sbtn" data-speed="2">2x</button>
+      <button class="sbtn" data-speed="3">3x</button>
       <button class="reset" id="resetBtn">Reset</button>
     </div>
 
-    <div id="liveBox"></div>
+    <div id="livePanel" style="display:none"></div>
+
     <div class="stats" id="stats"></div>
 
     <div class="coi">
       <div class="coiT" id="coiTitle"></div>
-      <div class="coiGrid" id="coiGrid"></div>
+      <div class="coiRow" id="coiRow"></div>
     </div>
 
     <div class="ey">
       <div class="eyTop">
-        <span class="badge">EY</span>
-        <span class="eyLbl">Research Highlights</span>
+        <span class="eyTag">EY</span>
+        <span class="eyT">Research Highlights</span>
       </div>
       <div class="eyGrid">
         <div><div class="eyM">5 to 8 yrs</div><div class="eyD">Extended portfolio longevity drawing from WL during bear markets</div></div>
@@ -254,33 +280,709 @@
       </div>
     </div>
 
-    <div class="fine" id="finePrint"></div>
+    <div class="foot" id="foot"></div>
   </div>
 
 <script>
-  const SP500 = [
-    -0.0501,0.0197,0.0967,-0.0308,-0.0221,0.0239,-0.0163,0.0607,-0.0528,-0.0049,-0.0801,0.0046,
-    0.0346,-0.0923,-0.0642,0.0768,0.0051,-0.0250,-0.0108,-0.0626,-0.0817,0.0181,0.0752,0.0076,
-    -0.0156,-0.0208,0.0367,-0.0614,-0.0091,-0.0726,-0.0790,0.0049,-0.1100,0.0864,0.0571,-0.0603,
-    -0.0274,-0.0170,0.0084,0.0810,0.0509,0.0113,0.0162,0.0179,-0.0119,0.0550,0.0071,0.0508,
-    0.0173,0.0122,-0.0164,-0.0168,0.0121,0.0180,-0.0343,0.0023,0.0094,0.0140,0.0386,0.0325,
-    -0.0253,0.0189,-0.0191,-0.0201,0.0300,-0.0001,0.0360,-0.0112,0.0069,-0.0177,0.0352,-0.0010,
-    0.0255,0.0005,0.0111,0.0122,-0.0309,0.0001,0.0051,0.0213,0.0246,0.0315,0.0165,0.0126,
-    0.0141,-0.0218,0.0100,0.0433,0.0325,-0.0178,-0.0321,0.0131,0.0358,0.0148,-0.0440,-0.0086,
-    -0.0612,-0.0348,-0.0060,0.0475,0.0107,-0.0867,-0.0099,0.0122,-0.0908,-0.1694,-0.0741,0.0078,
-    -0.0857,-0.1099,0.0854,0.0939,0.0531,0.0002,0.0741,0.0336,0.0357,-0.0198,0.0574,0.0178,
-    -0.0371,0.0285,0.0588,0.0148,-0.0821,-0.0539,0.0689,-0.0474,0.0876,0.0369,-0.0023,0.0653,
-    0.0226,0.0320,-0.0010,0.0285,-0.0135,-0.0178,-0.0214,-0.0568,-0.0718,0.1077,-0.0051,0.0085,
-    0.0436,0.0396,0.0313,-0.0075,-0.0627,0.0396,0.0126,0.0199,0.0245,-0.0198,0.0028,0.0071,
-    0.0504,0.0111,0.0360,0.0181,0.0209,-0.0150,0.0495,-0.0311,0.0297,0.0444,0.0280,0.0236,
-    -0.0359,0.0432,0.0069,0.0062,0.0209,0.0191,-0.0150,0.0377,-0.0157,0.0232,0.0245,-0.0042,
-    -0.0306,0.0549,-0.0174,0.0085,0.0105,-0.0211,0.0200,-0.0644,-0.0264,0.0802,0.0005,-0.0175,
-    -0.0507,-0.0041,0.0660,0.0027,0.0153,0.0009,0.0356,-0.0012,-0.0012,-0.0194,0.0342,0.0182,
-    0.0179,0.0372,-0.0004,0.0091,0.0109,0.0048,0.0193,0.0005,0.0193,0.0224,0.0281,0.0098,
-    0.0565,-0.0389,-0.0269,0.0027,0.0216,0.0046,0.0360,0.0305,0.0043,-0.0694,0.0179,-0.0918,
-    0.0790,0.0297,0.0179,0.0393,-0.0658,0.0689,0.0131,-0.0181,0.0172,0.0204,0.0340,0.0286,
-    -0.0016,-0.0841,-0.1251,0.1268,0.0451,0.0184,0.0551,0.0701,-0.0381,-0.0277,0.1075,0.0362,
-    -0.0127,0.0261,0.0424,0.0530,0.0055,0.0222,0.0233,0.0290,-0.0476,0.0665,-0.0083,0.0436,
-    -0.0570,-0.0323,0.0358,-0.0880,0.0001,-0.0838,0.0912,-0.0424,-0.0946,0.0793,0.0536,-0.0586,
-    0.0618,-0.0261,0.0351,0.0146,0.0025,0.0626,0.0306,-0.0177,-0.0487,-0.0218,0.0889,0.0454,
-    0.0159,0.0516,0.0308,-0.0420,0.0480,0.0345,0.0113,0.0225
+/* ============================
+   DATA + MODEL
+============================ */
+
+const SP500 = [
+-0.0501,0.0197,0.0967,-0.0308,-0.0221,0.0239,-0.0163,0.0607,-0.0528,-0.0049,-0.0801,0.0046,
+0.0346,-0.0923,-0.0642,0.0768,0.0051,-0.0250,-0.0108,-0.0626,-0.0817,0.0181,0.0752,0.0076,
+-0.0156,-0.0208,0.0367,-0.0614,-0.0091,-0.0726,-0.0790,0.0049,-0.1100,0.0864,0.0571,-0.0603,
+-0.0274,-0.0170,0.0084,0.0810,0.0509,0.0113,0.0162,0.0179,-0.0119,0.0550,0.0071,0.0508,
+0.0173,0.0122,-0.0164,-0.0168,0.0121,0.0180,-0.0343,0.0023,0.0094,0.0140,0.0386,0.0325,
+-0.0253,0.0189,-0.0191,-0.0201,0.0300,-0.0001,0.0360,-0.0112,0.0069,-0.0177,0.0352,-0.0010,
+0.0255,0.0005,0.0111,0.0122,-0.0309,0.0001,0.0051,0.0213,0.0246,0.0315,0.0165,0.0126,
+0.0141,-0.0218,0.0100,0.0433,0.0325,-0.0178,-0.0321,0.0131,0.0358,0.0148,-0.0440,-0.0086,
+-0.0612,-0.0348,-0.0060,0.0475,0.0107,-0.0867,-0.0099,0.0122,-0.0908,-0.1694,-0.0741,0.0078,
+-0.0857,-0.1099,0.0854,0.0939,0.0531,0.0002,0.0741,0.0336,0.0357,-0.0198,0.0574,0.0178,
+-0.0371,0.0285,0.0588,0.0148,-0.0821,-0.0539,0.0689,-0.0474,0.0876,0.0369,-0.0023,0.0653,
+0.0226,0.0320,-0.0010,0.0285,-0.0135,-0.0178,-0.0214,-0.0568,-0.0718,0.1077,-0.0051,0.0085,
+0.0436,0.0396,0.0313,-0.0075,-0.0627,0.0396,0.0126,0.0199,0.0245,-0.0198,0.0028,0.0071,
+0.0504,0.0111,0.0360,0.0181,0.0209,-0.0150,0.0495,-0.0311,0.0297,0.0444,0.0280,0.0236,
+-0.0359,0.0432,0.0069,0.0062,0.0209,0.0191,-0.0150,0.0377,-0.0157,0.0232,0.0245,-0.0042,
+-0.0306,0.0549,-0.0174,0.0085,0.0105,-0.0211,0.0200,-0.0644,-0.0264,0.0802,0.0005,-0.0175,
+-0.0507,-0.0041,0.0660,0.0027,0.0153,0.0009,0.0356,-0.0012,-0.0012,-0.0194,0.0342,0.0182,
+0.0179,0.0372,-0.0004,0.0091,0.0109,0.0048,0.0193,0.0005,0.0193,0.0224,0.0281,0.0098,
+0.0565,-0.0389,-0.0269,0.0027,0.0216,0.0046,0.0360,0.0305,0.0043,-0.0694,0.0179,-0.0918,
+0.0790,0.0297,0.0179,0.0393,-0.0658,0.0689,0.0131,-0.0181,0.0172,0.0204,0.0340,0.0286,
+-0.0016,-0.0841,-0.1251,0.1268,0.0451,0.0184,0.0551,0.0701,-0.0381,-0.0277,0.1075,0.0362,
+-0.0127,0.0261,0.0424,0.0530,0.0055,0.0222,0.0233,0.0290,-0.0476,0.0665,-0.0083,0.0436,
+-0.0570,-0.0323,0.0358,-0.0880,0.0001,-0.0838,0.0912,-0.0424,-0.0946,0.0793,0.0536,-0.0586,
+0.0618,-0.0261,0.0351,0.0146,0.0025,0.0626,0.0306,-0.0177,-0.0487,-0.0218,0.0889,0.0454,
+0.0159,0.0516,0.0308,-0.0420,0.0480,0.0345,0.0113,0.0225,0.0200,-0.0100,0.0560,-0.0258
+];
+
+const MO = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const lbl = i => `${MO[i%12]} ${2000+Math.floor(i/12)}`;
+
+const CRISES = [
+  { name: "DOT COM", start: 3, end: 35 },
+  { name: "GFC", start: 93, end: 114 },
+  { name: "COVID", start: 241, end: 243 }
+];
+
+const NM_DIV = 0.0575;
+const NM_GUAR = 0.03;
+const COI_T = [[25,1.1],[30,1.35],[35,1.85],[40,2.8],[45,4.3],[50,7.1],[55,11.5],[60,18.2],[65,28],[70,42],[75,65],[80,98]];
+const SURR = [0.12,0.25,0.42,0.58,0.70,0.80,0.87,0.92,0.95,0.97,0.98,0.99,1];
+
+function getCOI(age, face){
+  let r = 1.1;
+  for(const [a,c] of COI_T) if(age >= a) r = c;
+  return (face/1000) * r;
+}
+
+function simulate({ initial, monthly, age, premium, payTo }){
+  const moPrem = premium/12;
+  const face = premium * 18;
+  const moGuar = Math.pow(1 + NM_GUAR, 1/12) - 1;
+  const moDiv  = Math.pow(1 + NM_DIV,  1/12) - 1;
+
+  let pureSpx = initial;
+  let bSpx = initial;
+  let cv = 0;
+
+  let totPrem = 0, totCOI = 0, totDiv = 0, totDist = 0;
+  let peakPure = initial, peakBlend = initial;
+  let cumIn = initial;
+
+  const d = [];
+
+  for(let i=0;i<SP500.length;i++){
+    const r = SP500[i];
+    const curAge = age + i/12;
+    const yr = Math.floor(i/12);
+    const paying = curAge < payTo;
+    const isCrisis = CRISES.some(c => i>=c.start && i<=c.end);
+
+    const totalMonthlyOOP = monthly + (paying ? moPrem : 0);
+    cumIn += totalMonthlyOOP;
+
+    pureSpx = pureSpx * (1+r) + totalMonthlyOOP;
+    peakPure = Math.max(peakPure, pureSpx);
+
+    bSpx = bSpx * (1+r) + monthly;
+
+    const pr = paying ? moPrem : 0;
+    totPrem += pr;
+
+    const coi = getCOI(Math.floor(curAge), face)/12;
+    totCOI += coi;
+
+    const exp = pr * Math.max(0.02, 0.08 - yr*0.005);
+    const gInt = cv * moGuar;
+    const dInt = yr >= 1 ? cv*(moDiv - moGuar) : 0;
+    totDiv += dInt;
+
+    cv = Math.max(0, cv + pr - coi - exp + gInt + dInt);
+
+    const sv = cv * (yr < SURR.length ? SURR[yr] : 1);
+    const blendTotal = bSpx + cv;
+    peakBlend = Math.max(peakBlend, blendTotal);
+
+    let dist = 0;
+    if(isCrisis && r < -0.03 && cv > 5000){
+      dist = Math.min(monthly*0.5, cv*0.02);
+      totDist += dist;
+    }
+
+    d.push({
+      i, label: lbl(i), r,
+      pure: Math.round(pureSpx),
+      pureDD: +(((pureSpx - peakPure)/peakPure)*100).toFixed(2),
+      bSpx: Math.round(bSpx),
+      cv: Math.round(cv),
+      total: Math.round(blendTotal),
+      blendDD: +(((blendTotal - peakBlend)/peakBlend)*100).toFixed(2),
+      sv: Math.round(sv),
+      db: Math.round(Math.max(face, face + totDiv*0.7)),
+      totPrem: Math.round(totPrem),
+      totCOI: Math.round(totCOI),
+      totDiv: Math.round(totDiv),
+      coi: Math.round(coi*12),
+      dist,
+      totDist: Math.round(totDist),
+      age: Math.floor(curAge),
+      isCrisis,
+      paying,
+      totalIn: Math.round(cumIn),
+      face: Math.round(face)
+    });
+  }
+
+  return d;
+}
+
+/* ============================
+   UI + RENDER
+============================ */
+
+const $ = v => `$${Math.round(Math.abs(v)).toLocaleString()}`;
+const $s = v => {
+  const a = Math.abs(v);
+  return a >= 1e6 ? `$${(v/1e6).toFixed(2)}M` : `$${Math.round(v).toLocaleString()}`;
+};
+
+const els = {
+  divLbl: document.getElementById("divLbl"),
+  editBtn: document.getElementById("editBtn"),
+  settings: document.getElementById("settings"),
+
+  rInitial: document.getElementById("rInitial"),
+  rMonthly: document.getElementById("rMonthly"),
+  rPremium: document.getElementById("rPremium"),
+  rAge: document.getElementById("rAge"),
+
+  vInitial: document.getElementById("vInitial"),
+  vMonthly: document.getElementById("vMonthly"),
+  vPremium: document.getElementById("vPremium"),
+  vAge: document.getElementById("vAge"),
+
+  pay65: document.getElementById("pay65"),
+  pay100: document.getElementById("pay100"),
+
+  howBody: document.getElementById("howBody"),
+
+  modeTitle: document.getElementById("modeTitle"),
+  headMain: document.getElementById("headMain"),
+  headSplit: document.getElementById("headSplit"),
+  headValue: document.getElementById("headValue"),
+  headPnL: document.getElementById("headPnL"),
+  headPct: document.getElementById("headPct"),
+  headStamp: document.getElementById("headStamp"),
+  crisisTag: document.getElementById("crisisTag"),
+
+  chart: document.getElementById("chart"),
+  legend: document.getElementById("legend"),
+
+  playBtn: document.getElementById("playBtn"),
+  scrubBar: document.getElementById("scrubBar"),
+  barFill: document.getElementById("barFill"),
+  resetBtn: document.getElementById("resetBtn"),
+
+  livePanel: document.getElementById("livePanel"),
+  stats: document.getElementById("stats"),
+  coiTitle: document.getElementById("coiTitle"),
+  coiRow: document.getElementById("coiRow"),
+  foot: document.getElementById("foot")
+};
+
+els.divLbl.textContent = (NM_DIV*100).toFixed(2) + "%";
+
+const state = {
+  initial: 200000,
+  monthly: 1500,
+  age: 35,
+  premium: 12000,
+  payTo: 65,
+
+  mode: "blend",     // blend | pure | split
+  setup: false,
+
+  data: [],
+  idx: -1,
+  hover: null,
+  playing: false,
+  speed: 1,
+  tmr: null
+};
+
+function calc(){
+  state.data = simulate({
+    initial: state.initial,
+    monthly: state.monthly,
+    age: state.age,
+    premium: state.premium,
+    payTo: state.payTo
+  });
+}
+
+function setRanges(){
+  els.rInitial.value = state.initial;
+  els.rMonthly.value = state.monthly;
+  els.rPremium.value = state.premium;
+  els.rAge.value = state.age;
+
+  els.vInitial.textContent = $ (state.initial);
+  els.vMonthly.textContent = $ (state.monthly);
+  els.vPremium.textContent = $ (state.premium);
+  els.vAge.textContent = String(state.age);
+
+  els.pay65.classList.toggle("on", state.payTo === 65);
+  els.pay100.classList.toggle("on", state.payTo === 100);
+
+  const moPrem = state.premium/12;
+  els.howBody.innerHTML =
+    `<strong style="color:rgba(255,255,255,0.55)">Market + NM WL:</strong> ${$(state.monthly)}/mo → S&P 500 · ${$(moPrem)}/mo → NM Whole Life Premium<br>
+     <strong style="color:rgba(255,255,255,0.55)">100% Market:</strong> ${$(state.monthly)}/mo + ${$(moPrem)}/mo → all into S&P 500<br>
+     Both invest <strong style="color:#fff">${$(state.monthly + moPrem)}/mo</strong> total.`;
+}
+
+function modeLabel(){
+  if(state.mode === "pure") return "100% S&P 500 Portfolio";
+  if(state.mode === "blend") return "S&P 500 + NM Whole Life Portfolio";
+  return "Side by Side Comparison";
+}
+
+function curIndex(){
+  const end = state.idx >= 0 ? state.idx : (state.data.length-1);
+  if(state.hover !== null) return Math.min(state.hover, end);
+  return end;
+}
+
+function curRow(){
+  return state.data[curIndex()] || state.data[state.data.length-1];
+}
+
+function accColor(pnl){ return pnl >= 0 ? getComputedStyle(document.documentElement).getPropertyValue("--green").trim()
+                                     : getComputedStyle(document.documentElement).getPropertyValue("--red").trim(); }
+
+function drawChartOne({ field, ghostField, height, baseValue }){
+  const data = state.data;
+  if(!data.length) return "";
+
+  const idx = state.idx >= 0 ? state.idx : (data.length-1);
+  const end = Math.max(2, idx+1);
+  const pts = data.slice(0, end);
+
+  const allV = [];
+  for(const d of pts){
+    allV.push(d[field]);
+    if(ghostField) allV.push(d[ghostField]);
+  }
+
+  let min = Math.min(...allV)*0.97;
+  let max = Math.max(...allV)*1.03;
+  const rng = (max - min) || 1;
+
+  const width = Math.max(320, document.querySelector(".wrap").clientWidth);
+  const tX = i => (i / Math.max(1, pts.length-1)) * width;
+  const tY = v => height - ((v - min)/rng)*height;
+
+  const mkPath = (f) => pts.map((d,i)=> `${i===0?"M":"L"}${tX(i).toFixed(1)},${tY(d[f]).toFixed(1)}`).join(" ");
+  const path = mkPath(field);
+  const last = pts[pts.length-1][field] || 0;
+  const clr = last >= baseValue ? "#00C805" : "#FF5000";
+  const fill = path + ` L${tX(pts.length-1).toFixed(1)},${height} L0,${height} Z`;
+  const ghostPath = ghostField ? mkPath(ghostField) : null;
+
+  const hi = state.hover !== null ? Math.min(state.hover, pts.length-1) : null;
+  const hiX = hi !== null ? tX(hi) : tX(pts.length-1);
+  const hiY = hi !== null ? tY(pts[hi][field]) : tY(last);
+
+  const crisisRects = CRISES.map(c=>{
+    if(c.start >= pts.length) return "";
+    const x0 = tX(c.start);
+    const x1 = tX(Math.min(c.end, pts.length-1));
+    return `<rect x="${x0}" y="0" width="${Math.max(1,x1-x0)}" height="${height}" fill="rgba(255,80,0,0.035)"></rect>`;
+  }).join("");
+
+  const gid = "g_"+field+"_"+Math.random().toString(16).slice(2);
+
+  return `
+    <svg width="${width}" height="${height}" data-w="${width}" style="touch-action:none">
+      <defs>
+        <linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="${clr}" stop-opacity="0.08"></stop>
+          <stop offset="100%" stop-color="${clr}" stop-opacity="0"></stop>
+        </linearGradient>
+      </defs>
+
+      ${crisisRects}
+      <path d="${fill}" fill="url(#${gid})"></path>
+      ${ghostPath ? `<path d="${ghostPath}" fill="none" stroke="rgba(255,255,255,0.10)" stroke-width="1.5" stroke-dasharray="5 4"></path>` : ""}
+      <path d="${path}" fill="none" stroke="${clr}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path>
+
+      ${hi !== null ? `
+        <line x1="${hiX}" y1="0" x2="${hiX}" y2="${height}" stroke="rgba(255,255,255,0.10)" stroke-width="1" stroke-dasharray="3 3"></line>
+        <circle cx="${hiX}" cy="${hiY}" r="5" fill="${clr}" stroke="#1a1d23" stroke-width="2"></circle>
+        ${ghostField ? `<circle cx="${hiX}" cy="${tY(pts[hi][ghostField])}" r="4" fill="rgba(255,255,255,0.20)" stroke="#1a1d23" stroke-width="2"></circle>` : ""}
+      ` : `
+        <circle cx="${hiX}" cy="${hiY}" r="4" fill="${clr}">
+          <animate attributeName="r" values="4;6;4" dur="2s" repeatCount="indefinite"></animate>
+        </circle>
+      `}
+    </svg>
+  `;
+}
+
+function attachHover(){
+  const svg = els.chart.querySelector("svg");
+  if(!svg) return;
+
+  const width = Number(svg.getAttribute("width"));
+  const idx = state.idx >= 0 ? state.idx : (state.data.length-1);
+  const end = Math.max(2, idx+1);
+  const ptsLen = Math.min(end, state.data.length);
+
+  const pick = (clientX) => {
+    const r = svg.getBoundingClientRect();
+    const x = clientX - r.left;
+    const hi = Math.max(0, Math.min(Math.round((x/width)*(ptsLen-1)), ptsLen-1));
+    state.hover = hi;
+    render();
+  };
+
+  svg.addEventListener("mousemove", (e)=> pick(e.clientX));
+  svg.addEventListener("mouseleave", ()=>{ state.hover = null; render(); });
+  svg.addEventListener("touchmove", (e)=>{ pick(e.touches[0].clientX); }, {passive:true});
+  svg.addEventListener("touchend", ()=>{ state.hover = null; render(); });
+}
+
+function renderHeader(){
+  const cur = curRow();
+  const moPrem = state.premium/12;
+
+  const purePnL = cur.pure - cur.totalIn;
+  const blendPnL = cur.total - cur.totalIn;
+  const purePct = (purePnL/cur.totalIn)*100;
+  const blendPct = (blendPnL/cur.totalIn)*100;
+  const bufAdv = blendPnL - purePnL;
+
+  els.modeTitle.textContent = modeLabel();
+
+  if(state.mode !== "split"){
+    els.headMain.style.display = "";
+    els.headSplit.style.display = "none";
+
+    const mainVal = state.mode === "pure" ? cur.pure : cur.total;
+    const mainPnL = state.mode === "pure" ? purePnL : blendPnL;
+    const mainPct = state.mode === "pure" ? purePct : blendPct;
+
+    const acc = accColor(mainPnL);
+
+    els.headValue.textContent = $(mainVal);
+    els.headPnL.textContent = (mainPnL>=0?"+":"-") + $(Math.abs(mainPnL));
+    els.headPnL.style.color = acc;
+
+    els.headPct.textContent = "(" + (mainPct>=0?"+":"") + mainPct.toFixed(2) + "%)";
+    els.headPct.style.color = acc;
+
+    els.headStamp.textContent = `${cur.label} · Age ${cur.age}`;
+
+    els.crisisTag.style.display = cur.isCrisis ? "" : "none";
+  } else {
+    els.headMain.style.display = "none";
+    els.headSplit.style.display = "";
+
+    els.headSplit.innerHTML = `
+      <div style="display:flex;gap:20px;align-items:baseline;flex-wrap:wrap;margin-top:6px">
+        <div>
+          <div style="font-size:9px;color:rgba(255,255,255,0.2);font-weight:700">100% S&P 500</div>
+          <div style="font-size:26px;font-weight:900;line-height:1">${$s(cur.pure)}</div>
+          <div style="font-size:12px;font-weight:800;color:${accColor(purePnL)}">${purePnL>=0?"+":"-"}${$(Math.abs(purePnL))} (${purePct>=0?"+":""}${purePct.toFixed(1)}%)</div>
+        </div>
+        <div style="font-size:18px;color:rgba(255,255,255,0.08);font-weight:800">vs</div>
+        <div>
+          <div style="font-size:9px;color:rgba(255,255,255,0.2);font-weight:700">S&P + NM WL</div>
+          <div style="font-size:26px;font-weight:900;line-height:1">${$s(cur.total)}</div>
+          <div style="font-size:12px;font-weight:800;color:${accColor(blendPnL)}">${blendPnL>=0?"+":"-"}${$(Math.abs(blendPnL))} (${blendPct>=0?"+":""}${blendPct.toFixed(1)}%)</div>
+        </div>
+        <div>
+          <div style="font-size:9px;color:rgba(255,255,255,0.2);font-weight:700">NM Buffer</div>
+          <div style="font-size:20px;font-weight:900;line-height:1;color:${accColor(bufAdv)}">${bufAdv>=0?"+":"-"}${$(Math.abs(bufAdv))}</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.20);font-weight:700;margin-top:2">${cur.label} · Age ${cur.age}</div>
+        </div>
+      </div>
+    `;
+  }
+}
+
+function renderChart(){
+  const cur = curRow();
+
+  if(state.mode === "split"){
+    const blocks = [
+      { f:"pure", l:"100% S&P 500, all dollars into market", v:cur.pure, pnl:(cur.pure-cur.totalIn), h:125, base:state.initial },
+      { f:"total", l:"S&P 500 + NM Cash Value combined", v:cur.total, pnl:(cur.total-cur.totalIn), h:125, base:state.initial },
+      { f:"cv", l:`NM Cash Value (${(NM_DIV*100).toFixed(2)}% dividend · steady growth)`, v:cur.cv, pnl:(cur.cv-cur.totPrem), h:80, base:0 }
+    ];
+
+    els.legend.style.display = "none";
+
+    els.chart.innerHTML = blocks.map((b,ci)=>{
+      const acc = accColor(b.pnl);
+      return `
+        <div style="margin-top:${ci>0?8:0}px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px">
+            <span style="font-size:9px;color:rgba(255,255,255,0.20);font-weight:700">${b.l}</span>
+            <div>
+              <span style="font-size:13px;font-weight:900">${$(b.v)}</span>
+              <span style="font-size:10px;font-weight:900;color:${acc};margin-left:6px">${b.pnl>=0?"+":"-"}${$(Math.abs(b.pnl))}</span>
+            </div>
+          </div>
+          ${drawChartOne({ field:b.f, ghostField:null, height:b.h, baseValue:b.base })}
+        </div>
+      `;
+    }).join("");
+
+  } else {
+    const field = state.mode === "pure" ? "pure" : "total";
+    const ghost = state.mode === "blend" ? "pure" : null;
+    els.chart.innerHTML = drawChartOne({ field, ghostField: ghost, height: 280, baseValue: state.initial });
+
+    els.legend.style.display = (state.mode === "blend") ? "" : "none";
+  }
+
+  attachHover();
+}
+
+function renderPlayback(){
+  const cur = curRow();
+  const mainPnL = (state.mode === "pure") ? (cur.pure-cur.totalIn) : (cur.total-cur.totalIn);
+  const acc = accColor(mainPnL);
+
+  const at = state.idx >= 0 ? state.idx : (state.data.length-1);
+  const pct = (at/(state.data.length-1))*100;
+  els.barFill.style.width = pct.toFixed(2) + "%";
+  els.barFill.style.background = acc;
+
+  if(state.playing){
+    els.playBtn.textContent = "❚❚";
+    els.playBtn.style.background = "rgba(255,80,0,0.15)";
+    els.playBtn.style.color = "var(--red)";
+  } else {
+    els.playBtn.textContent = "▶";
+    els.playBtn.style.background = "var(--green)";
+    els.playBtn.style.color = "#000";
+  }
+}
+
+function renderLive(){
+  const cur = curRow();
+  const moPrem = state.premium/12;
+
+  const purePnL = cur.pure - cur.totalIn;
+  const blendPnL = cur.total - cur.totalIn;
+  const purePct = (purePnL/cur.totalIn)*100;
+  const blendPct = (blendPnL/cur.totalIn)*100;
+  const bufAdv = blendPnL - purePnL;
+
+  const inC = cur.isCrisis && state.idx >= 0;
+  if(!inC){
+    els.livePanel.style.display = "none";
+    els.livePanel.innerHTML = "";
+    return;
+  }
+
+  const bigL = cur.r < -0.05;
+
+  els.livePanel.style.display = "";
+  els.livePanel.className = "panel" + (bigL ? " flash" : "");
+  els.livePanel.innerHTML = `
+    <div class="liveTop">
+      <div class="dot"></div>
+      <div class="liveT">LIVE P&L · ${cur.label} · S&P: ${cur.r>=0?"+":""}${(cur.r*100).toFixed(1)}%</div>
+    </div>
+
+    <div class="cols">
+      <div class="col border">
+        <div class="k">100% S&P 500</div>
+        <div class="v">${$(cur.pure)}</div>
+        <div style="font-size:13px;font-weight:900;color:${accColor(purePnL)}">${purePnL>=0?"+":"-"}${$(Math.abs(purePnL))} (${purePct>=0?"+":""}${purePct.toFixed(1)}%)</div>
+        <div class="note">${$(state.monthly)} + ${$(moPrem)} per month all in SPX</div>
+      </div>
+
+      <div class="col border" style="min-width:150px">
+        <div class="k">S&P + NM WL</div>
+        <div class="v">${$(cur.total)}</div>
+        <div style="font-size:13px;font-weight:900;color:${accColor(blendPnL)}">${blendPnL>=0?"+":"-"}${$(Math.abs(blendPnL))} (${blendPct>=0?"+":""}${blendPct.toFixed(1)}%)</div>
+        <div class="note">${$(state.monthly)} per month SPX · ${$(moPrem)} per month NM premium</div>
+      </div>
+
+      <div class="col" style="min-width:130px">
+        <div class="k">NM Buffer</div>
+        <div class="v" style="color:${accColor(bufAdv)}">${bufAdv>=0?"+":"-"}${$(Math.abs(bufAdv))}</div>
+        <div style="font-size:9px;color:rgba(255,255,255,0.18);font-weight:800;margin-top:2px">
+          CV: ${$(cur.cv)} · DD: ${cur.blendDD.toFixed(1)}% vs ${cur.pureDD.toFixed(1)}%
+        </div>
+      </div>
+    </div>
+
+    ${cur.dist>0 ? `<div class="loan">Tax free policy loan: ${$(cur.dist)} · avoided selling equities at ${(cur.r*100).toFixed(1)}%</div>` : ``}
+  `;
+}
+
+function renderStats(){
+  const cur = curRow();
+  const moPrem = state.premium/12;
+
+  const items = [
+    { l:"NM Cash Value", v:$(cur.cv), s:`Age ${cur.age}`, c:"var(--green)" },
+    { l:"Death Benefit", v:$s(cur.db), s:"Tax free", c:"rgba(255,255,255,0.25)" },
+    { l:"Premiums Paid", v:$(cur.totPrem), s:cur.paying ? `${$(moPrem)} per month` : "Paid up", c:cur.paying?"rgba(255,255,255,0.25)":"var(--green)" },
+    { l:"Dividends Earned", v:$(cur.totDiv), s:`${(NM_DIV*100).toFixed(2)}%`, c:"var(--gold)" },
+    { l:"COI Charges", v:$(cur.totCOI), s:`${$(cur.coi)} per year now`, c:"var(--red)" },
+    { l:"Distributions", v:$(cur.totDist), s:"Tax free loans", c:"var(--green)" },
+    { l:"Total Invested", v:$(cur.totalIn), s:"Same both strategies", c:"rgba(255,255,255,0.25)" },
+    { l:"NM Rating", v:"AAA", s:"Highest possible", c:"var(--green)" }
+  ];
+
+  els.stats.innerHTML = items.map(it=>`
+    <div class="stat">
+      <div class="sl">${it.l}</div>
+      <div class="sv">${it.v}</div>
+      <div class="ss" style="color:${it.c}">${it.s}</div>
+    </div>
+  `).join("");
+}
+
+function renderCOI(){
+  const cur = curRow();
+  els.coiTitle.textContent = `Cost of Insurance · Pay to ${state.payTo} · Face: ${$s(state.premium*18)}`;
+
+  const chips = COI_T
+    .filter(([a])=> a>=state.age && a<=state.age+35)
+    .map(([a,r])=>{
+      const c = (state.premium*18/1000)*r;
+      const now = (cur.age>=a && cur.age<a+5);
+      return `
+        <div class="chip ${now?"on":""}">
+          <div class="chipA ${now?"on":""}">${a} to ${a+4}</div>
+          <div class="chipV ${now?"on":""}">${$(c)}</div>
+          <div class="chipP">${(c/state.premium*100).toFixed(1)}%</div>
+        </div>
+      `;
+    }).join("");
+
+  els.coiRow.innerHTML = chips;
+}
+
+function renderFoot(){
+  els.foot.textContent =
+    `S&P 500 monthly returns 2000 to 2024. NM policy at ${(NM_DIV*100).toFixed(2)}% dividend scale, not guaranteed. COI illustrative. ` +
+    `100% Market redirects premium into SPX, same total dollars invested. Not financial advice.`;
+}
+
+function render(){
+  renderHeader();
+  renderChart();
+  renderPlayback();
+  renderLive();
+  renderStats();
+  renderCOI();
+  renderFoot();
+}
+
+/* ============================
+   EVENTS
+============================ */
+
+function stopPlayback(){
+  state.playing = false;
+  if(state.tmr) clearTimeout(state.tmr);
+  state.tmr = null;
+}
+
+function tick(){
+  if(!state.playing) return;
+
+  const next = (state.idx < 0) ? 0 : (state.idx + 1);
+  if(next >= state.data.length){
+    state.idx = state.data.length-1;
+    stopPlayback();
+    render();
+    return;
+  }
+
+  state.idx = next;
+
+  const r = SP500[next];
+  const crisis = CRISES.some(c => next>=c.start && next<=c.end);
+
+  let del;
+  if(crisis && r < -0.08) del = 1500/state.speed;
+  else if(crisis && r < -0.05) del = 1000/state.speed;
+  else if(crisis && r < -0.02) del = 650/state.speed;
+  else if(crisis) del = 420/state.speed;
+  else if(r < -0.04) del = 500/state.speed;
+  else del = 50/state.speed;
+
+  render();
+  state.tmr = setTimeout(tick, del);
+}
+
+els.editBtn.addEventListener("click", ()=>{
+  state.setup = !state.setup;
+  els.settings.style.display = state.setup ? "" : "none";
+  els.editBtn.textContent = state.setup ? "Done" : "Edit";
+});
+
+els.rInitial.addEventListener("input", (e)=>{ state.initial = Number(e.target.value); stopPlayback(); state.idx=-1; state.hover=null; calc(); setRanges(); render(); });
+els.rMonthly.addEventListener("input", (e)=>{ state.monthly = Number(e.target.value); stopPlayback(); state.idx=-1; state.hover=null; calc(); setRanges(); render(); });
+els.rPremium.addEventListener("input", (e)=>{ state.premium = Number(e.target.value); stopPlayback(); state.idx=-1; state.hover=null; calc(); setRanges(); render(); });
+els.rAge.addEventListener("input", (e)=>{ state.age = Number(e.target.value); stopPlayback(); state.idx=-1; state.hover=null; calc(); setRanges(); render(); });
+
+els.pay65.addEventListener("click", ()=>{ state.payTo = 65; stopPlayback(); state.idx=-1; state.hover=null; calc(); setRanges(); render(); });
+els.pay100.addEventListener("click", ()=>{ state.payTo = 100; stopPlayback(); state.idx=-1; state.hover=null; calc(); setRanges(); render(); });
+
+document.querySelectorAll(".tab").forEach(b=>{
+  b.addEventListener("click", ()=>{
+    document.querySelectorAll(".tab").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on");
+    state.mode = b.dataset.mode;
+    render();
+  });
+});
+
+els.playBtn.addEventListener("click", ()=>{
+  if(state.idx >= state.data.length-1) state.idx = 0;
+  if(state.idx < 0) state.idx = 0;
+  state.playing = !state.playing;
+  if(state.playing){
+    tick();
+  } else {
+    stopPlayback();
+    render();
+  }
+});
+
+els.resetBtn.addEventListener("click", ()=>{
+  stopPlayback();
+  state.idx = -1;
+  state.hover = null;
+  render();
+});
+
+els.scrubBar.addEventListener("click", (e)=>{
+  const r = els.scrubBar.getBoundingClientRect();
+  const x = e.clientX - r.left;
+  const i = Math.floor((x/r.width)*(state.data.length-1));
+  stopPlayback();
+  state.idx = Math.max(0, Math.min(i, state.data.length-1));
+  state.hover = null;
+  render();
+});
+
+document.querySelectorAll(".sbtn").forEach(b=>{
+  b.addEventListener("click", ()=>{
+    document.querySelectorAll(".sbtn").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on");
+    state.speed = Number(b.dataset.speed);
+    if(state.playing){
+      stopPlayback();
+      state.playing = true;
+      tick();
+    } else {
+      render();
+    }
+  });
+});
+
+/* ============================
+   INIT
+============================ */
+
+calc();
+setRanges();
+render();
+
+window.addEventListener("resize", ()=> render());
+</script>
+
+</body>
+</html>
