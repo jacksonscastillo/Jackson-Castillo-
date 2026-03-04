@@ -1,34 +1,286 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en">
 <head>
-<title>Volatility Buffer Simulator</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
-<style>
-body{
-font-family:Arial;
-background:#1a1d23;
-color:white;
-text-align:center;
-padding:40px
-}
-
-h1{
-font-size:36px
-}
-
-p{
-color:#aaa
-}
-</style>
-
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Volatility Buffer Simulator</title>
+  <style>
+    :root{
+      --bg:#1a1d23;
+      --panel:#0f1217;
+      --line:rgba(255,255,255,0.06);
+      --muted:rgba(255,255,255,0.25);
+      --muted2:rgba(255,255,255,0.18);
+      --good:#00C805;
+      --bad:#FF5000;
+      --amber:#fbbf24;
+      --card:rgba(255,255,255,0.015);
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:var(--bg);color:#fff;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
+    .wrap{max-width:980px;margin:0 auto;padding:0 16px}
+    .nav{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:12px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(26,29,35,0.92);
+      backdrop-filter: blur(10px); z-index:10;
+    }
+    .brand{display:flex;align-items:center;gap:10px}
+    .logo{
+      width:28px;height:28px;border-radius:7px;
+      background:linear-gradient(135deg,#1a6b3c,#2fa84d);
+      display:flex;align-items:center;justify-content:center;
+      font-weight:900;font-size:10px;
+    }
+    .title{font-weight:800;font-size:13px;line-height:1.1}
+    .subtitle{font-weight:600;font-size:9px;color:var(--muted)}
+    .btn{
+      border:1px solid var(--line);background:rgba(255,255,255,0.05);
+      color:rgba(255,255,255,0.7);padding:6px 14px;border-radius:999px;
+      font-weight:700;font-size:11px;cursor:pointer;
+    }
+    .btn:active{transform:scale(0.99)}
+    .settings{
+      border-bottom:1px solid var(--line);
+      padding:14px 16px;background:rgba(0,0,0,0.22);
+      display:none;
+    }
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px}
+    .row{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+    .lab{font-size:9px;color:rgba(255,255,255,0.35);font-weight:700}
+    .val{font-size:12px;font-weight:900}
+    input[type="range"]{
+      width:100%;height:3px;border-radius:4px;outline:none;appearance:none;background:rgba(255,255,255,0.10);
+    }
+    input[type="range"]::-webkit-slider-thumb{
+      appearance:none;width:14px;height:14px;border-radius:50%;background:#fff;border:none;
+    }
+    .chips{display:flex;gap:6px}
+    .chip{
+      flex:1;border-radius:8px;padding:8px 10px;border:1px solid var(--line);
+      background:rgba(255,255,255,0.03);color:rgba(255,255,255,0.35);
+      font-weight:900;font-size:11px;cursor:pointer;
+    }
+    .chip.on{border-color:rgba(0,200,5,0.25);background:rgba(0,200,5,0.10);color:var(--good)}
+    .how{
+      margin-top:12px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);
+      background:rgba(255,255,255,0.02);font-size:10px;line-height:1.7;color:rgba(255,255,255,0.22)
+    }
+    .how b{color:rgba(255,255,255,0.6)}
+    .hdr{padding-top:20px}
+    .hdrTop{font-size:11px;color:rgba(255,255,255,0.30);font-weight:700;margin-bottom:4px}
+    .big{font-size:38px;font-weight:950;letter-spacing:-1.5;line-height:1}
+    .subLine{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;margin-top:6px}
+    .pnl{font-size:15px;font-weight:900}
+    .pct{font-size:13px;font-weight:800}
+    .when{font-size:11px;color:rgba(255,255,255,0.24);font-weight:700}
+    .flag{
+      font-size:9px;font-weight:950;color:var(--bad);
+      background:rgba(255,80,0,0.10);padding:2px 8px;border-radius:4px;
+    }
+    .tabs{
+      display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;width:fit-content;margin:14px 0 10px;
+    }
+    .tab{
+      border:none;background:transparent;color:rgba(255,255,255,0.25);
+      padding:8px 16px;font-size:11px;font-weight:900;cursor:pointer;
+    }
+    .tab.on{background:rgba(255,255,255,0.09);color:#fff}
+    .chartBox{position:relative}
+    .legend{font-size:9px;color:rgba(255,255,255,0.14);margin-top:6px;font-weight:700}
+    .play{
+      display:flex;align-items:center;gap:10px;margin-top:14px;padding:10px 0;border-top:1px solid var(--line);
+    }
+    .playBtn{
+      width:40px;height:40px;border-radius:50%;border:none;cursor:pointer;
+      font-weight:950;font-size:14px;display:flex;align-items:center;justify-content:center;
+      background:var(--good);color:#000;
+    }
+    .playBtn.pause{background:rgba(255,80,0,0.15);color:var(--bad)}
+    .scrub{flex:1;height:4px;border-radius:4px;background:rgba(255,255,255,0.06);position:relative;cursor:pointer}
+    .scrubFill{height:100%;border-radius:4px;width:0%}
+    .speedBtn{
+      border:none;background:transparent;color:rgba(255,255,255,0.25);
+      font-size:10px;font-weight:900;cursor:pointer;padding:4px 8px;border-radius:6px;
+    }
+    .speedBtn.on{background:rgba(255,255,255,0.10);color:#fff}
+    .reset{
+      border:1px solid var(--line);background:transparent;color:rgba(255,255,255,0.30);
+      font-size:10px;font-weight:900;border-radius:8px;padding:5px 10px;cursor:pointer;
+    }
+    .live{
+      margin-top:8px;border-radius:12px;padding:14px 16px;border:1px solid var(--line);
+      background:var(--card);
+    }
+    .liveTop{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+    .dot{width:6px;height:6px;border-radius:50%;background:var(--bad)}
+    .liveLbl{font-size:10px;font-weight:900;color:rgba(255,255,255,0.42)}
+    .liveCols{display:flex;flex-wrap:wrap}
+    .liveCol{flex:1;min-width:160px;padding:8px 14px}
+    .liveCol + .liveCol{border-left:1px solid var(--line)}
+    .miniLab{font-size:9px;color:rgba(255,255,255,0.22);font-weight:800}
+    .miniVal{font-size:20px;font-weight:950;line-height:1.1}
+    .miniP{font-size:13px;font-weight:950}
+    .miniNote{font-size:8px;color:rgba(255,255,255,0.12);font-weight:800;margin-top:3px}
+    .loan{
+      margin-top:10px;border-radius:10px;padding:8px 10px;
+      border:1px solid rgba(0,200,5,0.12);background:rgba(0,200,5,0.06);
+      font-weight:950;font-size:10px;color:var(--good)
+    }
+    .stats{
+      margin-top:12px;border:1px solid rgba(255,255,255,0.03);border-radius:12px;overflow:hidden;
+      display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1px;background:rgba(255,255,255,0.02);
+    }
+    .stat{background:var(--bg);padding:12px 13px}
+    .statL{font-size:9px;color:rgba(255,255,255,0.18);font-weight:800;margin-bottom:2px}
+    .statV{font-size:14px;font-weight:950}
+    .statS{font-size:9px;font-weight:900;margin-top:3px}
+    .coi{
+      margin:12px 0;padding:14px 16px;border-radius:12px;border:1px solid rgba(255,255,255,0.03);
+      background:var(--card);
+    }
+    .coiT{font-size:11px;font-weight:900;color:rgba(255,255,255,0.40);margin-bottom:12px}
+    .coiGrid{display:flex;flex-wrap:wrap;gap:6px}
+    .coiCell{
+      min-width:78px;text-align:center;border-radius:10px;padding:8px 10px;
+      border:1px solid rgba(255,255,255,0.03);background:rgba(255,255,255,0.015);
+    }
+    .coiCell.hot{border-color:rgba(255,80,0,0.18);background:rgba(255,80,0,0.07)}
+    .coiA{font-size:9px;font-weight:900;color:rgba(255,255,255,0.25)}
+    .coiC{font-size:12px;font-weight:950;color:rgba(255,255,255,0.40)}
+    .coiCell.hot .coiA{color:#fff}
+    .coiCell.hot .coiC{color:var(--bad)}
+    .coiP{font-size:8px;font-weight:900;color:rgba(255,255,255,0.12);margin-top:2px}
+    .ey{
+      margin:0 0 20px;padding:16px;border-radius:12px;border:1px solid rgba(251,191,36,0.08);
+      background:rgba(251,191,36,0.02);
+    }
+    .eyTop{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+    .badge{background:var(--amber);color:#000;font-weight:950;font-size:9px;border-radius:4px;padding:2px 8px}
+    .eyLbl{font-size:11px;font-weight:900;color:rgba(255,255,255,0.38)}
+    .eyGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
+    .eyM{font-size:20px;font-weight:950;color:var(--amber)}
+    .eyD{font-size:10px;font-weight:800;color:rgba(255,255,255,0.18);line-height:1.5;margin-top:3px}
+    .fine{padding:10px 0 24px;font-size:8px;color:rgba(255,255,255,0.12);line-height:1.6;font-weight:700}
+    svg{touch-action:none}
+  </style>
 </head>
-
 <body>
+  <div class="nav">
+    <div class="brand">
+      <div class="logo">NM</div>
+      <div>
+        <div class="title">Volatility Buffer</div>
+        <div class="subtitle">AAA or Aaa or A++ · <span id="divLbl"></span> dividend</div>
+      </div>
+    </div>
+    <button class="btn" id="editBtn">Edit</button>
+  </div>
 
-<h1>Volatility Buffer Simulator</h1>
+  <div class="settings" id="settings">
+    <div class="grid">
+      <div>
+        <div class="row"><div class="lab">Initial SPX Investment</div><div class="val" id="vInitial"></div></div>
+        <input id="sInitial" type="range" min="25000" max="1000000" step="25000" />
+      </div>
+      <div>
+        <div class="row"><div class="lab">Monthly to SPX</div><div class="val" id="vMonthly"></div></div>
+        <input id="sMonthly" type="range" min="250" max="10000" step="250" />
+      </div>
+      <div>
+        <div class="row"><div class="lab">NM Annual Premium to WL</div><div class="val" id="vPremium"></div></div>
+        <input id="sPremium" type="range" min="3000" max="50000" step="1000" />
+      </div>
+      <div>
+        <div class="row"><div class="lab">Client Start Age</div><div class="val" id="vAge"></div></div>
+        <input id="sAge" type="range" min="25" max="55" step="1" />
+      </div>
+      <div>
+        <div class="lab" style="margin-bottom:8px">NM Policy Type</div>
+        <div class="chips">
+          <button class="chip" id="pay65">Pay to 65</button>
+          <button class="chip" id="pay100">Pay to 100</button>
+        </div>
+      </div>
+    </div>
 
-<p>Your retirement simulator will load here.</p>
+    <div class="how" id="howBox"></div>
+  </div>
 
-</body>
-</html>
+  <div class="wrap">
+    <div class="hdr">
+      <div class="hdrTop" id="modeLabel"></div>
+      <div id="hdrMain"></div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab on" data-mode="blend">S&P + NM WL</button>
+      <button class="tab" data-mode="pure">100% S&P 500</button>
+      <button class="tab" data-mode="split">Side by Side</button>
+    </div>
+
+    <div class="chartBox">
+      <div id="charts"></div>
+      <div class="legend" id="legend"></div>
+    </div>
+
+    <div class="play">
+      <button class="playBtn" id="playBtn">▶</button>
+      <div class="scrub" id="scrub"><div class="scrubFill" id="scrubFill"></div></div>
+      <button class="speedBtn" data-speed="0.5">0.5x</button>
+      <button class="speedBtn on" data-speed="1">1x</button>
+      <button class="speedBtn" data-speed="2">2x</button>
+      <button class="speedBtn" data-speed="3">3x</button>
+      <button class="reset" id="resetBtn">Reset</button>
+    </div>
+
+    <div id="liveBox"></div>
+    <div class="stats" id="stats"></div>
+
+    <div class="coi">
+      <div class="coiT" id="coiTitle"></div>
+      <div class="coiGrid" id="coiGrid"></div>
+    </div>
+
+    <div class="ey">
+      <div class="eyTop">
+        <span class="badge">EY</span>
+        <span class="eyLbl">Research Highlights</span>
+      </div>
+      <div class="eyGrid">
+        <div><div class="eyM">5 to 8 yrs</div><div class="eyD">Extended portfolio longevity drawing from WL during bear markets</div></div>
+        <div><div class="eyM">+0.5 to 1%</div><div class="eyD">Higher sustainable withdrawal rate with guaranteed CV floor</div></div>
+        <div><div class="eyM">30 to 40%</div><div class="eyD">Reduced max drawdown, the volatility buffer effect</div></div>
+        <div><div class="eyM">15 to 25%</div><div class="eyD">Optimal WL allocation for risk adjusted returns from AAA carriers</div></div>
+      </div>
+    </div>
+
+    <div class="fine" id="finePrint"></div>
+  </div>
+
+<script>
+  const SP500 = [
+    -0.0501,0.0197,0.0967,-0.0308,-0.0221,0.0239,-0.0163,0.0607,-0.0528,-0.0049,-0.0801,0.0046,
+    0.0346,-0.0923,-0.0642,0.0768,0.0051,-0.0250,-0.0108,-0.0626,-0.0817,0.0181,0.0752,0.0076,
+    -0.0156,-0.0208,0.0367,-0.0614,-0.0091,-0.0726,-0.0790,0.0049,-0.1100,0.0864,0.0571,-0.0603,
+    -0.0274,-0.0170,0.0084,0.0810,0.0509,0.0113,0.0162,0.0179,-0.0119,0.0550,0.0071,0.0508,
+    0.0173,0.0122,-0.0164,-0.0168,0.0121,0.0180,-0.0343,0.0023,0.0094,0.0140,0.0386,0.0325,
+    -0.0253,0.0189,-0.0191,-0.0201,0.0300,-0.0001,0.0360,-0.0112,0.0069,-0.0177,0.0352,-0.0010,
+    0.0255,0.0005,0.0111,0.0122,-0.0309,0.0001,0.0051,0.0213,0.0246,0.0315,0.0165,0.0126,
+    0.0141,-0.0218,0.0100,0.0433,0.0325,-0.0178,-0.0321,0.0131,0.0358,0.0148,-0.0440,-0.0086,
+    -0.0612,-0.0348,-0.0060,0.0475,0.0107,-0.0867,-0.0099,0.0122,-0.0908,-0.1694,-0.0741,0.0078,
+    -0.0857,-0.1099,0.0854,0.0939,0.0531,0.0002,0.0741,0.0336,0.0357,-0.0198,0.0574,0.0178,
+    -0.0371,0.0285,0.0588,0.0148,-0.0821,-0.0539,0.0689,-0.0474,0.0876,0.0369,-0.0023,0.0653,
+    0.0226,0.0320,-0.0010,0.0285,-0.0135,-0.0178,-0.0214,-0.0568,-0.0718,0.1077,-0.0051,0.0085,
+    0.0436,0.0396,0.0313,-0.0075,-0.0627,0.0396,0.0126,0.0199,0.0245,-0.0198,0.0028,0.0071,
+    0.0504,0.0111,0.0360,0.0181,0.0209,-0.0150,0.0495,-0.0311,0.0297,0.0444,0.0280,0.0236,
+    -0.0359,0.0432,0.0069,0.0062,0.0209,0.0191,-0.0150,0.0377,-0.0157,0.0232,0.0245,-0.0042,
+    -0.0306,0.0549,-0.0174,0.0085,0.0105,-0.0211,0.0200,-0.0644,-0.0264,0.0802,0.0005,-0.0175,
+    -0.0507,-0.0041,0.0660,0.0027,0.0153,0.0009,0.0356,-0.0012,-0.0012,-0.0194,0.0342,0.0182,
+    0.0179,0.0372,-0.0004,0.0091,0.0109,0.0048,0.0193,0.0005,0.0193,0.0224,0.0281,0.0098,
+    0.0565,-0.0389,-0.0269,0.0027,0.0216,0.0046,0.0360,0.0305,0.0043,-0.0694,0.0179,-0.0918,
+    0.0790,0.0297,0.0179,0.0393,-0.0658,0.0689,0.0131,-0.0181,0.0172,0.0204,0.0340,0.0286,
+    -0.0016,-0.0841,-0.1251,0.1268,0.0451,0.0184,0.0551,0.0701,-0.0381,-0.0277,0.1075,0.0362,
+    -0.0127,0.0261,0.0424,0.0530,0.0055,0.0222,0.0233,0.0290,-0.0476,0.0665,-0.0083,0.0436,
+    -0.0570,-0.0323,0.0358,-0.0880,0.0001,-0.0838,0.0912,-0.0424,-0.0946,0.0793,0.0536,-0.0586,
+    0.0618,-0.0261,0.0351,0.0146,0.0025,0.0626,0.0306,-0.0177,-0.0487,-0.0218,0.0889,0.0454,
+    0.0159,0.0516,0.0308,-0.0420,0.0480,0.0345,0.0113,0.0225
