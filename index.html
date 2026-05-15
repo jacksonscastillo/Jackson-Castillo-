@@ -3,810 +3,349 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Volatility Buffer Simulator</title>
+  <title>NMIS Fund Analysis</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-
-  <style>
-    :root{
-      --bg:#1a1d23;
-      --panel:#0f1217;
-      --line:rgba(255,255,255,0.06);
-      --muted:rgba(255,255,255,0.25);
-      --muted2:rgba(255,255,255,0.18);
-      --good:#00C805;
-      --bad:#FF5000;
-      --amber:#fbbf24;
-      --card:rgba(255,255,255,0.015);
-    }
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{background:var(--bg);color:#fff;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
-    .nav{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--line)}
-    .brand{display:flex;align-items:center;gap:8}
-    .logo{width:26px;height:26px;border-radius:6px;background:linear-gradient(135deg,#1a6b3c,#2fa84d);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:10px}
-    .title{font-size:13px;font-weight:800}
-    .sub{font-size:9px;color:rgba(255,255,255,0.25);font-weight:600}
-    .btn{background:rgba(255,255,255,0.06);border:0;border-radius:20px;padding:6px 14px;color:rgba(255,255,255,0.6);font-size:11px;font-weight:700;cursor:pointer}
-    .wrap{max-width:980px;margin:0 auto;padding:0 16px}
-    .hdr{padding-top:20px}
-    .kicker{font-size:11px;color:rgba(255,255,255,0.3);font-weight:600;margin-bottom:2}
-    .big{font-size:38px;font-weight:900;line-height:1;letter-spacing:-1.5px}
-    .row{display:flex;align-items:center;gap:8;margin-top:6px;flex-wrap:wrap}
-    .pnl{font-size:15px;font-weight:800}
-    .pct{font-size:13px;font-weight:700}
-    .meta{font-size:11px;color:rgba(255,255,255,0.25);margin-left:4}
-    .pill{font-size:9px;font-weight:900;color:var(--bad);background:rgba(255,80,0,0.1);padding:2px 7px;border-radius:3px}
-    .tabs{display:flex;gap:0;margin:12px 0 8px;border-radius:8px;overflow:hidden;border:1px solid var(--line);width:max-content}
-    .tab{padding:7px 16px;border:0;cursor:pointer;font-size:11px;font-weight:700;background:transparent;color:rgba(255,255,255,0.25)}
-    .tab.active{background:rgba(255,255,255,0.08);color:#fff}
-    .panel{border-bottom:1px solid var(--line);background:rgba(0,0,0,0.18)}
-    .settings{padding:14px 16px}
-    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
-    .field{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:10px;padding:10px 10px}
-    .fieldTop{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;gap:10px}
-    .lab{font-size:10px;color:rgba(255,255,255,0.35);font-weight:700}
-    .numWrap{display:flex;align-items:center;gap:8}
-    .num{width:120px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#fff;border-radius:8px;padding:6px 10px;font-weight:800;font-size:12px}
-    .num:focus{outline:2px solid rgba(0,200,5,0.25)}
-    input[type=range]{-webkit-appearance:none;appearance:none;background:rgba(255,255,255,0.08);border-radius:4px;height:3px;outline:none;cursor:pointer;width:100%}
-    input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#fff;border:none}
-    .miniCard{margin-top:12px;padding:10px 12px;background:rgba(255,255,255,0.02);border-radius:10px;border:1px solid rgba(255,255,255,0.04)}
-    .miniTitle{font-size:10px;font-weight:800;color:rgba(255,255,255,0.45);margin-bottom:4px}
-    .miniText{font-size:10px;color:rgba(255,255,255,0.22);line-height:1.7}
-    .modeBtns{display:flex;gap:4}
-    .modeBtn{flex:1;padding:7px;border-radius:8px;font-size:11px;font-weight:800;cursor:pointer;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.03);color:rgba(255,255,255,0.35)}
-    .modeBtn.active{background:rgba(0,200,5,0.10);border-color:rgba(0,200,5,0.25);color:var(--good)}
-    .chartBox{position:relative;margin-top:6px}
-    .legend{font-size:9px;color:rgba(255,255,255,0.12);margin-top:4px}
-    .play{display:flex;align-items:center;gap:10px;margin-top:14px;padding:10px 0;border-top:1px solid rgba(255,255,255,0.04)}
-    .playBtn{width:38px;height:38px;border-radius:50%;border:0;cursor:pointer;flex-shrink:0;font-size:14px;font-weight:900;display:flex;align-items:center;justify-content:center}
-    .bar{flex:1;position:relative;height:4px;background:rgba(255,255,255,0.05);border-radius:2px;cursor:pointer}
-    .barFill{position:absolute;top:0;left:0;height:100%;border-radius:2px}
-    .speedBtn{padding:3px 8px;border-radius:6px;border:0;cursor:pointer;font-size:10px;font-weight:800;background:transparent;color:rgba(255,255,255,0.25)}
-    .speedBtn.active{background:rgba(255,255,255,0.10);color:#fff}
-    .reset{padding:3px 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:transparent;color:rgba(255,255,255,0.28);font-size:10px;font-weight:800;cursor:pointer}
-    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1;margin:12px 0 0;background:rgba(255,255,255,0.02);border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,0.03)}
-    .stat{padding:11px 13px;background:var(--bg)}
-    .statL{font-size:9px;color:rgba(255,255,255,0.18);font-weight:700;margin-bottom:1px}
-    .statV{font-size:14px;font-weight:900}
-    .statS{font-size:9px;font-weight:800;margin-top:1px}
-    .foot{padding:10px 0 20px;font-size:8px;color:rgba(255,255,255,0.12);line-height:1.6}
-
-    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-  </style>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Serif+Display&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0a1628}</style>
 </head>
-
 <body>
-  <div class="nav">
-    <div class="brand">
-      <div class="logo">NM</div>
-      <div>
-        <div class="title">Volatility Buffer</div>
-        <div class="sub">AAA/Aaa/A++ · <span id="divScale"></span> Dividend</div>
-      </div>
-    </div>
-    <button class="btn" id="editBtn">Edit</button>
-  </div>
+  <div id="root"></div>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script type="text/babel">
+    const { useState } = React;
 
-  <div id="settingsPanel" class="panel" style="display:none">
-    <div class="settings wrap">
-      <div class="grid">
-        <div class="field">
-          <div class="fieldTop">
-            <div class="lab">Initial SPX Investment</div>
-            <div class="numWrap">
-              <input class="num" id="initialNum" type="number" step="25000" min="25000" max="1000000">
+    const NAVY       = "#0a1628";
+    const NAVY_MID   = "#132240";
+    const NAVY_LIGHT = "#1a2d50";
+    const GOLD       = "#c9a84c";
+    const GOLD_LIGHT = "#e8d48b";
+    const GOLD_DIM   = "rgba(201,168,76,0.15)";
+    const WHITE      = "#f0ece4";
+    const GRAY       = "#8a9bb5";
+    const GREEN      = "#3ecf8e";
+    const RED        = "#ef4444";
+
+    const funds = {
+      taxable: {
+        conservative: [
+          { ticker:"AUNAX", name:"AB Municipal Bond Inflation Strategy A",   cat:"Muni National Short",     er:0.75, r1y:4.68,  rk1:11, r3y:3.93,  rk3:13,   r5y:2.68,  rk5:3,    score:89.0, consistency:4.5,  rationale:"Top quartile 5Y rank with inflation protection. Tax exempt income ideal for high bracket taxable accounts. Low duration mitigates rate risk." },
+          { ticker:"EXMAX", name:"Eaton Vance Short Duration Muni Opps A",   cat:"Muni National Short",     er:0.67, r1y:4.81,  rk1:10, r3y:4.34,  rk3:2,    r5y:1.86,  rk5:26,   score:84.7, consistency:9.9,  rationale:"Exceptional 3Y category rank (top 2%). Short duration provides capital preservation. Low expense ratio enhances after tax yield." },
+          { ticker:"PFIAX", name:"PIMCO Low Duration Income A",               cat:"Nontraditional Bond",     er:0.93, r1y:9.37,  rk1:1,  r3y:7.77,  rk3:3,    r5y:3.98,  rk5:4,    score:92.8, consistency:1.2,  rationale:"Number 1 ranked fund in category over 1Y. Exceptional consistency across all periods (1.2 rank std dev). PIMCO's institutional fixed income expertise." },
+          { ticker:"LGRAX", name:"Lord Abbett Inv Grade Floating Rate A",    cat:"Floating Rate",           er:0.57, r1y:5.83,  rk1:5,  r3y:null,  rk3:null, r5y:null,  rk5:null, score:98.0, consistency:null, rationale:"Lowest expense ratio in category. Floating rate structure provides natural rate hedge. Investment grade credit quality limits downside." },
+        ],
+        moderate: [
+          { ticker:"AIVSX", name:"American Funds Invmt Co of Amer A",        cat:"Large Blend",             er:0.56, r1y:20.50, rk1:9,  r3y:24.61, rk3:9,    r5y:15.37, rk5:8,    score:90.8, consistency:0.5,  rationale:"Best in class consistency (0.5 rank std dev). Lowest ER in large cap tier. Top decile across ALL timeframes. Capital Group's research depth." },
+          { ticker:"ABALX", name:"American Funds American Balanced A",       cat:"Moderate Allocation",     er:0.56, r1y:18.47, rk1:4,  r3y:15.79, rk3:12,   r5y:9.57,  rk5:5,    score:92.2, consistency:3.4,  rationale:"60/40 structure with top quintile performance. 0.56% ER is category leading. Built in rebalancing reduces transaction costs in taxable." },
+          { ticker:"BRXAX", name:"MFS Blended Research Intl Equity A",       cat:"Foreign Large Blend",     er:0.77, r1y:39.58, rk1:5,  r3y:21.12, rk3:3,    r5y:11.69, rk5:4,    score:93.4, consistency:0.8,  rationale:"Quant/fundamental blend reduces manager risk. Sub 1.0 rank consistency across periods. International diversification for tax loss harvesting optionality." },
+          { ticker:"AMHIX", name:"American High Income Muni Bond A",         cat:"High Yield Muni",         er:0.66, r1y:4.31,  rk1:15, r3y:6.14,  rk3:6,    r5y:2.15,  rk5:10,   score:88.6, consistency:3.7,  rationale:"Tax exempt high yield provides superior after tax income. American Funds platform with 0.66% ER. Pairs well with equity holdings for diversification." },
+        ],
+        aggressive: [
+          { ticker:"FDTTX", name:"Fidelity Advisor Capital Development A",   cat:"Large Growth",            er:0.82, r1y:27.12, rk1:3,  r3y:25.83, rk3:4,    r5y:17.98, rk5:2,    score:93.8, consistency:0.8,  rationale:"Top 4% across ALL periods. Sub 1.0 consistency score signals persistent alpha generation. Fidelity's research platform and sector rotation capability." },
+          { ticker:"FELAX", name:"Fidelity Advisor Semiconductors A",        cat:"Technology",              er:0.94, r1y:44.87, rk1:5,  r3y:53.85, rk3:2,    r5y:30.09, rk5:2,    score:92.8, consistency:1.4,  rationale:"30%+ annualized 5Y return with top 2% rank. Secular AI/chip growth thesis. Higher concentration risk but exceptional return per unit of expense." },
+          { ticker:"VVOAX", name:"Invesco Value Opportunities A",            cat:"Mid Cap Value",           er:1.02, r1y:20.15, rk1:4,  r3y:21.64, rk3:2,    r5y:19.86, rk5:1,    score:92.7, consistency:1.2,  rationale:"NUMBER 1 ranked fund in category over 5 years. Nearly 20% annualized over 5Y in mid cap value. Provides style diversification vs growth heavy portfolios." },
+          { ticker:"TSMEX", name:"Nuveen Quant Small/Mid Cap Eq A",          cat:"Small Blend",             er:0.82, r1y:15.74, rk1:7,  r3y:18.09, rk3:3,    r5y:12.54, rk5:4,    score:92.4, consistency:1.7,  rationale:"Quantitative approach reduces behavioral bias. Top 7% consistency across all periods. 0.82% ER is competitive for active small cap. Size factor exposure." },
+        ],
+      },
+      roth: {
+        conservative: [
+          { ticker:"BERGX", name:"Carillon Chartwell Real Income A",         cat:"Multisector Bond",        er:0.82, r1y:12.85, rk1:2,  r3y:9.08,  rk3:0,    r5y:4.49,  rk5:0,    score:96.3, consistency:0.9,  rationale:"Near perfect category rankings. 12.85% 1Y return in fixed income is exceptional. Real income focus provides inflation hedge inside tax free wrapper." },
+          { ticker:"IPBAX", name:"Allspring Real Return A",                  cat:"Inflation Protected Bond", er:0.77, r1y:10.90, rk1:6,  r3y:8.10,  rk3:2,    r5y:4.11,  rk5:3,    score:93.9, consistency:1.7,  rationale:"Top 6% across all periods. TIPS based strategy better in Roth since inflation adjustments are taxable in brokerage. 0.77% ER." },
+          { ticker:"FAHDX", name:"Fidelity Advisor Capital & Income A",      cat:"High Yield Bond",         er:1.18, r1y:11.78, rk1:2,  r3y:11.42, rk3:3,    r5y:6.63,  rk5:2,    score:90.9, consistency:0.5,  rationale:"Best consistency score in the entire analysis (0.5). High yield income compounds tax free in Roth. Top 3% across all timeframes." },
+          { ticker:"PFIAX", name:"PIMCO Low Duration Income A",               cat:"Nontraditional Bond",     er:0.93, r1y:9.37,  rk1:1,  r3y:7.77,  rk3:3,    r5y:3.98,  rk5:4,    score:92.8, consistency:1.2,  rationale:"Category leader. Income distributions sheltered from tax in Roth. Short duration limits NAV volatility for near term Roth conversion planning." },
+        ],
+        moderate: [
+          { ticker:"GWPAX", name:"American Funds Growth Portfolio A",        cat:"Aggressive Allocation",   er:0.71, r1y:20.48, rk1:2,  r3y:23.09, rk3:2,    r5y:10.09, rk5:13,   score:91.5, consistency:4.9,  rationale:"Top 2% in 1Y and 3Y. Growth allocation maximizes long term compounding inside Roth. Capital Group's multi manager structure reduces key person risk." },
+          { ticker:"FGTAX", name:"Fidelity Advisor Mega Cap Stock A",        cat:"Large Blend",             er:0.86, r1y:26.53, rk1:3,  r3y:26.10, rk3:4,    r5y:18.04, rk5:2,    score:93.5, consistency:0.8,  rationale:"18% annualized 5Y with top 2% rank. Mega cap focus provides liquidity and lower vol. Capital gains sheltered from tax in Roth." },
+          { ticker:"JFEAX", name:"JPMorgan Dev International Value A",       cat:"Foreign Large Value",     er:1.00, r1y:48.00, rk1:6,  r3y:24.41, rk3:2,    r5y:16.14, rk5:2,    score:92.0, consistency:1.9,  rationale:"48% 1Y return with top 2% 3Y and 5Y ranks. International dividends and gains fully sheltered in Roth. JPMorgan's global research platform." },
+          { ticker:"AIVSX", name:"American Funds Invmt Co of Amer A",        cat:"Large Blend",             er:0.56, r1y:20.50, rk1:9,  r3y:24.61, rk3:9,    r5y:15.37, rk5:8,    score:90.8, consistency:0.5,  rationale:"Unmatched consistency (0.5). 0.56% ER maximizes compound growth over decades. Core holding for any long duration Roth portfolio." },
+        ],
+        aggressive: [
+          { ticker:"FELAX", name:"Fidelity Advisor Semiconductors A",        cat:"Technology",              er:0.94, r1y:44.87, rk1:5,  r3y:53.85, rk3:2,    r5y:30.09, rk5:2,    score:92.8, consistency:1.4,  rationale:"30%+ annualized compounds tax free. Massive capital gains fully sheltered in Roth. Secular AI/semiconductor thesis has long runway." },
+          { ticker:"FDTTX", name:"Fidelity Advisor Capital Development A",   cat:"Large Growth",            er:0.82, r1y:27.12, rk1:3,  r3y:25.83, rk3:4,    r5y:17.98, rk5:2,    score:93.8, consistency:0.8,  rationale:"Highest composite score in equity. Growth compounding tax free over 30+ year Roth horizon. Persistent top quartile alpha." },
+          { ticker:"VVOAX", name:"Invesco Value Opportunities A",            cat:"Mid Cap Value",           er:1.02, r1y:20.15, rk1:4,  r3y:21.64, rk3:2,    r5y:19.86, rk5:1,    score:92.7, consistency:1.2,  rationale:"#1 in category 5Y. Mid cap value distributions (higher dividend yield) sheltered in Roth. Style diversification from growth tilted core." },
+          { ticker:"FHKAX", name:"Fidelity Advisor China Region A",          cat:"China Region",            er:1.17, r1y:42.21, rk1:6,  r3y:20.20, rk3:4,    r5y:2.61,  rk5:11,   score:86.0, consistency:2.9,  rationale:"High volatility EM play better suited for Roth's long horizon. 42% 1Y return shows recovery potential. Tax inefficient distributions sheltered." },
+          { ticker:"TSMEX", name:"Nuveen Quant Small/Mid Cap Eq A",          cat:"Small Blend",             er:0.82, r1y:15.74, rk1:7,  r3y:18.09, rk3:3,    r5y:12.54, rk5:4,    score:92.4, consistency:1.7,  rationale:"Small cap premium harvested tax free. Quantitative discipline reduces drawdown risk. 0.82% ER is efficient for active SMID." },
+        ],
+      },
+    };
+
+    const ScoreBadge = ({ score }) => {
+      const color = score >= 92 ? GREEN : score >= 85 ? GOLD : score >= 75 ? GRAY : RED;
+      return (
+        <span style={{ background:`${color}22`, color, padding:"2px 10px", borderRadius:4, fontWeight:700, fontSize:13, fontFamily:"'DM Mono',monospace" }}>
+          {score.toFixed(1)}
+        </span>
+      );
+    };
+
+    const RankPill = ({ rank }) => {
+      if (rank === null || rank === undefined) return <span style={{ color:GRAY, fontSize:12 }}>N/A</span>;
+      const color = rank <= 5 ? GREEN : rank <= 15 ? GOLD : rank <= 30 ? GRAY : RED;
+      return (
+        <span style={{ color, fontWeight:600, fontFamily:"'DM Mono',monospace", fontSize:13 }}>
+          {rank === 0 ? "Top" : `${rank}`}
+        </span>
+      );
+    };
+
+    const MetricBar = ({ value, max, color }) => (
+      <div style={{ width:"100%", height:4, background:"rgba(10,22,40,0.8)", borderRadius:2, overflow:"hidden" }}>
+        <div style={{ width:`${Math.min((value/max)*100, 100)}%`, height:"100%", background:color, borderRadius:2, transition:"width 0.6s ease" }} />
+      </div>
+    );
+
+    const FundCard = ({ fund }) => {
+      const [expanded, setExpanded] = useState(false);
+      return (
+        <div
+          onClick={() => setExpanded(!expanded)}
+          style={{
+            background:NAVY_MID,
+            border:`1px solid ${expanded ? GOLD : "rgba(201,168,76,0.12)"}`,
+            borderRadius:8,
+            padding:"14px 16px",
+            marginBottom:8,
+            cursor:"pointer",
+            transition:"all 0.25s ease",
+          }}
+        >
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12 }}>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
+                <span style={{ color:GOLD, fontWeight:700, fontFamily:"'DM Mono',monospace", fontSize:14, letterSpacing:0.5 }}>{fund.ticker}</span>
+                <ScoreBadge score={fund.score} />
+              </div>
+              <div style={{ color:WHITE, fontSize:13, fontWeight:500, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{fund.name}</div>
+              <div style={{ color:GRAY, fontSize:11, marginTop:2 }}>{fund.cat} | ER: {fund.er}%</div>
+            </div>
+            <div style={{ display:"flex", gap:16, flexShrink:0 }}>
+              {[
+                { label:"1Y", val:fund.r1y, rank:fund.rk1 },
+                { label:"3Y", val:fund.r3y, rank:fund.rk3 },
+                { label:"5Y", val:fund.r5y, rank:fund.rk5 },
+              ].map((p) => (
+                <div key={p.label} style={{ textAlign:"center", minWidth:48 }}>
+                  <div style={{ color:GRAY, fontSize:10, fontWeight:600, letterSpacing:1, marginBottom:2 }}>{p.label}</div>
+                  <div style={{ color:WHITE, fontSize:13, fontWeight:600, fontFamily:"'DM Mono',monospace" }}>
+                    {p.val !== null ? `${p.val.toFixed(1)}%` : "—"}
+                  </div>
+                  <div style={{ fontSize:10, marginTop:1 }}>R<RankPill rank={p.rank} /></div>
+                </div>
+              ))}
             </div>
           </div>
-          <input id="initialRange" type="range" min="25000" max="1000000" step="25000">
-        </div>
 
-        <div class="field">
-          <div class="fieldTop">
-            <div class="lab">Monthly to SPX</div>
-            <div class="numWrap">
-              <input class="num" id="monthlyNum" type="number" step="250" min="250" max="10000">
+          {expanded && (
+            <div style={{ marginTop:12, paddingTop:12, borderTop:`1px solid rgba(201,168,76,0.1)` }}>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12, marginBottom:12 }}>
+                <div>
+                  <div style={{ color:GRAY, fontSize:10, fontWeight:600, letterSpacing:1, marginBottom:4 }}>EXPENSE RATIO</div>
+                  <div style={{ color:fund.er<=0.75?GREEN:fund.er<=1.0?GOLD:RED, fontSize:16, fontWeight:700, fontFamily:"'DM Mono',monospace" }}>{fund.er}%</div>
+                  <MetricBar value={2-fund.er} max={2} color={fund.er<=0.75?GREEN:fund.er<=1.0?GOLD:RED} />
+                </div>
+                <div>
+                  <div style={{ color:GRAY, fontSize:10, fontWeight:600, letterSpacing:1, marginBottom:4 }}>COMPOSITE SCORE</div>
+                  <div style={{ color:fund.score>=92?GREEN:GOLD, fontSize:16, fontWeight:700, fontFamily:"'DM Mono',monospace" }}>{fund.score.toFixed(1)}</div>
+                  <MetricBar value={fund.score} max={100} color={fund.score>=92?GREEN:GOLD} />
+                </div>
+                <div>
+                  <div style={{ color:GRAY, fontSize:10, fontWeight:600, letterSpacing:1, marginBottom:4 }}>RANK CONSISTENCY</div>
+                  <div style={{ color:fund.consistency!==null?(fund.consistency<=2?GREEN:fund.consistency<=5?GOLD:RED):GRAY, fontSize:16, fontWeight:700, fontFamily:"'DM Mono',monospace" }}>
+                    {fund.consistency !== null ? fund.consistency.toFixed(1) : "N/A"}
+                  </div>
+                  {fund.consistency !== null && <MetricBar value={20-fund.consistency} max={20} color={fund.consistency<=2?GREEN:fund.consistency<=5?GOLD:RED} />}
+                </div>
+              </div>
+
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12 }}>
+                <div>
+                  <div style={{ color:GRAY, fontSize:10, fontWeight:600, letterSpacing:1, marginBottom:4 }}>RETURN/EXPENSE (3Y)</div>
+                  <div style={{ color:WHITE, fontSize:14, fontWeight:600, fontFamily:"'DM Mono',monospace" }}>
+                    {fund.r3y !== null ? (fund.r3y/fund.er).toFixed(1)+"x" : "—"}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ color:GRAY, fontSize:10, fontWeight:600, letterSpacing:1, marginBottom:4 }}>RETURN/EXPENSE (5Y)</div>
+                  <div style={{ color:WHITE, fontSize:14, fontWeight:600, fontFamily:"'DM Mono',monospace" }}>
+                    {fund.r5y !== null ? (fund.r5y/fund.er).toFixed(1)+"x" : "—"}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ background:GOLD_DIM, borderRadius:6, padding:12, borderLeft:`3px solid ${GOLD}` }}>
+                <div style={{ color:GOLD, fontSize:10, fontWeight:700, letterSpacing:1, marginBottom:4 }}>SUITABILITY RATIONALE</div>
+                <div style={{ color:WHITE, fontSize:12, lineHeight:1.5 }}>{fund.rationale}</div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    function NMISAnalysis() {
+      const [accountType,      setAccountType]      = useState("taxable");
+      const [riskLevel,        setRiskLevel]         = useState("moderate");
+      const [showMethodology,  setShowMethodology]   = useState(false);
+
+      const currentFunds = funds[accountType]?.[riskLevel] || [];
+
+      const contextNote = accountType === "taxable"
+        ? riskLevel === "conservative"
+          ? "Taxable conservative: Prioritizing municipal bonds for tax exempt income, floating rate for rate protection, and low duration strategies for capital preservation."
+          : riskLevel === "moderate"
+          ? "Taxable moderate: Balancing tax efficient equity (low turnover, qualified dividends) with muni fixed income. Emphasis on lowest expense ratios to maximize after tax returns."
+          : "Taxable aggressive: Growth oriented equities with strong risk adjusted ranks. Consider tax loss harvesting pairs across international and sector funds."
+        : riskLevel === "conservative"
+        ? "Roth conservative: Placing tax inefficient fixed income (TIPS, high yield, multisector) inside Roth to shelter ordinary income distributions from taxation."
+        : riskLevel === "moderate"
+        ? "Roth moderate: Core equity holdings where capital gains compound tax free over decades. International funds shelter foreign dividend withholding complexity."
+        : "Roth aggressive: Maximum growth compounding inside tax free wrapper. Sector concentration and EM volatility acceptable given Roth's permanent tax shelter and long horizon.";
+
+      return (
+        <div style={{ background:NAVY, minHeight:"100vh", color:WHITE, fontFamily:"'Inter','SF Pro',-apple-system,sans-serif" }}>
+
+          {/* Header */}
+          <div style={{ padding:"24px 20px 16px", borderBottom:`1px solid rgba(201,168,76,0.15)` }}>
+            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
+              <div style={{ width:8, height:8, background:GOLD, borderRadius:"50%" }} />
+              <span style={{ color:GOLD, fontSize:11, fontWeight:600, letterSpacing:2, textTransform:"uppercase" }}>NMIS Brokerage Research List</span>
+            </div>
+            <h1 style={{ fontFamily:"'DM Serif Display',serif", fontSize:22, fontWeight:400, color:WHITE, margin:"4px 0", lineHeight:1.2 }}>
+              Risk Adjusted Fund Analysis
+            </h1>
+            <div style={{ color:GRAY, fontSize:11 }}>Data as of December 31, 2025 | 1,944 funds screened</div>
+          </div>
+
+          {/* Account Type Toggle */}
+          <div style={{ padding:"16px 20px 0" }}>
+            <div style={{ display:"flex", gap:8, marginBottom:12 }}>
+              {[{ key:"taxable", label:"Taxable Brokerage" }, { key:"roth", label:"Roth IRA" }].map((t) => (
+                <button
+                  key={t.key}
+                  onClick={() => setAccountType(t.key)}
+                  style={{
+                    flex:1, padding:"10px 12px",
+                    background: accountType===t.key ? GOLD : "transparent",
+                    color:       accountType===t.key ? NAVY : GRAY,
+                    border:`1px solid ${accountType===t.key ? GOLD : "rgba(201,168,76,0.2)"}`,
+                    borderRadius:6, fontWeight:700, fontSize:13, cursor:"pointer", transition:"all 0.2s", letterSpacing:0.3,
+                  }}
+                >{t.label}</button>
+              ))}
+            </div>
+
+            {/* Risk Tolerance Toggle */}
+            <div style={{ display:"flex", gap:6 }}>
+              {[
+                { key:"conservative", label:"Conservative", icon:"◆" },
+                { key:"moderate",     label:"Moderate",     icon:"◆◆" },
+                { key:"aggressive",   label:"Aggressive",   icon:"◆◆◆" },
+              ].map((r) => (
+                <button
+                  key={r.key}
+                  onClick={() => setRiskLevel(r.key)}
+                  style={{
+                    flex:1, padding:"8px 8px",
+                    background: riskLevel===r.key ? NAVY_LIGHT : "transparent",
+                    color:       riskLevel===r.key ? GOLD : GRAY,
+                    border:`1px solid ${riskLevel===r.key ? "rgba(201,168,76,0.3)" : "rgba(201,168,76,0.08)"}`,
+                    borderRadius:6, fontSize:11, fontWeight:600, cursor:"pointer", transition:"all 0.2s",
+                  }}
+                >
+                  <div style={{ fontSize:8, marginBottom:2, letterSpacing:2 }}>{r.icon}</div>
+                  {r.label}
+                </button>
+              ))}
             </div>
           </div>
-          <input id="monthlyRange" type="range" min="250" max="10000" step="250">
-        </div>
 
-        <div class="field">
-          <div class="fieldTop">
-            <div class="lab">NM Annual Premium to Whole Life</div>
-            <div class="numWrap">
-              <input class="num" id="premiumNum" type="number" step="1000" min="3000" max="50000">
+          {/* Context Note */}
+          <div style={{ padding:"12px 20px" }}>
+            <div style={{ background:GOLD_DIM, borderRadius:6, padding:10, borderLeft:`3px solid ${GOLD}` }}>
+              <div style={{ color:GOLD_LIGHT, fontSize:11, lineHeight:1.5 }}>{contextNote}</div>
             </div>
           </div>
-          <input id="premiumRange" type="range" min="3000" max="50000" step="1000">
-        </div>
 
-        <div class="field">
-          <div class="fieldTop">
-            <div class="lab">Client Start Age</div>
-            <div class="numWrap">
-              <input class="num" id="ageNum" type="number" step="1" min="25" max="55">
+          {/* Fund Cards */}
+          <div style={{ padding:"0 20px 12px" }}>
+            <div style={{ color:GRAY, fontSize:10, fontWeight:600, letterSpacing:1.5, marginBottom:8, textTransform:"uppercase" }}>
+              Recommended Funds ({currentFunds.length}) — Tap to expand
             </div>
+            {currentFunds.map((f) => <FundCard key={f.ticker} fund={f} />)}
           </div>
-          <input id="ageRange" type="range" min="25" max="55" step="1">
+
+          {/* Methodology */}
+          <div style={{ padding:"0 20px 32px" }}>
+            <button
+              onClick={() => setShowMethodology(!showMethodology)}
+              style={{
+                width:"100%", background:"transparent",
+                border:`1px solid rgba(201,168,76,0.15)`,
+                borderRadius: showMethodology ? "6px 6px 0 0" : 6,
+                padding:"12px 16px", color:GOLD, fontSize:12, fontWeight:600, cursor:"pointer",
+                display:"flex", justifyContent:"space-between", alignItems:"center", letterSpacing:0.5,
+              }}
+            >
+              <span>Scoring Methodology &amp; Risk Metrics</span>
+              <span style={{ transform:showMethodology?"rotate(180deg)":"rotate(0)", transition:"transform 0.2s" }}>▼</span>
+            </button>
+
+            {showMethodology && (
+              <div style={{ background:NAVY_MID, borderRadius:"0 0 6px 6px", padding:16, border:`1px solid rgba(201,168,76,0.15)`, borderTop:"none" }}>
+                {[
+                  {
+                    title:"COMPOSITE SCORE (0 to 100)",
+                    body:"Weighted category percentile rank inversion: 5Y rank (40% weight) + 3Y rank (35%) + 1Y rank (25%). Ranks inverted so higher = better. Expense ratio penalty applied: each 50bps above 0.50% deducts 5 points. Funds with incomplete track records scored on available periods with weight redistribution.",
+                  },
+                  {
+                    title:"RANK CONSISTENCY (Standard Deviation)",
+                    body:"Standard deviation of category percentile ranks across 1Y, 3Y, and 5Y periods. Lower = more consistent alpha generation. Scores below 2.0 indicate persistent outperformance. Scores above 10.0 suggest regime dependent or style timing risk.",
+                  },
+                  {
+                    title:"RETURN / EXPENSE RATIO",
+                    body:"Annualized return divided by prospectus net expense ratio. Measures return generated per unit of cost. Higher ratios indicate more efficient alpha extraction. A 3Y ratio above 20x is considered excellent.",
+                  },
+                  {
+                    title:"CATEGORY PERCENTILE RANK",
+                    body:"Morningstar category percentile rank where 1 = top of category and 100 = bottom. Green (top 5%), Gold (top 15%), Gray (top 30%), Red (below 30th percentile). Evaluated across 1Y, 3Y annualized, and 5Y annualized periods.",
+                  },
+                ].map((s) => (
+                  <div key={s.title} style={{ marginBottom:16 }}>
+                    <div style={{ color:GOLD, fontSize:12, fontWeight:700, letterSpacing:1, marginBottom:8 }}>{s.title}</div>
+                    <div style={{ color:WHITE, fontSize:12, lineHeight:1.6 }}>{s.body}</div>
+                  </div>
+                ))}
+
+                <div style={{ borderTop:`1px solid rgba(201,168,76,0.1)`, paddingTop:12, marginTop:4 }}>
+                  <div style={{ color:GOLD, fontSize:12, fontWeight:700, letterSpacing:1, marginBottom:8 }}>ADDITIONAL METRICS TO PULL</div>
+                  <div style={{ color:GRAY, fontSize:11, lineHeight:1.7 }}>
+                    For full due diligence via Morningstar Direct or Bloomberg: Sharpe Ratio (3Y, 5Y) | Sortino Ratio |
+                    Information Ratio vs benchmark | Alpha and Beta vs category index | Maximum Drawdown (trailing 5Y) |
+                    Upside/Downside Capture Ratios | Treynor Ratio | Standard Deviation (annualized) |
+                    R Squared vs benchmark | Tracking Error | Tax Cost Ratio (for taxable recs)
+                  </div>
+                </div>
+
+                <div style={{ borderTop:`1px solid rgba(201,168,76,0.1)`, paddingTop:12, marginTop:12 }}>
+                  <div style={{ color:GOLD, fontSize:12, fontWeight:700, letterSpacing:1, marginBottom:8 }}>A SHARES VS C SHARES NOTE</div>
+                  <div style={{ color:GRAY, fontSize:11, lineHeight:1.7 }}>
+                    Analysis focuses on A shares for longer holding periods where the front load amortizes and lower ongoing ER compounds favorably vs C shares.
+                    At breakpoint levels ($100K+), effective load drops significantly. For positions under $25K with sub 3 year horizon, C shares may be more appropriate.
+                    All recommendations shown as A shares; C share equivalents available in underlying data.
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
         </div>
-
-        <div class="field">
-          <div class="fieldTop">
-            <div class="lab">Policy Pay To</div>
-          </div>
-          <div class="modeBtns">
-            <button class="modeBtn" id="pay65">Pay to 65</button>
-            <button class="modeBtn" id="pay100">Pay to 100</button>
-          </div>
-
-          <div class="miniCard">
-            <div class="miniTitle">How It Works</div>
-            <div class="miniText" id="howItWorks"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="wrap">
-    <div class="hdr">
-      <div class="kicker" id="kicker"></div>
-
-      <div id="mainHeader">
-        <div class="big" id="mainValue"></div>
-        <div class="row">
-          <span class="pnl" id="mainPnL"></span>
-          <span class="pct" id="mainPct"></span>
-          <span class="meta" id="mainMeta"></span>
-          <span class="pill" id="crisisPill" style="display:none;animation:pulse 1s infinite">CRISIS</span>
-        </div>
-      </div>
-
-      <div id="splitHeader" style="display:none">
-        <div class="row" style="gap:20px;align-items:baseline">
-          <div>
-            <div class="lab">100% S&P 500</div>
-            <div style="font-size:26px;font-weight:900;line-height:1" id="pureVal"></div>
-            <div style="font-size:12px;font-weight:800" id="purePnL"></div>
-          </div>
-          <div style="font-size:18px;color:rgba(255,255,255,0.10)">vs</div>
-          <div>
-            <div class="lab">S&P plus NM Whole Life</div>
-            <div style="font-size:26px;font-weight:900;line-height:1" id="blendVal"></div>
-            <div style="font-size:12px;font-weight:800" id="blendPnL"></div>
-          </div>
-          <div>
-            <div class="lab">NM Buffer</div>
-            <div style="font-size:20px;font-weight:900;line-height:1" id="bufVal"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="tabs">
-      <button class="tab active" data-mode="blend">S&P plus NM WL</button>
-      <button class="tab" data-mode="pure">100% S&P 500</button>
-      <button class="tab" data-mode="split">Side by Side</button>
-    </div>
-
-    <div class="chartBox" id="chartBox"></div>
-    <div class="legend" id="legend" style="display:none">━ S&P plus NM WL   ┅ 100% S&P (reference)</div>
-
-    <div class="play">
-      <button class="playBtn" id="playBtn"></button>
-
-      <div class="bar" id="scrub">
-        <div class="barFill" id="scrubFill"></div>
-      </div>
-
-      <button class="speedBtn" data-speed="0.5">0.5x</button>
-      <button class="speedBtn active" data-speed="1">1x</button>
-      <button class="speedBtn" data-speed="2">2x</button>
-      <button class="speedBtn" data-speed="3">3x</button>
-
-      <button class="reset" id="resetBtn">Reset</button>
-    </div>
-
-    <div class="stats" id="stats"></div>
-
-    <div class="foot">
-      S&P 500 monthly returns 2000 to 2024. Dividend scale is not guaranteed. COI is illustrative. 100% Market redirects premium into SPX using the same total dollars. Not financial advice.
-    </div>
-  </div>
-
-<script>
-/* Data and model */
-const SP500 = [
--0.0501,0.0197,0.0967,-0.0308,-0.0221,0.0239,-0.0163,0.0607,-0.0528,-0.0049,-0.0801,0.0046,
-0.0346,-0.0923,-0.0642,0.0768,0.0051,-0.0250,-0.0108,-0.0626,-0.0817,0.0181,0.0752,0.0076,
--0.0156,-0.0208,0.0367,-0.0614,-0.0091,-0.0726,-0.0790,0.0049,-0.1100,0.0864,0.0571,-0.0603,
--0.0274,-0.0170,0.0084,0.0810,0.0509,0.0113,0.0162,0.0179,-0.0119,0.0550,0.0071,0.0508,
-0.0173,0.0122,-0.0164,-0.0168,0.0121,0.0180,-0.0343,0.0023,0.0094,0.0140,0.0386,0.0325,
--0.0253,0.0189,-0.0191,-0.0201,0.0300,-0.0001,0.0360,-0.0112,0.0069,-0.0177,0.0352,-0.0010,
-0.0255,0.0005,0.0111,0.0122,-0.0309,0.0001,0.0051,0.0213,0.0246,0.0315,0.0165,0.0126,
-0.0141,-0.0218,0.0100,0.0433,0.0325,-0.0178,-0.0321,0.0131,0.0358,0.0148,-0.0440,-0.0086,
--0.0612,-0.0348,-0.0060,0.0475,0.0107,-0.0867,-0.0099,0.0122,-0.0908,-0.1694,-0.0741,0.0078,
--0.0857,-0.1099,0.0854,0.0939,0.0531,0.0002,0.0741,0.0336,0.0357,-0.0198,0.0574,0.0178,
--0.0371,0.0285,0.0588,0.0148,-0.0821,-0.0539,0.0689,-0.0474,0.0876,0.0369,-0.0023,0.0653,
-0.0226,0.0320,-0.0010,0.0285,-0.0135,-0.0178,-0.0214,-0.0568,-0.0718,0.1077,-0.0051,0.0085,
-0.0436,0.0396,0.0313,-0.0075,-0.0627,0.0396,0.0126,0.0199,0.0245,-0.0198,0.0028,0.0071,
-0.0504,0.0111,0.0360,0.0181,0.0209,-0.0150,0.0495,-0.0311,0.0297,0.0444,0.0280,0.0236,
--0.0359,0.0432,0.0069,0.0062,0.0209,0.0191,-0.0150,0.0377,-0.0157,0.0232,0.0245,-0.0042,
--0.0306,0.0549,-0.0174,0.0085,0.0105,-0.0211,0.0200,-0.0644,-0.0264,0.0802,0.0005,-0.0175,
--0.0507,-0.0041,0.0660,0.0027,0.0153,0.0009,0.0356,-0.0012,-0.0012,-0.0194,0.0342,0.0182,
-0.0179,0.0372,-0.0004,0.0091,0.0109,0.0048,0.0193,0.0005,0.0193,0.0224,0.0281,0.0098,
-0.0565,-0.0389,-0.0269,0.0027,0.0216,0.0046,0.0360,0.0305,0.0043,-0.0694,0.0179,-0.0918,
-0.0790,0.0297,0.0179,0.0393,-0.0658,0.0689,0.0131,-0.0181,0.0172,0.0204,0.0340,0.0286,
--0.0016,-0.0841,-0.1251,0.1268,0.0451,0.0184,0.0551,0.0701,-0.0381,-0.0277,0.1075,0.0362,
--0.0127,0.0261,0.0424,0.0530,0.0055,0.0222,0.0233,0.0290,-0.0476,0.0665,-0.0083,0.0436,
--0.0570,-0.0323,0.0358,-0.0880,0.0001,-0.0838,0.0912,-0.0424,-0.0946,0.0793,0.0536,-0.0586,
-0.0618,-0.0261,0.0351,0.0146,0.0025,0.0626,0.0306,-0.0177,-0.0487,-0.0218,0.0889,0.0454,
-0.0159,0.0516,0.0308,-0.0420,0.0480,0.0345,0.0113,0.0225,0.0200,-0.0100,0.0560,-0.0258
-];
-
-const MO = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const lbl = i => `${MO[i%12]} ${2000+Math.floor(i/12)}`;
-
-const CRISES = [
-  { name:"DOTCOM", start:3, end:35 },
-  { name:"GFC", start:93, end:114 },
-  { name:"COVID", start:241, end:243 },
-];
-
-const NM_DIV = 0.0575;
-const NM_GUAR = 0.03;
-
-const COI_T = [[25,1.1],[30,1.35],[35,1.85],[40,2.8],[45,4.3],[50,7.1],[55,11.5],[60,18.2],[65,28],[70,42],[75,65],[80,98]];
-function getCOI(age, face){
-  let r = 1.1;
-  for(const [a,c] of COI_T) if(age>=a) r=c;
-  return (face/1000)*r;
-}
-const SURR = [0.12,0.25,0.42,0.58,0.70,0.80,0.87,0.92,0.95,0.97,0.98,0.99,1];
-
-function simulate({initial, monthly, age, premium, payTo}){
-  const moPrem = premium/12;
-  const face = premium*18;
-  const moGuar = Math.pow(1+NM_GUAR,1/12)-1;
-  const moDiv = Math.pow(1+NM_DIV,1/12)-1;
-
-  let pureSpx = initial;
-  let bSpx = initial;
-  let cv = 0;
-
-  let totPrem=0, totCOI=0, totDiv=0, totDist=0;
-  let peakPure=initial, peakBlend=initial;
-  let cumIn=initial;
-  const out=[];
-
-  for(let i=0;i<SP500.length;i++){
-    const r = SP500[i];
-    const curAge = age + i/12;
-    const yr = Math.floor(i/12);
-    const paying = curAge < payTo;
-    const isCrisis = CRISES.some(c=>i>=c.start && i<=c.end);
-
-    const totalMonthlyOOP = monthly + (paying ? moPrem : 0);
-    cumIn += totalMonthlyOOP;
-
-    // A: all in SPX (monthly + redirected premium)
-    pureSpx = pureSpx*(1+r) + totalMonthlyOOP;
-    peakPure = Math.max(peakPure, pureSpx);
-
-    // B: market sleeve plus WL sleeve
-    bSpx = bSpx*(1+r) + monthly;
-
-    const pr = paying ? moPrem : 0;
-    totPrem += pr;
-
-    const coi = getCOI(Math.floor(curAge), face)/12;
-    totCOI += coi;
-
-    const exp = pr * Math.max(0.02, 0.08 - yr*0.005);
-    const gInt = cv*moGuar;
-    const dInt = yr>=1 ? cv*(moDiv-moGuar) : 0;
-    totDiv += dInt;
-
-    cv = Math.max(0, cv + pr - coi - exp + gInt + dInt);
-
-    const blendTotal = bSpx + cv;
-    peakBlend = Math.max(peakBlend, blendTotal);
-
-    const sv = cv * (yr < SURR.length ? SURR[yr] : 1);
-
-    let dist = 0;
-    if(isCrisis && r < -0.03 && cv > 5000){
-      dist = Math.min(monthly*0.5, cv*0.02);
-      totDist += dist;
+      );
     }
 
-    out.push({
-      i, label: lbl(i), r,
-      pure: Math.round(pureSpx),
-      pureDD: +(((pureSpx-peakPure)/peakPure)*100).toFixed(2),
-      bSpx: Math.round(bSpx),
-      cv: Math.round(cv),
-      total: Math.round(blendTotal),
-      blendDD: +(((blendTotal-peakBlend)/peakBlend)*100).toFixed(2),
-      sv: Math.round(sv),
-      db: Math.round(Math.max(face, face + totDiv*0.7)),
-      totPrem: Math.round(totPrem),
-      totCOI: Math.round(totCOI),
-      totDiv: Math.round(totDiv),
-      coi: Math.round(coi*12),
-      dist,
-      totDist: Math.round(totDist),
-      age: Math.floor(curAge),
-      isCrisis,
-      paying,
-      totalIn: Math.round(cumIn),
-    });
-  }
-  return out;
-}
-
-/* Helpers */
-const fmt = v => `$${Math.round(Math.abs(v)).toLocaleString()}`;
-const fmtS = v => {
-  const a=Math.abs(v);
-  if(a>=1e6) return `$${(v/1e6).toFixed(2)}M`;
-  return `$${Math.round(v).toLocaleString()}`;
-};
-
-/* App state */
-let state = {
-  initial: 200000,
-  monthly: 1500,
-  premium: 12000,
-  age: 35,
-  payTo: 65,
-  mode: "blend",
-  setup: false,
-  idx: -1,
-  hover: null,
-  playing: false,
-  speed: 1
-};
-
-let data = [];
-let chartWidth = 600;
-
-/* DOM */
-const divScale = document.getElementById("divScale");
-divScale.textContent = (NM_DIV*100).toFixed(2) + "%";
-
-const editBtn = document.getElementById("editBtn");
-const settingsPanel = document.getElementById("settingsPanel");
-
-const initialNum = document.getElementById("initialNum");
-const monthlyNum = document.getElementById("monthlyNum");
-const premiumNum = document.getElementById("premiumNum");
-const ageNum = document.getElementById("ageNum");
-
-const initialRange = document.getElementById("initialRange");
-const monthlyRange = document.getElementById("monthlyRange");
-const premiumRange = document.getElementById("premiumRange");
-const ageRange = document.getElementById("ageRange");
-
-const pay65 = document.getElementById("pay65");
-const pay100 = document.getElementById("pay100");
-
-const howItWorks = document.getElementById("howItWorks");
-
-const kicker = document.getElementById("kicker");
-const mainValue = document.getElementById("mainValue");
-const mainPnL = document.getElementById("mainPnL");
-const mainPct = document.getElementById("mainPct");
-const mainMeta = document.getElementById("mainMeta");
-const crisisPill = document.getElementById("crisisPill");
-
-const mainHeader = document.getElementById("mainHeader");
-const splitHeader = document.getElementById("splitHeader");
-const pureVal = document.getElementById("pureVal");
-const purePnLEl = document.getElementById("purePnL");
-const blendVal = document.getElementById("blendVal");
-const blendPnLEl = document.getElementById("blendPnL");
-const bufVal = document.getElementById("bufVal");
-
-const chartBox = document.getElementById("chartBox");
-const legend = document.getElementById("legend");
-
-const playBtn = document.getElementById("playBtn");
-const scrub = document.getElementById("scrub");
-const scrubFill = document.getElementById("scrubFill");
-const resetBtn = document.getElementById("resetBtn");
-
-const stats = document.getElementById("stats");
-
-/* Input syncing */
-function clamp(n,min,max){ return Math.max(min, Math.min(max, n)); }
-
-function bindNumberAndRange(numEl, rangeEl, key){
-  const min = +rangeEl.min;
-  const max = +rangeEl.max;
-  const step = +rangeEl.step || 1;
-
-  function setVal(v){
-    const vv = clamp(Math.round(v/step)*step, min, max);
-    state[key] = vv;
-    numEl.value = vv;
-    rangeEl.value = vv;
-    rebuild();
-  }
-
-  rangeEl.addEventListener("input", e => setVal(+e.target.value));
-  numEl.addEventListener("input", e => {
-    // allow empty while typing
-    const raw = e.target.value;
-    if(raw === "" || raw === "-" ) return;
-    setVal(+raw);
-  });
-  numEl.addEventListener("blur", e => {
-    if(e.target.value === "") setVal(state[key]);
-  });
-
-  numEl.value = state[key];
-  rangeEl.value = state[key];
-}
-
-function updatePayButtons(){
-  pay65.classList.toggle("active", state.payTo===65);
-  pay100.classList.toggle("active", state.payTo===100);
-}
-
-pay65.addEventListener("click", ()=>{ state.payTo=65; updatePayButtons(); rebuild(); });
-pay100.addEventListener("click", ()=>{ state.payTo=100; updatePayButtons(); rebuild(); });
-
-/* Tabs */
-document.querySelectorAll(".tab").forEach(btn=>{
-  btn.addEventListener("click", ()=>{
-    document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
-    btn.classList.add("active");
-    state.mode = btn.dataset.mode;
-    render();
-  });
-});
-
-/* Edit */
-editBtn.addEventListener("click", ()=>{
-  state.setup = !state.setup;
-  settingsPanel.style.display = state.setup ? "block" : "none";
-  editBtn.textContent = state.setup ? "Done" : "Edit";
-});
-
-/* Playback */
-let tmr = null;
-function stopPlay(){
-  state.playing=false;
-  if(tmr) clearTimeout(tmr);
-  tmr=null;
-  render();
-}
-function startPlay(){
-  if(state.idx < 0 || state.idx >= data.length-1) state.idx = 0;
-  state.playing=true;
-  tick();
-  render();
-}
-function tick(){
-  if(!state.playing) return;
-  const next = state.idx + 1;
-  if(next >= data.length){
-    stopPlay();
-    state.idx = data.length-1;
-    render();
-    return;
-  }
-  state.idx = next;
-
-  const r = SP500[next];
-  const crisis = CRISES.some(c => next>=c.start && next<=c.end);
-  let del;
-  if(crisis && r < -0.08) del = 1500/state.speed;
-  else if(crisis && r < -0.05) del = 1000/state.speed;
-  else if(crisis && r < -0.02) del = 650/state.speed;
-  else if(crisis) del = 420/state.speed;
-  else if(r < -0.04) del = 500/state.speed;
-  else del = 50/state.speed;
-
-  render();
-  tmr = setTimeout(tick, del);
-}
-
-playBtn.addEventListener("click", ()=>{
-  if(state.playing) stopPlay();
-  else startPlay();
-});
-
-document.querySelectorAll(".speedBtn").forEach(b=>{
-  b.addEventListener("click", ()=>{
-    document.querySelectorAll(".speedBtn").forEach(x=>x.classList.remove("active"));
-    b.classList.add("active");
-    state.speed = +b.dataset.speed;
-  });
-});
-
-resetBtn.addEventListener("click", ()=>{
-  stopPlay();
-  state.idx=-1;
-  state.hover=null;
-  render();
-});
-
-scrub.addEventListener("click", (e)=>{
-  const r = scrub.getBoundingClientRect();
-  const x = e.clientX - r.left;
-  const p = clamp(x/r.width, 0, 1);
-  state.idx = Math.floor(p*(data.length-1));
-  stopPlay();
-  render();
-});
-
-/* Chart */
-function RHChartSVG({field, ghostField, width, height, idx, hoverIdx}){
-  const end = Math.max(2, idx+1);
-  const pts = data.slice(0, end);
-  const allV = [];
-  for(const d of pts){
-    allV.push(d[field]);
-    if(ghostField) allV.push(d[ghostField]);
-  }
-  let min = Math.min(...allV)*0.97;
-  let max = Math.max(...allV)*1.03;
-  if(!isFinite(min) || !isFinite(max)){ min=0; max=1; }
-  const rng = (max-min) || 1;
-
-  const tX = i => (i/Math.max(1, pts.length-1))*width;
-  const tY = v => height - ((v-min)/rng)*height;
-
-  const path = pts.map((d,i)=> `${i===0?"M":"L"}${tX(i).toFixed(1)},${tY(d[field]).toFixed(1)}`).join(" ");
-  const last = pts[pts.length-1]?.[field] || 0;
-  const baseValue = state.initial;
-  const clr = last >= baseValue ? "#00C805" : "#FF5000";
-  const fill = path + ` L${tX(pts.length-1).toFixed(1)},${height} L0,${height} Z`;
-
-  let ghostPath = "";
-  if(ghostField){
-    ghostPath = pts.map((d,i)=> `${i===0?"M":"L"}${tX(i).toFixed(1)},${tY(d[ghostField]).toFixed(1)}`).join(" ");
-  }
-
-  const hi = hoverIdx!==null ? Math.min(hoverIdx, pts.length-1) : null;
-
-  const crisisRects = CRISES.map(c=>{
-    if(c.start>=pts.length) return "";
-    const x = tX(c.start);
-    const w = Math.max(1, tX(Math.min(c.end, pts.length-1)) - tX(c.start));
-    return `<rect x="${x}" y="0" width="${w}" height="${height}" fill="rgba(255,80,0,0.035)"></rect>`;
-  }).join("");
-
-  const hoverLine = hi!==null ? `
-    <line x1="${tX(hi)}" y1="0" x2="${tX(hi)}" y2="${height}" stroke="rgba(255,255,255,0.10)" stroke-width="1" stroke-dasharray="3 3"></line>
-    <circle cx="${tX(hi)}" cy="${tY(pts[hi][field])}" r="5" fill="${clr}" stroke="#1a1d23" stroke-width="2"></circle>
-    ${ghostField ? `<circle cx="${tX(hi)}" cy="${tY(pts[hi][ghostField])}" r="4" fill="rgba(255,255,255,0.20)" stroke="#1a1d23" stroke-width="2"></circle>` : ""}
-  ` : `<circle cx="${tX(pts.length-1)}" cy="${tY(last)}" r="4" fill="${clr}"></circle>`;
-
-  const gid = "g-" + field + (ghostField ? "-ghost" : "");
-
-  return `
-    <svg width="${width}" height="${height}" style="display:block;overflow:visible">
-      <defs>
-        <linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="${clr}" stop-opacity="0.08"></stop>
-          <stop offset="100%" stop-color="${clr}" stop-opacity="0"></stop>
-        </linearGradient>
-      </defs>
-      ${crisisRects}
-      <path d="${fill}" fill="url(#${gid})"></path>
-      ${ghostField ? `<path d="${ghostPath}" fill="none" stroke="rgba(255,255,255,0.10)" stroke-width="1.5" stroke-dasharray="5 4"></path>` : ""}
-      <path d="${path}" fill="none" stroke="${clr}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path>
-      ${hoverLine}
-    </svg>
-  `;
-}
-
-function attachHover(el, idxMax){
-  el.addEventListener("mousemove", e=>{
-    const svg = el.querySelector("svg");
-    if(!svg) return;
-    const r = svg.getBoundingClientRect();
-    const x = e.clientX - r.left;
-    const p = clamp(x/r.width, 0, 1);
-    const hi = Math.max(0, Math.min(Math.round(p*(idxMax)), idxMax));
-    state.hover = hi;
-    render();
-  });
-  el.addEventListener("mouseleave", ()=>{
-    state.hover = null;
-    render();
-  });
-}
-
-/* Render */
-function rebuild(){
-  stopPlay();
-  data = simulate({
-    initial: state.initial,
-    monthly: state.monthly,
-    age: state.age,
-    premium: state.premium,
-    payTo: state.payTo
-  });
-  state.idx = -1;
-  state.hover = null;
-  render();
-}
-
-function curIndex(){
-  const end = state.idx>=0 ? state.idx : data.length-1;
-  return state.hover!==null ? Math.min(state.hover, end) : end;
-}
-
-function render(){
-  if(!data.length) return;
-
-  // update how it works text
-  const moPrem = state.premium/12;
-  howItWorks.innerHTML =
-    `<b style="color:rgba(255,255,255,0.55)">Market plus NM WL:</b> ${fmt(state.monthly)}/mo to S&P 500 · ${fmt(moPrem)}/mo to NM premium<br>
-     <b style="color:rgba(255,255,255,0.55)">100% Market:</b> ${fmt(state.monthly)}/mo + ${fmt(moPrem)}/mo all into S&P 500<br>
-     Both invest <b style="color:#fff">${fmt(state.monthly + moPrem)}/mo</b> total. Apples to apples.`;
-
-  updatePayButtons();
-
-  const i = curIndex();
-  const cur = data[i];
-
-  const purePnL = cur.pure - cur.totalIn;
-  const blendPnL = cur.total - cur.totalIn;
-  const purePct = cur.totalIn ? (purePnL/cur.totalIn)*100 : 0;
-  const blendPct = cur.totalIn ? (blendPnL/cur.totalIn)*100 : 0;
-  const bufAdv = blendPnL - purePnL;
-
-  const mainVal = state.mode==="pure" ? cur.pure : cur.total;
-  const mainPnLV = state.mode==="pure" ? purePnL : blendPnL;
-  const mainPctV = state.mode==="pure" ? purePct : blendPct;
-
-  const good = mainPnLV>=0;
-  const acc = good ? "var(--good)" : "var(--bad)";
-
-  // headers
-  kicker.textContent =
-    state.mode==="pure" ? "100% S&P 500 Portfolio" :
-    state.mode==="blend" ? "S&P 500 plus NM Whole Life Portfolio" :
-    "Side by Side Comparison";
-
-  crisisPill.style.display = cur.isCrisis ? "inline-block" : "none";
-
-  if(state.mode==="split"){
-    mainHeader.style.display="none";
-    splitHeader.style.display="block";
-
-    pureVal.textContent = fmtS(cur.pure);
-    blendVal.textContent = fmtS(cur.total);
-
-    purePnLEl.style.color = purePnL>=0 ? "var(--good)" : "var(--bad)";
-    blendPnLEl.style.color = blendPnL>=0 ? "var(--good)" : "var(--bad)";
-    bufVal.style.color = bufAdv>=0 ? "var(--good)" : "var(--bad)";
-
-    purePnLEl.textContent = `${purePnL>=0?"+":"-"}${fmt(Math.abs(purePnL))} (${purePct>=0?"+":""}${purePct.toFixed(1)}%)`;
-    blendPnLEl.textContent = `${blendPnL>=0?"+":"-"}${fmt(Math.abs(blendPnL))} (${blendPct>=0?"+":""}${blendPct.toFixed(1)}%)`;
-    bufVal.textContent = `${bufAdv>=0?"+":"-"}${fmt(Math.abs(bufAdv))}`;
-  } else {
-    mainHeader.style.display="block";
-    splitHeader.style.display="none";
-
-    mainValue.textContent = fmt(mainVal);
-    mainPnL.style.color = acc;
-    mainPct.style.color = acc;
-    mainPnL.textContent = `${mainPnLV>=0?"+":"-"}${fmt(Math.abs(mainPnLV))}`;
-    mainPct.textContent = `(${mainPctV>=0?"+":""}${mainPctV.toFixed(2)}%)`;
-    mainMeta.textContent = `${cur.label} · Age ${cur.age}`;
-  }
-
-  // play button and scrub
-  playBtn.style.background = state.playing ? "rgba(255,80,0,0.15)" : "var(--good)";
-  playBtn.style.color = state.playing ? "var(--bad)" : "#000";
-  playBtn.textContent = state.playing ? "❚❚" : "▶";
-
-  const idxForScrub = state.idx>=0 ? state.idx : data.length-1;
-  scrubFill.style.width = `${(idxForScrub/(data.length-1))*100}%`;
-  scrubFill.style.background = acc;
-
-  // chart width
-  chartWidth = Math.max(320, chartBox.clientWidth || 600);
-
-  chartBox.innerHTML = "";
-  legend.style.display = "none";
-
-  const endIdx = state.idx>=0 ? state.idx : data.length-1;
-
-  if(state.mode==="split"){
-    const blocks = [
-      { field:"pure", height:125, title:"100% S&P 500, all dollars into market" },
-      { field:"total", height:125, title:"S&P plus NM Whole Life combined" },
-      { field:"cv", height:90, title:`NM Cash Value (${(NM_DIV*100).toFixed(2)}% dividend scale)` },
-    ];
-
-    blocks.forEach((b, k)=>{
-      const wrap = document.createElement("div");
-      wrap.style.marginTop = k===0 ? "0" : "10px";
-
-      const top = document.createElement("div");
-      top.style.display="flex";
-      top.style.justifyContent="space-between";
-      top.style.alignItems="baseline";
-      top.style.marginBottom="2px";
-
-      const left = document.createElement("div");
-      left.className="lab";
-      left.textContent = b.title;
-
-      const right = document.createElement("div");
-      right.style.display="flex";
-      right.style.gap="8px";
-      right.style.alignItems="baseline";
-
-      const val = document.createElement("div");
-      val.style.fontWeight="900";
-      val.style.fontSize="13px";
-      val.textContent = fmt(cur[b.field]);
-
-      right.appendChild(val);
-      top.appendChild(left);
-      top.appendChild(right);
-
-      const box = document.createElement("div");
-      box.innerHTML = RHChartSVG({field:b.field, ghostField:null, width:chartWidth, height:b.height, idx:endIdx, hoverIdx:state.hover});
-      attachHover(box, endIdx);
-
-      wrap.appendChild(top);
-      wrap.appendChild(box);
-      chartBox.appendChild(wrap);
-    });
-  } else {
-    const ghost = state.mode==="blend" ? "pure" : null;
-    const field = state.mode==="pure" ? "pure" : "total";
-    const box = document.createElement("div");
-    box.innerHTML = RHChartSVG({field, ghostField:ghost, width:chartWidth, height:280, idx:endIdx, hoverIdx:state.hover});
-    attachHover(box, endIdx);
-    chartBox.appendChild(box);
-
-    if(state.mode==="blend"){
-      legend.style.display="block";
-    }
-  }
-
-  // stats
-  const statItems = [
-    { l:"NM Cash Value", v:fmt(cur.cv), s:`Age ${cur.age}`, c:"var(--good)" },
-    { l:"Death Benefit", v:fmtS(cur.db), s:"Tax free", c:"rgba(255,255,255,0.25)" },
-    { l:"Premiums Paid", v:fmt(cur.totPrem), s:cur.paying ? `${fmt(moPrem)}/mo` : "Paid up", c:cur.paying ? "rgba(255,255,255,0.25)" : "var(--good)" },
-    { l:"Dividends Earned", v:fmt(cur.totDiv), s:`${(NM_DIV*100).toFixed(2)}% scale`, c:"var(--amber)" },
-    { l:"COI Charges", v:fmt(cur.totCOI), s:`${fmt(cur.coi)}/yr now`, c:"var(--bad)" },
-    { l:"Distributions", v:fmt(cur.totDist), s:"Tax free loans", c:"var(--good)" },
-    { l:"Total Invested", v:fmt(cur.totalIn), s:"Same both strategies", c:"rgba(255,255,255,0.25)" },
-    { l:"NM Rating", v:"AAA", s:"Highest possible", c:"var(--good)" },
-  ];
-
-  stats.innerHTML = statItems.map(s=>`
-    <div class="stat">
-      <div class="statL">${s.l}</div>
-      <div class="statV">${s.v}</div>
-      <div class="statS" style="color:${s.c}">${s.s}</div>
-    </div>
-  `).join("");
-}
-
-/* Init */
-bindNumberAndRange(initialNum, initialRange, "initial");
-bindNumberAndRange(monthlyNum, monthlyRange, "monthly");
-bindNumberAndRange(premiumNum, premiumRange, "premium");
-bindNumberAndRange(ageNum, ageRange, "age");
-
-updatePayButtons();
-rebuild();
-</script>
+    ReactDOM.createRoot(document.getElementById("root")).render(<NMISAnalysis />);
+  </script>
 </body>
 </html>
