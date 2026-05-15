@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Financial Advisory Tools</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg: #0a0d14;
+      --surface: #0f1217;
+      --card: #141820;
+      --border: rgba(120, 140, 180, 0.1);
+      --text: #c8d0da;
+      --text-bright: #e4ecf4;
+      --text-muted: rgba(200, 208, 218, 0.55);
+      --blue: #4f9eff;
+      --green: #34c27b;
+      --gold: #e8b84b;
+      --purple: #b07ef8;
+      --orange: #ff9f47;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      line-height: 1.6;
+    }
+
+    /* Navigation */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 50px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      z-index: 100;
+      gap: 12px;
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: 0.08em;
+      color: var(--text-bright);
+      text-decoration: none;
+    }
+
+    .nav-brand-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, #4f9eff, #b07ef8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 13px;
+      color: #fff;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 2px;
+      margin-left: auto;
+    }
+
+    .nav-links a {
+      padding: 6px 14px;
+      border-radius: 6px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.15s;
+    }
+
+    .nav-links a:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    /* Main content */
+    main {
+      margin-top: 50px;
+      min-height: calc(100vh - 50px);
+      padding: 60px 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    /* Hero Section */
+    .hero {
+      text-align: center;
+      margin-bottom: 80px;
+    }
+
+    .hero h1 {
+      font-size: 48px;
+      font-weight: 900;
+      letter-spacing: -1px;
+      margin-bottom: 16px;
+      background: linear-gradient(135deg, #4f9eff, #34c27b);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero p {
+      font-size: 18px;
+      color: var(--text-muted);
+      margin-bottom: 32px;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .hero-buttons {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border-radius: 8px;
+      border: none;
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--blue);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: #3d8ef0;
+      transform: translateY(-2px);
+    }
+
+    .btn-secondary {
+      background: rgba(79, 158, 255, 0.1);
+      color: var(--blue);
+      border: 1px solid rgba(79, 158, 255, 0.3);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(79, 158, 255, 0.15);
+      border-color: rgba(79, 158, 255, 0.5);
+    }
+
+    /* Tools Grid */
+    .tools-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 24px;
+      margin-bottom: 60px;
+    }
+
+    .tool-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 32px 24px;
+      text-align: center;
+      transition: all 0.2s;
+    }
+
+    .tool-card:hover {
+      border-color: rgba(79, 158, 255, 0.5);
+      background: var(--surface);
+      transform: translateY(-4px);
+    }
+
+    .tool-icon {
+      width: 60px;
+      height: 60px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      margin: 0 auto 16px;
+    }
+
+    .tool-icon.volatility {
+      background: rgba(79, 158, 255, 0.1);
+      color: var(--blue);
+    }
+
+    .tool-icon.dashboard {
+      background: rgba(176, 126, 248, 0.1);
+      color: var(--purple);
+    }
+
+    .tool-card h2 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: var(--text-bright);
+    }
+
+    .tool-card p {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+      line-height: 1.6;
+    }
+
+    .tool-features {
+      text-align: left;
+      margin-bottom: 20px;
+      padding: 16px 0;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tool-features li {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      list-style: none;
+      padding-left: 20px;
+      position: relative;
+    }
+
+    .tool-features li:before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      color: var(--green);
+      font-weight: 700;
+    }
+
+    .tool-card .btn {
+      width: 100%;
+      justify-content: center;
+    }
+
+    /* Features Section */
+    .features-section {
+      margin-top: 80px;
+      padding: 60px 0;
+      border-top: 1px solid var(--border);
+    }
+
+    .section-title {
+      font-size: 32px;
+      font-weight: 800;
+      text-align: center;
+      margin-bottom: 40px;
+      color: var(--text-bright);
+    }
+
+    .features-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 24px;
+    }
+
+    .feature-item {
+      padding: 24px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+
+    .feature-item h3 {
+      color: var(--text-bright);
+      margin-bottom: 12px;
+      font-size: 16px;
+    }
+
+    .feature-item p {
+      color: var(--text-muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    /* Footer */
+    footer {
+      margin-top: 80px;
+      padding: 40px 20px;
+      border-top: 1px solid var(--border);
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    footer a {
+      color: var(--blue);
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .hero h1 {
+        font-size: 32px;
+      }
+
+      .hero p {
+        font-size: 16px;
+      }
+
+      main {
+        padding: 40px 16px;
+      }
+
+      .tools-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-buttons {
+        flex-direction: column;
+      }
+
+      .btn {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation -->
+  <nav>
+    <a href="home.html" class="nav-brand">
+      <div class="nav-brand-icon">$</div>
+      <span>Financial Tools</span>
+    </a>
+    <div class="nav-links">
+      <a href="index.html">Volatility Buffer</a>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="https://github.com/jacksonscastillo/Jackson-Castillo-" target="_blank">GitHub</a>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main>
+    <div class="container">
+      <!-- Hero Section -->
+      <section class="hero">
+        <h1>Professional Financial Advisory Tools</h1>
+        <p>Powerful, interactive applications designed to help advisors and clients make informed investment and insurance decisions.</p>
+        <div class="hero-buttons">
+          <a href="index.html" class="btn btn-primary">
+            <span>→</span> Volatility Buffer Simulator
+          </a>
+          <a href="dashboard.html" class="btn btn-secondary">
+            <span>→</span> Practice Dashboard
+          </a>
+        </div>
+      </section>
+
+      <!-- Tools Grid -->
+      <section class="tools-grid">
+        <!-- Tool 1: Volatility Buffer Simulator -->
+        <div class="tool-card">
+          <div class="tool-icon volatility">📈</div>
+          <h2>Volatility Buffer Simulator</h2>
+          <p>Compare two investment strategies over 25 years of historical S&P 500 data.</p>
+          
+          <ul class="tool-features">
+            <li>100% S&P 500 strategy</li>
+            <li>S&P 500 + NM Whole Life blend</li>
+            <li>Historical backtesting (2000-2024)</li>
+            <li>Real-time portfolio visualization</li>
+            <li>Crisis period highlighting</li>
+            <li>Adjustable parameters</li>
+          </ul>
+
+          <a href="index.html" class="btn btn-primary">Launch Simulator</a>
+        </div>
+
+        <!-- Tool 2: Apex Advisory Dashboard -->
+        <div class="tool-card">
+          <div class="tool-icon dashboard">📊</div>
+          <h2>Apex Advisory Dashboard</h2>
+          <p>Comprehensive practice management system for financial advisors.</p>
+          
+          <ul class="tool-features">
+            <li>Client portfolio management</li>
+            <li>AUM tracking & analytics</li>
+            <li>Insurance policy management</li>
+            <li>Prospect pipeline</li>
+            <li>Revenue forecasting</li>
+            <li>Professional reporting</li>
+          </ul>
+
+          <a href="dashboard.html" class="btn btn-primary">Open Dashboard</a>
+        </div>
+      </section>
+
+      <!-- Features Section -->
+      <section class="features-section">
+        <h2 class="section-title">Why Use These Tools?</h2>
+        
+        <div class="features-list">
+          <div class="feature-item">
+            <h3>📱 No Installation Required</h3>
+            <p>Open directly in your browser. No downloads, no dependencies, no server needed.</p>
+          </div>
+
+          <div class="feature-item">
+            <h3>⚡ Lightning Fast</h3>
+            <p>Single-file architecture with optimized rendering and zero external dependencies.</p>
+          </div>
+
+          <div class="feature-item">
+            <h3>💾 Local Data Storage</h3>
+            <p>Your data stays in your browser. All information is stored locally using localStorage.</p>
+          </div>
+
+          <div class="feature-item">
+            <h3>📊 Professional Charts</h3>
+            <p>Interactive visualizations powered by Chart.js with real-time updates and animations.</p>
+          </div>
+
+          <div class="feature-item">
+            <h3>🎨 Dark Mode Ready</h3>
+            <p>Beautiful dark theme optimized for readability and reduced eye strain.</p>
+          </div>
+
+          <div class="feature-item">
+            <h3>📈 Data-Driven</h3>
+            <p>25 years of historical S&P 500 data and comprehensive market analysis tools.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <p>Financial Advisory Tools • Built with HTML, CSS, and vanilla JavaScript</p>
+    <p style="margin-top: 12px;">
+      <a href="https://github.com/jacksonscastillo/Jackson-Castillo-" target="_blank">View on GitHub</a> • 
+      <a href="mailto:jacksonscastillo@example.com">Contact</a>
+    </p>
+    <p style="margin-top: 16px; font-size: 11px; color: var(--text-muted);">
+      Educational & illustrative purposes. Not financial advice. Past performance does not guarantee future results.
+    </p>
+  </footer>
+</body>
+</html>
