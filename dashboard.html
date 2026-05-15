@@ -1,0 +1,1309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Apex Advisory — Practice Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#07090f;--surface:#0c1018;--card:#101520;--border:rgba(120,140,180,0.10);
+  --text:#c8d0da;--text-bright:#e4ecf4;--text-muted:rgba(200,208,218,0.55);
+  --blue:#4f9eff;--green:#34c27b;--red:#f0504a;--gold:#e8b84b;
+  --purple:#b07ef8;--orange:#ff9f47;
+  --radius:8px;--radius-lg:12px;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:13px;overflow-x:hidden}
+/* NAV */
+#topnav{position:fixed;top:0;left:0;right:0;height:50px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;z-index:100;gap:12px}
+.nav-logo{display:flex;align-items:center;gap:8px;min-width:170px}
+.nav-logo-sq{width:28px;height:28px;border-radius:6px;background:linear-gradient(135deg,#4f9eff,#b07ef8);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff;flex-shrink:0}
+.nav-title{font-weight:700;font-size:13px;letter-spacing:0.08em;color:var(--text-bright)}
+.nav-tabs{display:flex;align-items:center;gap:2px;flex:1;justify-content:center}
+.nav-tab{padding:6px 14px;border-radius:6px;border:none;background:transparent;color:var(--text-muted);font-family:'Inter',sans-serif;font-size:12px;font-weight:500;cursor:pointer;transition:all 0.15s;white-space:nowrap}
+.nav-tab:hover{color:var(--text);background:rgba(255,255,255,0.04)}
+.nav-tab.active{color:var(--blue);background:rgba(79,158,255,0.10)}
+.nav-clock{min-width:170px;text-align:right;font-size:12px;color:var(--text-muted);font-variant-numeric:tabular-nums;letter-spacing:0.02em}
+/* TICKER */
+#ticker{position:fixed;top:50px;left:0;right:0;height:32px;background:#0a0d14;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:28px;z-index:99;font-size:11px}
+.tick-item{display:flex;align-items:center;gap:6px}
+.tick-name{color:var(--text-muted);font-weight:500}
+.tick-val{color:var(--text-bright);font-weight:600;font-variant-numeric:tabular-nums}
+.tick-chg{font-size:10px}
+.tick-chg.up{color:var(--green)}.tick-chg.dn{color:var(--red)}
+/* MAIN */
+#main{margin-top:82px;padding:20px;min-height:calc(100vh - 82px)}
+/* TABS */
+.tab-pane{display:none}.tab-pane.active{display:block}
+/* CARDS / KPI */
+.kpi-row{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:20px}
+.kpi-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;position:relative;overflow:hidden}
+.kpi-label{font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px}
+.kpi-value{font-size:22px;font-weight:700;color:var(--text-bright);font-variant-numeric:tabular-nums;line-height:1}
+.kpi-sub{font-size:10px;color:var(--text-muted);margin-top:5px}
+.kpi-accent{position:absolute;top:0;left:0;width:3px;height:100%;border-radius:var(--radius-lg) 0 0 var(--radius-lg)}
+/* GRID LAYOUTS */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px}
+.col-left-wide{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:20px}
+/* PANEL */
+.panel{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px}
+.panel-title{font-size:11px;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:var(--text-muted);margin-bottom:14px}
+/* TABLE */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{font-size:10px;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:var(--text-muted);padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none}
+th:hover{color:var(--text)}
+td{padding:8px 10px;border-bottom:1px solid rgba(120,140,180,0.05);font-size:12px;color:var(--text);white-space:nowrap}
+tr:hover td{background:rgba(255,255,255,0.02)}
+tr:last-child td{border-bottom:none}
+/* BADGES / CHIPS */
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;letter-spacing:0.04em}
+.badge-blue{background:rgba(79,158,255,0.12);color:var(--blue)}
+.badge-green{background:rgba(52,194,123,0.12);color:var(--green)}
+.badge-red{background:rgba(240,80,74,0.12);color:var(--red)}
+.badge-gold{background:rgba(232,184,75,0.12);color:var(--gold)}
+.badge-purple{background:rgba(176,126,248,0.12);color:var(--purple)}
+.badge-orange{background:rgba(255,159,71,0.12);color:var(--orange)}
+.badge-gray{background:rgba(120,140,180,0.10);color:var(--text-muted)}
+/* RISK PROFILE COLORS */
+.risk-conservative{color:#4f9eff}.risk-moderate{color:#34c27b}.risk-balanced{color:#e8b84b}.risk-growth{color:#ff9f47}.risk-aggressive{color:#f0504a}
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:6px;border:none;font-family:'Inter',sans-serif;font-size:12px;font-weight:500;cursor:pointer;transition:all 0.15s}
+.btn-primary{background:var(--blue);color:#fff}.btn-primary:hover{background:#3d8ef0}
+.btn-ghost{background:transparent;color:var(--text-muted);border:1px solid var(--border)}.btn-ghost:hover{color:var(--text);border-color:rgba(120,140,180,0.25)}
+.btn-danger{background:var(--red);color:#fff}.btn-danger:hover{background:#d9403a}
+.btn-sm{padding:4px 9px;font-size:11px}
+.btn-icon{padding:5px 7px;background:transparent;border:1px solid var(--border);color:var(--text-muted);border-radius:5px;cursor:pointer;font-size:12px;transition:all 0.15s}
+.btn-icon:hover{color:var(--text);border-color:rgba(120,140,180,0.3)}
+/* FILTER BAR */
+.filter-bar{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.filter-input{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:7px 12px;color:var(--text);font-family:'Inter',sans-serif;font-size:12px;outline:none;min-width:180px}
+.filter-input:focus{border-color:var(--blue)}
+.filter-select{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:7px 12px;color:var(--text);font-family:'Inter',sans-serif;font-size:12px;outline:none;cursor:pointer}
+.filter-select:focus{border-color:var(--blue)}
+/* CLIENT CARDS GRID */
+.clients-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.client-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;transition:border-color 0.15s}
+.client-card:hover{border-color:rgba(79,158,255,0.25)}
+.client-card-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px}
+.client-avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;color:#fff;flex-shrink:0}
+.client-name{font-size:13px;font-weight:600;color:var(--text-bright);margin-bottom:3px}
+.client-meta{font-size:11px;color:var(--text-muted)}
+.client-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+.client-stat-label{font-size:10px;color:var(--text-muted);margin-bottom:2px}
+.client-stat-val{font-size:13px;font-weight:600;color:var(--text-bright)}
+/* CLIENT DETAIL */
+.client-detail-header{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;margin-bottom:16px;display:flex;align-items:center;gap:16px}
+/* KANBAN */
+.kanban-board{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.kanban-col{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px}
+.kanban-col-header{font-size:11px;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
+.kanban-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:8px}
+.kanban-card-name{font-size:12px;font-weight:600;color:var(--text-bright);margin-bottom:6px}
+.kanban-card-aum{font-size:11px;color:var(--text-muted);margin-bottom:6px}
+/* MODAL */
+#modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center}
+#modal-overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid rgba(120,140,180,0.15);border-radius:var(--radius-lg);width:520px;max-width:95vw;max-height:90vh;display:flex;flex-direction:column}
+.modal-header{padding:18px 20px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.modal-title{font-size:14px;font-weight:600;color:var(--text-bright)}
+.modal-close{background:transparent;border:none;color:var(--text-muted);font-size:18px;cursor:pointer;line-height:1;padding:2px 6px}
+.modal-close:hover{color:var(--text)}
+.modal-body{padding:20px;overflow-y:auto;flex:1}
+.modal-footer{padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;flex-shrink:0}
+/* FORM */
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-group{margin-bottom:14px}
+.form-group.full{grid-column:1/-1}
+label{display:block;font-size:11px;font-weight:500;color:var(--text-muted);margin-bottom:5px}
+.form-control{width:100%;background:var(--card);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text-bright);font-family:'Inter',sans-serif;font-size:12px;outline:none}
+.form-control:focus{border-color:var(--blue)}
+textarea.form-control{resize:vertical;min-height:60px}
+/* REVIEW LIST */
+.review-item{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid rgba(120,140,180,0.05)}
+.review-item:last-child{border-bottom:none}
+.review-date{font-size:11px;color:var(--text-muted);min-width:70px}
+.review-name{font-size:12px;color:var(--text-bright);font-weight:500}
+.review-type{font-size:11px;color:var(--text-muted)}
+/* SECTION HEADER */
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.section-title{font-size:11px;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:var(--text-muted)}
+/* CHART CONTAINER */
+.chart-container{position:relative;width:100%}
+/* SORT ARROWS */
+th .sort-icon{opacity:0.3;font-size:9px;margin-left:3px}
+th.sort-asc .sort-icon::after{content:'▲'}
+th.sort-desc .sort-icon::after{content:'▼'}
+th:not(.sort-asc):not(.sort-desc) .sort-icon::after{content:'⇅'}
+/* PIPELINE CARDS */
+.pipeline-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+/* TOGGLE */
+.toggle-group{display:flex;gap:2px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:2px}
+.toggle-btn{padding:5px 12px;border-radius:4px;border:none;background:transparent;color:var(--text-muted);font-family:'Inter',sans-serif;font-size:12px;font-weight:500;cursor:pointer;transition:all 0.15s}
+.toggle-btn.active{background:var(--card);color:var(--text-bright)}
+/* UPCOMING */
+.upcoming-list{display:flex;flex-direction:column;gap:0}
+/* SCROLLBAR */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(120,140,180,0.2);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:rgba(120,140,180,0.35)}
+/* REPORTS */
+.reports-stats-table td:first-child{color:var(--text-muted);font-size:12px}
+.reports-stats-table td:last-child{color:var(--text-bright);font-weight:600;text-align:right}
+</style>
+</head>
+<body>
+
+<!-- TOP NAV -->
+<nav id="topnav">
+  <div class="nav-logo">
+    <div class="nav-logo-sq">A</div>
+    <span class="nav-title">APEX ADVISORY</span>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="navigate('overview')">Overview</button>
+    <button class="nav-tab" onclick="navigate('aum')">AUM &amp; Portfolios</button>
+    <button class="nav-tab" onclick="navigate('insurance')">Insurance</button>
+    <button class="nav-tab" onclick="navigate('clients')">Clients</button>
+    <button class="nav-tab" onclick="navigate('prospects')">Prospects</button>
+    <button class="nav-tab" onclick="navigate('reports')">Reports</button>
+  </div>
+  <div class="nav-clock" id="nav-clock">—</div>
+</nav>
+
+<!-- TICKER -->
+<div id="ticker">
+  <div class="tick-item"><span class="tick-name">S&amp;P 500</span><span class="tick-val">5,308.42</span><span class="tick-chg up">+0.87%</span></div>
+  <div class="tick-item"><span class="tick-name">DOW</span><span class="tick-val">39,127.80</span><span class="tick-chg up">+0.54%</span></div>
+  <div class="tick-item"><span class="tick-name">NASDAQ</span><span class="tick-val">16,442.30</span><span class="tick-chg up">+1.22%</span></div>
+  <div class="tick-item"><span class="tick-name">10-YR YIELD</span><span class="tick-val">4.387%</span><span class="tick-chg dn">-0.032</span></div>
+</div>
+
+<!-- MAIN -->
+<main id="main">
+
+  <!-- TAB 1: OVERVIEW -->
+  <div id="tab-overview" class="tab-pane active">
+    <div class="kpi-row" id="ov-kpis"></div>
+    <div class="col-left-wide">
+      <div class="panel">
+        <div class="panel-title">AUM Growth — 13 Month</div>
+        <div class="chart-container" style="height:200px"><canvas id="chart-aum-growth"></canvas></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Revenue Breakdown</div>
+        <div class="chart-container" style="height:200px"><canvas id="chart-rev-donut"></canvas></div>
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="panel">
+        <div class="panel-title">Top Clients by AUM</div>
+        <div class="tbl-wrap"><table id="ov-top-clients"></table></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Upcoming Reviews &amp; Renewals</div>
+        <div class="upcoming-list" id="ov-upcoming"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 2: AUM -->
+  <div id="tab-aum" class="tab-pane">
+    <div class="kpi-row" style="grid-template-columns:repeat(4,1fr)" id="aum-kpis"></div>
+    <div class="section-header">
+      <div class="filter-bar" style="margin:0">
+        <input class="filter-input" id="aum-search" placeholder="Search client…" oninput="renderAumTable()">
+        <select class="filter-select" id="aum-type-filter" onchange="renderAumTable()">
+          <option value="">All Types</option>
+          <option>IRA</option><option>Roth IRA</option><option>SEP-IRA</option>
+          <option>401k</option><option>403b Rollover IRA</option><option>Individual</option>
+          <option>Joint Taxable</option><option>Trust</option><option>529 Plan</option><option>Other</option>
+        </select>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="openModal('account')">+ Add Account</button>
+    </div>
+    <div class="two-col" style="align-items:start">
+      <div class="panel" style="margin-bottom:0">
+        <div class="tbl-wrap"><table id="aum-table"></table></div>
+      </div>
+      <div class="panel" style="margin-bottom:0">
+        <div class="panel-title">Asset Allocation — Aggregate</div>
+        <div class="chart-container" style="height:240px"><canvas id="chart-alloc-donut"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 3: INSURANCE -->
+  <div id="tab-insurance" class="tab-pane">
+    <div class="kpi-row" style="grid-template-columns:repeat(4,1fr)" id="ins-kpis"></div>
+    <div class="section-header">
+      <div class="filter-bar" style="margin:0">
+        <input class="filter-input" id="ins-search" placeholder="Search client…" oninput="renderInsTable()">
+        <select class="filter-select" id="ins-type-filter" onchange="renderInsTable()">
+          <option value="">All Types</option>
+          <option>Term Life</option><option>Whole Life</option><option>Universal Life</option>
+          <option>Indexed UL</option><option>Variable UL</option><option>Disability Income</option>
+          <option>Long-Term Care</option><option>Fixed Annuity</option><option>Variable Annuity</option><option>Indexed Annuity</option>
+        </select>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="openModal('policy')">+ Add Policy</button>
+    </div>
+    <div class="two-col" style="align-items:start">
+      <div class="panel" style="margin-bottom:0">
+        <div class="tbl-wrap"><table id="ins-table"></table></div>
+      </div>
+      <div class="panel" style="margin-bottom:0">
+        <div class="panel-title">Production by Type</div>
+        <div class="chart-container" style="height:260px"><canvas id="chart-ins-bar"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 4: CLIENTS -->
+  <div id="tab-clients" class="tab-pane">
+    <div id="clients-list-view">
+      <div class="section-header">
+        <input class="filter-input" id="client-search" placeholder="Search clients…" oninput="renderClientsGrid()">
+        <button class="btn btn-primary btn-sm" onclick="openModal('client')">+ Add Client</button>
+      </div>
+      <div class="clients-grid" id="clients-grid"></div>
+    </div>
+    <div id="client-detail-view" style="display:none"></div>
+  </div>
+
+  <!-- TAB 5: PROSPECTS -->
+  <div id="tab-prospects" class="tab-pane">
+    <div class="pipeline-cards" id="prospect-kpis"></div>
+    <div class="section-header">
+      <div class="toggle-group">
+        <button class="toggle-btn active" id="toggle-kanban" onclick="setProspectView('kanban')">Kanban</button>
+        <button class="toggle-btn" id="toggle-table" onclick="setProspectView('table')">Table</button>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="openModal('prospect')">+ Add Prospect</button>
+    </div>
+    <div id="prospect-kanban"></div>
+    <div id="prospect-table-view" style="display:none">
+      <div class="panel"><div class="tbl-wrap"><table id="prospect-table"></table></div></div>
+    </div>
+  </div>
+
+  <!-- TAB 6: REPORTS -->
+  <div id="tab-reports" class="tab-pane">
+    <div class="three-col">
+      <div class="panel">
+        <div class="panel-title">12-Month Revenue (Stacked)</div>
+        <div class="chart-container" style="height:220px"><canvas id="chart-rev-bar"></canvas></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">AUM Growth</div>
+        <div class="chart-container" style="height:220px"><canvas id="chart-aum-growth2"></canvas></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Insurance Production by Type</div>
+        <div class="chart-container" style="height:220px"><canvas id="chart-ins-pie"></canvas></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Summary Statistics</div>
+      <table class="reports-stats-table" id="reports-stats"></table>
+    </div>
+  </div>
+
+</main>
+
+<!-- MODAL -->
+<div id="modal-overlay" onclick="handleOverlayClick(event)">
+  <div class="modal" id="modal-box">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-title">Add</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="modal-save-btn" onclick="saveModal()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// SEED DATA
+// ============================================================
+const SEED_CLIENTS = [
+  {id:'c1',name:'Robert & Sarah Thompson',type:'Family',email:'rthompson@gmail.com',phone:'(312)555-0142',riskProfile:'Moderate',since:'2018-06-01',status:'Active',address:'847 Elmwood Drive, Winnetka, IL 60093',notes:'Referred by David Chen. Robert is a retired surgeon.'},
+  {id:'c2',name:'David Chen',type:'Individual',email:'dchen@techco.com',phone:'(415)555-0189',riskProfile:'Growth',since:'2019-02-14',status:'Active',address:'2201 Pacific Heights Blvd, San Francisco, CA 94115',notes:'CTO at tech startup. Heavy RSU concentration.'},
+  {id:'c3',name:'Michael & Jennifer Rodriguez',type:'Family',email:'mrodriguez@lawfirm.com',phone:'(212)555-0267',riskProfile:'Conservative',since:'2015-11-03',status:'Active',address:'420 Park Avenue, New York, NY 10022',notes:'Michael is a senior partner at law firm. Pre-retirement planning.'},
+  {id:'c4',name:'Elizabeth Warren',type:'Individual',email:'ewarren@medgroup.org',phone:'(617)555-0334',riskProfile:'Balanced',since:'2020-08-22',status:'Active',address:'55 Commonwealth Ave, Boston, MA 02116',notes:'Hospital administrator. 403b rollover.'},
+  {id:'c5',name:'James & Patricia Sullivan',type:'Family',email:'jsullivan@realestate.com',phone:'(312)555-0411',riskProfile:'Balanced',since:'2012-03-17',status:'Active',address:'1234 Lake Shore Drive, Chicago, IL 60611',notes:'Real estate developer. Complex trust structure.'},
+  {id:'c6',name:'William Foster',type:'Individual',email:'wfoster@foster-arch.com',phone:'(773)555-0578',riskProfile:'Aggressive',since:'2021-04-05',status:'Active',address:'3312 N. Clark St, Chicago, IL 60657',notes:'Architect in growing practice. Early accumulation phase.'},
+  {id:'c7',name:'Amanda Clarke',type:'Individual',email:'aclarke@pharma.com',phone:'(858)555-0623',riskProfile:'Growth',since:'2019-09-11',status:'Active',address:'9870 La Jolla Blvd, La Jolla, CA 92037',notes:'Pharmaceutical executive. Stock options.'},
+  {id:'c8',name:'Thomas & Mary Johnson',type:'Family',email:'tjohnson@johnson-mfg.com',phone:'(952)555-0744',riskProfile:'Moderate',since:'2016-07-29',status:'Active',address:'4521 Wayzata Blvd, Wayzata, MN 55391',notes:'Manufacturing business owners. Business succession planning.'}
+];
+
+const SEED_ACCOUNTS = [
+  {id:'a1',clientId:'c1',type:'Joint Taxable',custodian:'Schwab',value:1250000,allocation:'Moderate',ytdReturn:9.2,feeRate:0.95,lastReview:'2026-01-15'},
+  {id:'a2',clientId:'c1',type:'IRA',custodian:'Schwab',value:875000,allocation:'Moderate',ytdReturn:8.8,feeRate:1.00,lastReview:'2026-01-15'},
+  {id:'a3',clientId:'c1',type:'Roth IRA',custodian:'Schwab',value:425000,allocation:'Growth',ytdReturn:12.1,feeRate:1.00,lastReview:'2026-01-15'},
+  {id:'a4',clientId:'c1',type:'Trust',custodian:'Schwab',value:285000,allocation:'Conservative',ytdReturn:5.4,feeRate:0.75,lastReview:'2026-01-15'},
+  {id:'a5',clientId:'c2',type:'Individual',custodian:'Fidelity',value:680000,allocation:'Growth',ytdReturn:14.3,feeRate:1.00,lastReview:'2025-11-20'},
+  {id:'a6',clientId:'c2',type:'IRA',custodian:'Fidelity',value:340000,allocation:'Aggressive',ytdReturn:18.7,feeRate:1.00,lastReview:'2025-11-20'},
+  {id:'a7',clientId:'c2',type:'Roth IRA',custodian:'Fidelity',value:185000,allocation:'Aggressive',ytdReturn:19.2,feeRate:1.00,lastReview:'2025-11-20'},
+  {id:'a8',clientId:'c3',type:'Joint Taxable',custodian:'Pershing',value:1800000,allocation:'Conservative',ytdReturn:4.8,feeRate:0.80,lastReview:'2025-12-10'},
+  {id:'a9',clientId:'c3',type:'IRA',custodian:'Pershing',value:980000,allocation:'Conservative',ytdReturn:4.2,feeRate:0.85,lastReview:'2025-12-10'},
+  {id:'a10',clientId:'c3',type:'Trust',custodian:'Pershing',value:720000,allocation:'Moderate',ytdReturn:7.1,feeRate:0.70,lastReview:'2025-12-10'},
+  {id:'a11',clientId:'c4',type:'403b Rollover IRA',custodian:'Vanguard',value:540000,allocation:'Balanced',ytdReturn:7.9,feeRate:0.90,lastReview:'2026-02-28'},
+  {id:'a12',clientId:'c4',type:'Roth IRA',custodian:'Vanguard',value:210000,allocation:'Growth',ytdReturn:11.4,feeRate:0.90,lastReview:'2026-02-28'},
+  {id:'a13',clientId:'c4',type:'Individual',custodian:'Vanguard',value:140000,allocation:'Balanced',ytdReturn:8.1,feeRate:0.90,lastReview:'2026-02-28'},
+  {id:'a14',clientId:'c5',type:'Trust',custodian:'Northern Trust',value:2100000,allocation:'Balanced',ytdReturn:8.3,feeRate:0.65,lastReview:'2025-10-05'},
+  {id:'a15',clientId:'c5',type:'IRA',custodian:'Northern Trust',value:1200000,allocation:'Moderate',ytdReturn:7.8,feeRate:0.70,lastReview:'2025-10-05'},
+  {id:'a16',clientId:'c5',type:'Roth IRA',custodian:'Northern Trust',value:480000,allocation:'Balanced',ytdReturn:8.9,feeRate:0.70,lastReview:'2025-10-05'},
+  {id:'a17',clientId:'c5',type:'Joint Taxable',custodian:'Northern Trust',value:420000,allocation:'Conservative',ytdReturn:5.2,feeRate:0.65,lastReview:'2025-10-05'},
+  {id:'a18',clientId:'c6',type:'Individual',custodian:'TD Ameritrade',value:320000,allocation:'Aggressive',ytdReturn:21.4,feeRate:1.10,lastReview:'2026-03-01'},
+  {id:'a19',clientId:'c6',type:'Roth IRA',custodian:'TD Ameritrade',value:185000,allocation:'Aggressive',ytdReturn:22.1,feeRate:1.10,lastReview:'2026-03-01'},
+  {id:'a20',clientId:'c6',type:'SEP-IRA',custodian:'TD Ameritrade',value:145000,allocation:'Growth',ytdReturn:15.3,feeRate:1.00,lastReview:'2026-03-01'},
+  {id:'a21',clientId:'c7',type:'Individual',custodian:'Schwab',value:890000,allocation:'Growth',ytdReturn:13.7,feeRate:0.95,lastReview:'2025-09-18'},
+  {id:'a22',clientId:'c7',type:'IRA',custodian:'Schwab',value:560000,allocation:'Growth',ytdReturn:13.1,feeRate:0.95,lastReview:'2025-09-18'},
+  {id:'a23',clientId:'c7',type:'529 Plan',custodian:'Schwab',value:185000,allocation:'Moderate',ytdReturn:8.4,feeRate:0.50,lastReview:'2025-09-18'},
+  {id:'a24',clientId:'c7',type:'Roth IRA',custodian:'Schwab',value:165000,allocation:'Growth',ytdReturn:14.0,feeRate:0.95,lastReview:'2025-09-18'},
+  {id:'a25',clientId:'c8',type:'Joint Taxable',custodian:'Raymond James',value:950000,allocation:'Moderate',ytdReturn:8.6,feeRate:0.85,lastReview:'2025-12-20'},
+  {id:'a26',clientId:'c8',type:'IRA',custodian:'Raymond James',value:720000,allocation:'Moderate',ytdReturn:8.2,feeRate:0.90,lastReview:'2025-12-20'},
+  {id:'a27',clientId:'c8',type:'Trust',custodian:'Raymond James',value:440000,allocation:'Conservative',ytdReturn:5.8,feeRate:0.75,lastReview:'2025-12-20'}
+];
+
+const SEED_POLICIES = [
+  {id:'p1',clientId:'c1',type:'Whole Life',carrier:'MassMutual',faceAmount:1000000,annualPremium:12480,commissionPct:55,status:'In-Force',issueDate:'2018-08-01',renewalDate:'2027-08-01',notes:'Paid-up additions rider.'},
+  {id:'p2',clientId:'c1',type:'Long-Term Care',carrier:'Genworth',faceAmount:0,annualPremium:7200,commissionPct:8,status:'In-Force',issueDate:'2019-03-15',renewalDate:'2027-03-15',notes:'Shared care policy.'},
+  {id:'p3',clientId:'c1',type:'Term Life',carrier:'Protective',faceAmount:500000,annualPremium:1840,commissionPct:90,status:'In-Force',issueDate:'2020-05-01',renewalDate:'2030-05-01',notes:'10-year level term.'},
+  {id:'p4',clientId:'c2',type:'Indexed UL',carrier:'North American',faceAmount:2000000,annualPremium:18600,commissionPct:60,status:'In-Force',issueDate:'2020-04-01',renewalDate:'2028-04-01',notes:'Overfunded IUL.'},
+  {id:'p5',clientId:'c2',type:'Disability Income',carrier:'Guardian',faceAmount:0,annualPremium:4200,commissionPct:50,status:'In-Force',issueDate:'2019-06-15',renewalDate:'2027-06-15',notes:'$8,000/mo benefit.'},
+  {id:'p6',clientId:'c3',type:'Whole Life',carrier:'New York Life',faceAmount:3000000,annualPremium:28400,commissionPct:55,status:'In-Force',issueDate:'2015-12-01',renewalDate:'2030-12-01',notes:'ILIT structure.'},
+  {id:'p7',clientId:'c3',type:'Long-Term Care',carrier:'Nationwide',faceAmount:0,annualPremium:6400,commissionPct:8,status:'In-Force',issueDate:'2018-09-01',renewalDate:'2026-09-01',notes:''},
+  {id:'p8',clientId:'c3',type:'Disability Income',carrier:'Principal',faceAmount:0,annualPremium:5200,commissionPct:50,status:'In-Force',issueDate:'2016-03-15',renewalDate:'2026-03-15',notes:''},
+  {id:'p9',clientId:'c4',type:'Term Life',carrier:'Banner',faceAmount:750000,annualPremium:2100,commissionPct:90,status:'In-Force',issueDate:'2020-10-01',renewalDate:'2030-10-01',notes:''},
+  {id:'p10',clientId:'c4',type:'Disability Income',carrier:'Ameritas',faceAmount:0,annualPremium:3600,commissionPct:50,status:'In-Force',issueDate:'2020-12-01',renewalDate:'2028-12-01',notes:''},
+  {id:'p11',clientId:'c4',type:'Fixed Annuity',carrier:'Allianz',faceAmount:0,annualPremium:6200,commissionPct:4,status:'In-Force',issueDate:'2021-07-01',renewalDate:null,notes:''},
+  {id:'p12',clientId:'c5',type:'Variable UL',carrier:'Prudential',faceAmount:5000000,annualPremium:22800,commissionPct:55,status:'In-Force',issueDate:'2012-05-01',renewalDate:null,notes:'Second-to-die VUL.'},
+  {id:'p13',clientId:'c5',type:'Long-Term Care',carrier:'Lincoln Financial',faceAmount:0,annualPremium:9600,commissionPct:8,status:'In-Force',issueDate:'2015-07-01',renewalDate:'2027-07-01',notes:''},
+  {id:'p14',clientId:'c6',type:'Term Life',carrier:'Haven Life',faceAmount:1000000,annualPremium:1240,commissionPct:90,status:'In-Force',issueDate:'2021-05-15',renewalDate:'2041-05-15',notes:''},
+  {id:'p15',clientId:'c6',type:'Disability Income',carrier:'Ohio National',faceAmount:0,annualPremium:2880,commissionPct:50,status:'In-Force',issueDate:'2021-06-01',renewalDate:'2031-06-01',notes:''},
+  {id:'p16',clientId:'c7',type:'Indexed UL',carrier:'Pacific Life',faceAmount:1500000,annualPremium:14400,commissionPct:60,status:'In-Force',issueDate:'2020-01-01',renewalDate:null,notes:'Max-funded IUL.'},
+  {id:'p17',clientId:'c7',type:'Disability Income',carrier:'MetLife',faceAmount:0,annualPremium:5200,commissionPct:50,status:'In-Force',issueDate:'2019-10-01',renewalDate:'2027-10-01',notes:''},
+  {id:'p18',clientId:'c8',type:'Whole Life',carrier:'Northwestern Mutual',faceAmount:2000000,annualPremium:18400,commissionPct:55,status:'In-Force',issueDate:'2016-08-01',renewalDate:null,notes:'Key-man policy.'},
+  {id:'p19',clientId:'c8',type:'Variable Annuity',carrier:'Jackson National',faceAmount:0,annualPremium:8400,commissionPct:5,status:'In-Force',issueDate:'2019-02-01',renewalDate:null,notes:''},
+  {id:'p20',clientId:'c8',type:'Long-Term Care',carrier:'Transamerica',faceAmount:0,annualPremium:4800,commissionPct:8,status:'In-Force',issueDate:'2018-11-15',renewalDate:'2026-11-15',notes:''}
+];
+
+const SEED_PROSPECTS = [
+  {id:'pr1',name:'Kevin Park',email:'kpark@techfirm.io',phone:'(408)555-0123',type:'Individual',stage:'Discovery',expectedAUM:850000,expectedPremium:8400,probability:45,source:'Client Referral',nextAction:'Send financial planning proposal',nextActionDate:'2026-05-20',stageDate:'2026-03-15',notes:'Referred by David Chen. Software engineer.'},
+  {id:'pr2',name:'Sandra & Mark Mitchell',email:'smitchell@consulting.com',phone:'(847)555-0287',type:'Family',stage:'Proposal',expectedAUM:2200000,expectedPremium:18000,probability:65,source:'COI Referral',nextAction:'Follow up on investment proposal',nextActionDate:'2026-05-16',stageDate:'2026-02-28',notes:'Referred by CPA. Mark is retiring VP at Abbott.'},
+  {id:'pr3',name:'Richard Barnes',email:'rbarnes@barneslaw.com',phone:'(312)555-0356',type:'Individual',stage:'Negotiation',expectedAUM:1500000,expectedPremium:22000,probability:80,source:'Seminar',nextAction:'Review and sign advisory agreement',nextActionDate:'2026-05-15',stageDate:'2026-03-01',notes:'Met at estate planning seminar.'},
+  {id:'pr4',name:'Laura Schmidt',email:'lschmidt@schmidt-re.com',phone:'(720)555-0489',type:'Individual',stage:'Lead',expectedAUM:650000,expectedPremium:6000,probability:30,source:'LinkedIn',nextAction:'Schedule introductory call',nextActionDate:'2026-05-22',stageDate:'2026-04-08',notes:'Real estate investor.'},
+  {id:'pr5',name:'Daniel & Rebecca Torres',email:'dtorres@healthsystem.org',phone:'(954)555-0512',type:'Family',stage:'Discovery',expectedAUM:1100000,expectedPremium:12000,probability:55,source:'Client Referral',nextAction:'Complete risk tolerance questionnaire',nextActionDate:'2026-05-25',stageDate:'2026-03-25',notes:'Referred by Elizabeth Warren. Daniel is a physician.'},
+  {id:'pr6',name:"Catherine O'Brien",email:'cobrien@university.edu',phone:'(617)555-0634',type:'Individual',stage:'Discovery',expectedAUM:420000,expectedPremium:4800,probability:40,source:'Seminar',nextAction:'Review 403(b) options',nextActionDate:'2026-05-28',stageDate:'2026-03-30',notes:'University professor approaching early retirement.'},
+  {id:'pr7',name:'Gregory & Helen Nakamura',email:'gnakamura@executive.com',phone:'(206)555-0758',type:'Family',stage:'Proposal',expectedAUM:3200000,expectedPremium:28000,probability:70,source:'COI Referral',nextAction:'Deliver estate and insurance analysis',nextActionDate:'2026-05-17',stageDate:'2026-03-10',notes:'Tech executive. Complex equity comp.'}
+];
+
+// ============================================================
+// STATE
+// ============================================================
+let db = {clients:[], accounts:[], policies:[], prospects:[]};
+let state = {
+  tab:'overview',
+  prospectView:'kanban',
+  aumSort:{col:'value',asc:false},
+  insSort:{col:'annualPremium',asc:false},
+  prospectSort:{col:'expectedAUM',asc:false},
+  modal:{type:null,id:null}
+};
+let chartRegistry = {};
+
+const LS_KEY = 'apex-advisory-v1';
+
+function loadDB() {
+  const raw = localStorage.getItem(LS_KEY);
+  if (raw) {
+    try { db = JSON.parse(raw); return; } catch(e) {}
+  }
+  db = {
+    clients: JSON.parse(JSON.stringify(SEED_CLIENTS)),
+    accounts: JSON.parse(JSON.stringify(SEED_ACCOUNTS)),
+    policies: JSON.parse(JSON.stringify(SEED_POLICIES)),
+    prospects: JSON.parse(JSON.stringify(SEED_PROSPECTS))
+  };
+  saveDB();
+}
+
+function saveDB() {
+  localStorage.setItem(LS_KEY, JSON.stringify(db));
+}
+
+// ============================================================
+// COMPUTED HELPERS
+// ============================================================
+function totalAUM() { return db.accounts.reduce((s,a)=>s+a.value,0); }
+function annualFees() { return db.accounts.reduce((s,a)=>s+a.value*a.feeRate/100,0); }
+function totalPremiums() { return db.policies.filter(p=>p.status==='In-Force').reduce((s,p)=>s+p.annualPremium,0); }
+function totalCommissions() { return db.policies.filter(p=>p.status==='In-Force').reduce((s,p)=>s+p.annualPremium*p.commissionPct/100,0); }
+function weightedPipeline() { return db.prospects.reduce((s,p)=>s+p.expectedAUM*p.probability/100,0); }
+
+function clientAUM(cid) { return db.accounts.filter(a=>a.clientId===cid).reduce((s,a)=>s+a.value,0); }
+function clientFees(cid) { return db.accounts.filter(a=>a.clientId===cid).reduce((s,a)=>s+a.value*a.feeRate/100,0); }
+function clientPremium(cid) { return db.policies.filter(p=>p.clientId===cid&&p.status==='In-Force').reduce((s,p)=>s+p.annualPremium,0); }
+function clientCommission(cid) { return db.policies.filter(p=>p.clientId===cid&&p.status==='In-Force').reduce((s,p)=>s+p.annualPremium*p.commissionPct/100,0); }
+
+function clientName(cid) { const c=db.clients.find(x=>x.id===cid); return c?c.name:'Unknown'; }
+
+function fmt$(v) {
+  if (v>=1e6) return '$'+(v/1e6).toFixed(2)+'M';
+  if (v>=1e3) return '$'+(v/1e3).toFixed(0)+'K';
+  return '$'+Math.round(v).toLocaleString();
+}
+function fmtFull$(v) { return '$'+Math.round(v).toLocaleString(); }
+function fmtPct(v) { return v.toFixed(2)+'%'; }
+function fmtDate(d) { if(!d) return '—'; const p=d.split('-'); return p[1]+'/'+p[2]+'/'+p[0]; }
+function fmtDateShort(d) { if(!d) return '—'; const p=d.split('-'); return p[1]+'/'+p[2]+'/'+p[0].slice(2); }
+
+function avatarColor(name) {
+  const colors=['#4f9eff','#34c27b','#b07ef8','#e8b84b','#ff9f47','#f0504a','#00c9c9','#ff6eb4'];
+  let h=0; for(let i=0;i<name.length;i++) h=(h*31+name.charCodeAt(i))%colors.length;
+  return colors[Math.abs(h)];
+}
+function initials(name) {
+  const parts=name.split(' ').filter(Boolean);
+  if(parts.length===1) return parts[0][0].toUpperCase();
+  return (parts[0][0]+parts[parts.length-1][0]).toUpperCase();
+}
+
+function riskBadge(r) {
+  const map={Conservative:'blue',Moderate:'green',Balanced:'gold',Growth:'orange',Aggressive:'red'};
+  return `<span class="badge badge-${map[r]||'gray'}">${r}</span>`;
+}
+function stageBadge(s) {
+  const map={Lead:'blue',Discovery:'gold',Proposal:'purple',Negotiation:'green'};
+  return `<span class="badge badge-${map[s]||'gray'}">${s}</span>`;
+}
+function statusBadge(s) {
+  const map={'In-Force':'green',Pending:'gold',Lapsed:'red',Surrendered:'gray'};
+  return `<span class="badge badge-${map[s]||'gray'}">${s}</span>`;
+}
+
+function aumGrowthData() {
+  const total = totalAUM();
+  const months = [];
+  const values = [];
+  const now = new Date(2026,4,15); // May 15 2026
+  for(let i=12;i>=0;i--) {
+    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+    months.push(d.toLocaleString('default',{month:'short',year:'2-digit'}));
+    values.push(total*(0.92+Math.sin(i*0.4)*0.03-i*0.006));
+  }
+  return {months,values};
+}
+
+// ============================================================
+// CLOCK
+// ============================================================
+function updateClock() {
+  const now=new Date();
+  document.getElementById('nav-clock').textContent=now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+setInterval(updateClock,1000);
+updateClock();
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function navigate(tab) {
+  state.tab=tab;
+  document.querySelectorAll('.nav-tab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(b=>{
+    if(b.textContent.toLowerCase().replace(/[^a-z]/g,'').includes(tab.replace(/[^a-z]/g,''))) b.classList.add('active');
+  });
+  document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  // destroy charts before rendering new ones
+  Object.values(chartRegistry).forEach(c=>c.destroy());
+  chartRegistry={};
+  render();
+  setTimeout(()=>initCharts(),50);
+}
+
+// correct tab button matching
+function setupNavTabs() {
+  const tabs=['overview','aum','insurance','clients','prospects','reports'];
+  document.querySelectorAll('.nav-tab').forEach((b,i)=>{
+    b.onclick=()=>navigate(tabs[i]);
+  });
+}
+
+// ============================================================
+// RENDER DISPATCH
+// ============================================================
+function render() {
+  switch(state.tab) {
+    case 'overview': renderOverview(); break;
+    case 'aum': renderAUM(); break;
+    case 'insurance': renderInsurance(); break;
+    case 'clients': renderClients(); break;
+    case 'prospects': renderProspects(); break;
+    case 'reports': renderReports(); break;
+  }
+}
+
+// ============================================================
+// TAB 1: OVERVIEW
+// ============================================================
+function renderOverview() {
+  const aum=totalAUM(), fees=annualFees(), prem=totalPremiums(), comm=totalCommissions(), pipe=weightedPipeline();
+  const activeClients=db.clients.filter(c=>c.status==='Active').length;
+  const kpis=[
+    {label:'Total AUM',value:fmt$(aum),sub:'All accounts',color:'var(--blue)'},
+    {label:'Annual Advisory Fees',value:fmt$(fees),sub:fmtPct(fees/aum*100)+' avg rate',color:'var(--green)'},
+    {label:'Total Premiums',value:fmt$(prem),sub:'In-force policies',color:'var(--gold)'},
+    {label:'Insurance Commission',value:fmt$(comm),sub:'Est. annual',color:'var(--purple)'},
+    {label:'Active Clients',value:activeClients,sub:'All statuses',color:'var(--orange)'},
+    {label:'Weighted Pipeline',value:fmt$(pipe),sub:'Expected AUM',color:'var(--red)'}
+  ];
+  document.getElementById('ov-kpis').innerHTML=kpis.map(k=>`
+    <div class="kpi-card">
+      <div class="kpi-accent" style="background:${k.color}"></div>
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value">${k.value}</div>
+      <div class="kpi-sub">${k.sub}</div>
+    </div>`).join('');
+
+  // Top clients
+  const topClients=[...db.clients].map(c=>({c,aum:clientAUM(c.id)})).sort((a,b)=>b.aum-a.aum).slice(0,5);
+  document.getElementById('ov-top-clients').innerHTML=`
+    <thead><tr><th>Client</th><th>Total AUM</th><th>Annual Fees</th><th>Annual Premium</th></tr></thead>
+    <tbody>${topClients.map(({c})=>`<tr>
+      <td style="font-weight:500;color:var(--text-bright)">${c.name}</td>
+      <td>${fmtFull$(clientAUM(c.id))}</td>
+      <td>${fmtFull$(clientFees(c.id))}</td>
+      <td>${fmtFull$(clientPremium(c.id))}</td>
+    </tr>`).join('')}</tbody>`;
+
+  // Upcoming reviews & renewals
+  const upcoming = [];
+  db.accounts.forEach(a=>{if(a.lastReview){upcoming.push({date:a.lastReview,name:clientName(a.clientId),type:a.type+' review',color:'var(--blue)'})}});
+  db.policies.forEach(p=>{if(p.renewalDate){upcoming.push({date:p.renewalDate,name:clientName(p.clientId),type:p.type+' renewal',color:'var(--gold)'})}});
+  db.prospects.forEach(p=>{upcoming.push({date:p.nextActionDate,name:p.name,type:p.nextAction,color:'var(--purple)'})});
+  upcoming.sort((a,b)=>a.date.localeCompare(b.date));
+  const futureUp=upcoming.filter(u=>u.date>='2026-05-15').slice(0,5);
+  document.getElementById('ov-upcoming').innerHTML=futureUp.map(u=>`
+    <div class="review-item">
+      <div class="review-date" style="color:${u.color}">${fmtDate(u.date)}</div>
+      <div>
+        <div class="review-name">${u.name}</div>
+        <div class="review-type">${u.type}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ============================================================
+// TAB 2: AUM
+// ============================================================
+function renderAUM() {
+  const aum=totalAUM(), fees=annualFees();
+  const avgAcct=aum/db.accounts.length;
+  document.getElementById('aum-kpis').innerHTML=[
+    {label:'Total AUM',value:fmt$(aum),color:'var(--blue)'},
+    {label:'# Accounts',value:db.accounts.length,color:'var(--green)'},
+    {label:'Avg Account Size',value:fmt$(avgAcct),color:'var(--gold)'},
+    {label:'Total Annual Fees',value:fmt$(fees),color:'var(--purple)'}
+  ].map(k=>`<div class="kpi-card"><div class="kpi-accent" style="background:${k.color}"></div><div class="kpi-label">${k.label}</div><div class="kpi-value">${k.value}</div></div>`).join('');
+  renderAumTable();
+}
+
+function renderAumTable() {
+  const search=(document.getElementById('aum-search')||{}).value||'';
+  const typeF=(document.getElementById('aum-type-filter')||{}).value||'';
+  let rows=[...db.accounts].filter(a=>{
+    const cn=clientName(a.clientId).toLowerCase();
+    if(search&&!cn.includes(search.toLowerCase())) return false;
+    if(typeF&&a.type!==typeF) return false;
+    return true;
+  });
+  const {col,asc}=state.aumSort;
+  rows.sort((a,b)=>{
+    let av,bv;
+    if(col==='client') {av=clientName(a.clientId);bv=clientName(b.clientId);}
+    else if(col==='annualFee') {av=a.value*a.feeRate/100;bv=b.value*b.feeRate/100;}
+    else {av=a[col];bv=b[col];}
+    if(typeof av==='string') return asc?av.localeCompare(bv):bv.localeCompare(av);
+    return asc?av-bv:bv-av;
+  });
+  const cols=[
+    {key:'client',label:'Client'},
+    {key:'type',label:'Account Type'},
+    {key:'custodian',label:'Custodian'},
+    {key:'value',label:'Market Value'},
+    {key:'allocation',label:'Allocation'},
+    {key:'ytdReturn',label:'YTD Return'},
+    {key:'feeRate',label:'Fee Rate'},
+    {key:'annualFee',label:'Annual Fee'},
+    {key:'lastReview',label:'Last Review'},
+    {key:'actions',label:'Actions',nosort:true}
+  ];
+  const tbl=document.getElementById('aum-table');
+  tbl.innerHTML=`<thead><tr>${cols.map(c=>{
+    if(c.nosort) return `<th>${c.label}</th>`;
+    const active=state.aumSort.col===c.key;
+    const cls=active?(state.aumSort.asc?'sort-asc':'sort-desc'):'';
+    return `<th class="${cls}" onclick="sortAum('${c.key}')">${c.label}<span class="sort-icon"></span></th>`;
+  }).join('')}</tr></thead><tbody>${rows.map(a=>`<tr>
+    <td style="font-weight:500;color:var(--text-bright)">${clientName(a.clientId)}</td>
+    <td>${a.type}</td>
+    <td>${a.custodian}</td>
+    <td style="font-variant-numeric:tabular-nums">${fmtFull$(a.value)}</td>
+    <td>${a.allocation}</td>
+    <td class="${a.ytdReturn>=0?'':'red'}" style="color:${a.ytdReturn>=0?'var(--green)':'var(--red)'}">${a.ytdReturn.toFixed(1)}%</td>
+    <td>${a.feeRate.toFixed(2)}%</td>
+    <td>${fmtFull$(a.value*a.feeRate/100)}</td>
+    <td>${fmtDate(a.lastReview)}</td>
+    <td><button class="btn-icon" onclick="openModal('account','${a.id}')">✎</button> <button class="btn-icon" style="color:var(--red)" onclick="deleteRecord('account','${a.id}')">✕</button></td>
+  </tr>`).join('')}</tbody>`;
+}
+
+function sortAum(col) {
+  if(state.aumSort.col===col) state.aumSort.asc=!state.aumSort.asc;
+  else {state.aumSort.col=col;state.aumSort.asc=false;}
+  renderAumTable();
+}
+
+// ============================================================
+// TAB 3: INSURANCE
+// ============================================================
+function renderInsurance() {
+  const inForce=db.policies.filter(p=>p.status==='In-Force');
+  const prem=inForce.reduce((s,p)=>s+p.annualPremium,0);
+  const fyc=inForce.reduce((s,p)=>s+p.annualPremium*p.commissionPct/100,0);
+  const renewal=inForce.filter(p=>p.commissionPct<20).reduce((s,p)=>s+p.annualPremium*0.05,0);
+  document.getElementById('ins-kpis').innerHTML=[
+    {label:'Total In-Force Premium',value:fmt$(prem),color:'var(--blue)'},
+    {label:'Total FYC',value:fmt$(fyc),color:'var(--green)'},
+    {label:'Est. Renewal Commission',value:fmt$(renewal),color:'var(--gold)'},
+    {label:'Policies In-Force',value:inForce.length,color:'var(--purple)'}
+  ].map(k=>`<div class="kpi-card"><div class="kpi-accent" style="background:${k.color}"></div><div class="kpi-label">${k.label}</div><div class="kpi-value">${k.value}</div></div>`).join('');
+  renderInsTable();
+}
+
+function renderInsTable() {
+  const search=(document.getElementById('ins-search')||{}).value||'';
+  const typeF=(document.getElementById('ins-type-filter')||{}).value||'';
+  let rows=[...db.policies].filter(p=>{
+    const cn=clientName(p.clientId).toLowerCase();
+    if(search&&!cn.includes(search.toLowerCase())) return false;
+    if(typeF&&p.type!==typeF) return false;
+    return true;
+  });
+  const {col,asc}=state.insSort;
+  rows.sort((a,b)=>{
+    let av,bv;
+    if(col==='client'){av=clientName(a.clientId);bv=clientName(b.clientId);}
+    else if(col==='estComm'){av=a.annualPremium*a.commissionPct/100;bv=b.annualPremium*b.commissionPct/100;}
+    else{av=a[col];bv=b[col];}
+    if(typeof av==='string') return asc?av.localeCompare(bv):bv.localeCompare(av);
+    return asc?av-bv:bv-av;
+  });
+  const cols=[
+    {key:'client',label:'Client'},{key:'type',label:'Policy Type'},{key:'carrier',label:'Carrier'},
+    {key:'faceAmount',label:'Face Amount'},{key:'annualPremium',label:'Annual Premium'},
+    {key:'commissionPct',label:'Comm %'},{key:'estComm',label:'Est. Commission'},
+    {key:'status',label:'Status'},{key:'issueDate',label:'Issue Date'},
+    {key:'renewalDate',label:'Renewal Date'},{key:'actions',label:'Actions',nosort:true}
+  ];
+  const tbl=document.getElementById('ins-table');
+  tbl.innerHTML=`<thead><tr>${cols.map(c=>{
+    if(c.nosort) return `<th>${c.label}</th>`;
+    const active=state.insSort.col===c.key;
+    const cls=active?(state.insSort.asc?'sort-asc':'sort-desc'):'';
+    return `<th class="${cls}" onclick="sortIns('${c.key}')">${c.label}<span class="sort-icon"></span></th>`;
+  }).join('')}</tr></thead><tbody>${rows.map(p=>`<tr>
+    <td style="font-weight:500;color:var(--text-bright)">${clientName(p.clientId)}</td>
+    <td>${p.type}</td>
+    <td>${p.carrier}</td>
+    <td>${p.faceAmount>0?fmtFull$(p.faceAmount):'—'}</td>
+    <td>${fmtFull$(p.annualPremium)}</td>
+    <td>${p.commissionPct}%</td>
+    <td>${fmtFull$(p.annualPremium*p.commissionPct/100)}</td>
+    <td>${statusBadge(p.status)}</td>
+    <td>${fmtDate(p.issueDate)}</td>
+    <td>${fmtDate(p.renewalDate)}</td>
+    <td><button class="btn-icon" onclick="openModal('policy','${p.id}')">✎</button> <button class="btn-icon" style="color:var(--red)" onclick="deleteRecord('policy','${p.id}')">✕</button></td>
+  </tr>`).join('')}</tbody>`;
+}
+
+function sortIns(col) {
+  if(state.insSort.col===col) state.insSort.asc=!state.insSort.asc;
+  else {state.insSort.col=col;state.insSort.asc=false;}
+  renderInsTable();
+}
+
+// ============================================================
+// TAB 4: CLIENTS
+// ============================================================
+function renderClients() {
+  document.getElementById('clients-list-view').style.display='block';
+  document.getElementById('client-detail-view').style.display='none';
+  renderClientsGrid();
+}
+
+function renderClientsGrid() {
+  const search=(document.getElementById('client-search')||{}).value||'';
+  const clients=db.clients.filter(c=>!search||c.name.toLowerCase().includes(search.toLowerCase()));
+  document.getElementById('clients-grid').innerHTML=clients.map(c=>{
+    const aum=clientAUM(c.id),fees=clientFees(c.id),prem=clientPremium(c.id);
+    const color=avatarColor(c.name);
+    const sinceY=c.since?c.since.split('-')[0]:'—';
+    return `<div class="client-card">
+      <div class="client-card-header">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="client-avatar" style="background:${color}">${initials(c.name)}</div>
+          <div>
+            <div class="client-name">${c.name}</div>
+            <div class="client-meta">${c.type} · Since ${sinceY}</div>
+          </div>
+        </div>
+        <span class="badge badge-${c.status==='Active'?'green':'gray'}">${c.status}</span>
+      </div>
+      <div style="margin-bottom:8px">${riskBadge(c.riskProfile)}</div>
+      <div class="client-stats">
+        <div><div class="client-stat-label">Total AUM</div><div class="client-stat-val">${fmt$(aum)}</div></div>
+        <div><div class="client-stat-label">Annual Fees</div><div class="client-stat-val">${fmt$(fees)}</div></div>
+        <div><div class="client-stat-label">Annual Premium</div><div class="client-stat-val">${fmt$(prem)}</div></div>
+        <div><div class="client-stat-label">Commission</div><div class="client-stat-val">${fmt$(clientCommission(c.id))}</div></div>
+      </div>
+      <button class="btn btn-ghost" style="width:100%;justify-content:center;margin-top:8px" onclick="showClientDetail('${c.id}')">View Profile</button>
+    </div>`;
+  }).join('');
+}
+
+function showClientDetail(cid) {
+  const c=db.clients.find(x=>x.id===cid);
+  if(!c) return;
+  document.getElementById('clients-list-view').style.display='none';
+  const dv=document.getElementById('client-detail-view');
+  dv.style.display='block';
+  const aum=clientAUM(cid),fees=clientFees(cid),prem=clientPremium(cid),comm=clientCommission(cid);
+  const color=avatarColor(c.name);
+  const accts=db.accounts.filter(a=>a.clientId===cid);
+  const pols=db.policies.filter(p=>p.clientId===cid);
+  dv.innerHTML=`
+    <div class="client-detail-header">
+      <button class="btn btn-ghost btn-sm" onclick="renderClients()">← Back</button>
+      <div class="client-avatar" style="background:${color};width:48px;height:48px;font-size:18px">${initials(c.name)}</div>
+      <div style="flex:1">
+        <div style="font-size:16px;font-weight:700;color:var(--text-bright)">${c.name}</div>
+        <div style="font-size:12px;color:var(--text-muted)">${c.type} · ${c.email} · ${c.phone}</div>
+        <div style="margin-top:4px;display:flex;gap:8px;align-items:center">${riskBadge(c.riskProfile)}<span class="badge badge-${c.status==='Active'?'green':'gray'}">${c.status}</span><span style="font-size:11px;color:var(--text-muted)">Since ${fmtDate(c.since)}</span></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" onclick="openModal('client','${cid}')">✎ Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteRecord('client','${cid}')">✕ Delete</button>
+      </div>
+    </div>
+    <div class="kpi-row" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
+      ${[{l:'Total AUM',v:fmtFull$(aum),c:'var(--blue)'},{l:'Annual Fees',v:fmtFull$(fees),c:'var(--green)'},{l:'Annual Premium',v:fmtFull$(prem),c:'var(--gold)'},{l:'Commission',v:fmtFull$(comm),c:'var(--purple)'}]
+        .map(k=>`<div class="kpi-card"><div class="kpi-accent" style="background:${k.c}"></div><div class="kpi-label">${k.l}</div><div class="kpi-value" style="font-size:18px">${k.v}</div></div>`).join('')}
+    </div>
+    <div class="two-col">
+      <div class="panel">
+        <div class="section-header"><span class="panel-title" style="margin:0">Accounts</span><button class="btn btn-primary btn-sm" onclick="openModal('account',null,'${cid}')">+ Add</button></div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Type</th><th>Custodian</th><th>Value</th><th>Allocation</th><th>YTD</th><th>Fee Rate</th><th>Actions</th></tr></thead>
+          <tbody>${accts.map(a=>`<tr>
+            <td>${a.type}</td><td>${a.custodian}</td><td>${fmtFull$(a.value)}</td><td>${a.allocation}</td>
+            <td style="color:${a.ytdReturn>=0?'var(--green)':'var(--red)'}">${a.ytdReturn.toFixed(1)}%</td>
+            <td>${a.feeRate.toFixed(2)}%</td>
+            <td><button class="btn-icon" onclick="openModal('account','${a.id}')">✎</button> <button class="btn-icon" style="color:var(--red)" onclick="deleteRecord('account','${a.id}')">✕</button></td>
+          </tr>`).join('')}</tbody>
+        </table></div>
+      </div>
+      <div class="panel">
+        <div class="section-header"><span class="panel-title" style="margin:0">Policies</span><button class="btn btn-primary btn-sm" onclick="openModal('policy',null,'${cid}')">+ Add</button></div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Type</th><th>Carrier</th><th>Premium</th><th>Comm %</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody>${pols.map(p=>`<tr>
+            <td>${p.type}</td><td>${p.carrier}</td><td>${fmtFull$(p.annualPremium)}</td><td>${p.commissionPct}%</td>
+            <td>${statusBadge(p.status)}</td>
+            <td><button class="btn-icon" onclick="openModal('policy','${p.id}')">✎</button> <button class="btn-icon" style="color:var(--red)" onclick="deleteRecord('policy','${p.id}')">✕</button></td>
+          </tr>`).join('')}</tbody>
+        </table></div>
+      </div>
+    </div>
+    ${c.notes?`<div class="panel"><div class="panel-title">Notes</div><p style="font-size:12px;color:var(--text);line-height:1.6">${c.notes}</p></div>`:''}
+  `;
+}
+
+// ============================================================
+// TAB 5: PROSPECTS
+// ============================================================
+function renderProspects() {
+  const total=db.prospects.length;
+  const pipe=weightedPipeline();
+  const expPrem=db.prospects.reduce((s,p)=>s+p.expectedPremium,0);
+  const avgProb=total?Math.round(db.prospects.reduce((s,p)=>s+p.probability,0)/total):0;
+  document.getElementById('prospect-kpis').innerHTML=[
+    {l:'Total Prospects',v:total,c:'var(--blue)'},
+    {l:'Weighted Pipeline AUM',v:fmt$(pipe),c:'var(--green)'},
+    {l:'Expected Annual Premium',v:fmt$(expPrem),c:'var(--gold)'},
+    {l:'Avg Probability',v:avgProb+'%',c:'var(--purple)'}
+  ].map(k=>`<div class="kpi-card"><div class="kpi-accent" style="background:${k.c}"></div><div class="kpi-label">${k.l}</div><div class="kpi-value">${k.v}</div></div>`).join('');
+
+  if(state.prospectView==='kanban') renderKanban();
+  else renderProspectTable();
+}
+
+function setProspectView(v) {
+  state.prospectView=v;
+  document.getElementById('toggle-kanban').classList.toggle('active',v==='kanban');
+  document.getElementById('toggle-table').classList.toggle('active',v==='table');
+  document.getElementById('prospect-kanban').style.display=v==='kanban'?'block':'none';
+  document.getElementById('prospect-table-view').style.display=v==='table'?'block':'none';
+  if(v==='kanban') renderKanban();
+  else renderProspectTable();
+}
+
+function renderKanban() {
+  const stages=['Lead','Discovery','Proposal','Negotiation'];
+  const stageColors={Lead:'var(--blue)',Discovery:'var(--gold)',Proposal:'var(--purple)',Negotiation:'var(--green)'};
+  document.getElementById('prospect-kanban').innerHTML=`<div class="kanban-board">${stages.map(s=>{
+    const items=db.prospects.filter(p=>p.stage===s);
+    return `<div class="kanban-col">
+      <div class="kanban-col-header">
+        <span style="color:${stageColors[s]}">${s}</span>
+        <span class="badge badge-gray">${items.length}</span>
+      </div>
+      ${items.map(p=>`<div class="kanban-card">
+        <div class="kanban-card-name">${p.name}</div>
+        <div class="kanban-card-aum">AUM: ${fmt$(p.expectedAUM)} · Prem: ${fmt$(p.expectedPremium)}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px">
+          <span class="badge badge-${p.probability>=70?'green':p.probability>=50?'gold':'blue'}">${p.probability}%</span>
+          <span style="font-size:10px;color:var(--text-muted)">${fmtDateShort(p.nextActionDate)}</span>
+        </div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:6px;line-height:1.4">${p.nextAction}</div>
+        <div style="margin-top:8px;display:flex;gap:4px">
+          <button class="btn-icon" style="font-size:11px" onclick="openModal('prospect','${p.id}')">✎</button>
+          <button class="btn-icon" style="font-size:11px;color:var(--red)" onclick="deleteRecord('prospect','${p.id}')">✕</button>
+        </div>
+      </div>`).join('')}
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function renderProspectTable() {
+  const {col,asc}=state.prospectSort;
+  const rows=[...db.prospects].sort((a,b)=>{
+    let av=a[col],bv=b[col];
+    if(typeof av==='string') return asc?av.localeCompare(bv):bv.localeCompare(av);
+    return asc?av-bv:bv-av;
+  });
+  const cols=[
+    {key:'name',label:'Name'},{key:'type',label:'Type'},{key:'stage',label:'Stage'},
+    {key:'expectedAUM',label:'Expected AUM'},{key:'expectedPremium',label:'Expected Premium'},
+    {key:'probability',label:'Probability'},{key:'source',label:'Source'},
+    {key:'nextAction',label:'Next Action'},{key:'nextActionDate',label:'Next Action Date'},
+    {key:'actions',label:'Actions',nosort:true}
+  ];
+  document.getElementById('prospect-table').innerHTML=`
+    <thead><tr>${cols.map(c=>{
+      if(c.nosort) return `<th>${c.label}</th>`;
+      const active=state.prospectSort.col===c.key;
+      const cls=active?(state.prospectSort.asc?'sort-asc':'sort-desc'):'';
+      return `<th class="${cls}" onclick="sortProspect('${c.key}')">${c.label}<span class="sort-icon"></span></th>`;
+    }).join('')}</tr></thead>
+    <tbody>${rows.map(p=>`<tr>
+      <td style="font-weight:500;color:var(--text-bright)">${p.name}</td>
+      <td>${p.type}</td>
+      <td>${stageBadge(p.stage)}</td>
+      <td>${fmtFull$(p.expectedAUM)}</td>
+      <td>${fmtFull$(p.expectedPremium)}</td>
+      <td><span class="badge badge-${p.probability>=70?'green':p.probability>=50?'gold':'blue'}">${p.probability}%</span></td>
+      <td>${p.source}</td>
+      <td style="max-width:160px;white-space:normal;font-size:11px">${p.nextAction}</td>
+      <td>${fmtDate(p.nextActionDate)}</td>
+      <td><button class="btn-icon" onclick="openModal('prospect','${p.id}')">✎</button> <button class="btn-icon" style="color:var(--red)" onclick="deleteRecord('prospect','${p.id}')">✕</button></td>
+    </tr>`).join('')}</tbody>`;
+}
+
+function sortProspect(col) {
+  if(state.prospectSort.col===col) state.prospectSort.asc=!state.prospectSort.asc;
+  else {state.prospectSort.col=col;state.prospectSort.asc=false;}
+  renderProspectTable();
+}
+
+// ============================================================
+// TAB 6: REPORTS
+// ============================================================
+function renderReports() {
+  const aum=totalAUM(), fees=annualFees(), comm=totalCommissions();
+  const activeClients=db.clients.filter(c=>c.status==='Active').length;
+  const {months,values}=aumGrowthData();
+  const startAUM=values[0], endAUM=values[values.length-1];
+  const aumGrowthPct=((endAUM-startAUM)/startAUM*100).toFixed(1);
+  const ytdFees=fees*5/12; // Jan-May
+  const ytdComm=comm*5/12;
+  const avgAumPerClient=aum/activeClients;
+
+  document.getElementById('reports-stats').innerHTML=`
+    <tbody>
+      <tr><td>YTD Advisory Revenue</td><td>${fmtFull$(ytdFees)}</td></tr>
+      <tr><td>YTD Insurance Revenue</td><td>${fmtFull$(ytdComm)}</td></tr>
+      <tr><td>YTD Total Revenue</td><td>${fmtFull$(ytdFees+ytdComm)}</td></tr>
+      <tr><td>AUM Growth % (13M)</td><td style="color:var(--green)">+${aumGrowthPct}%</td></tr>
+      <tr><td>Client Retention Rate</td><td style="color:var(--green)">100%</td></tr>
+      <tr><td>Avg AUM per Client</td><td>${fmtFull$(avgAumPerClient)}</td></tr>
+    </tbody>`;
+}
+
+// ============================================================
+// CHARTS
+// ============================================================
+function initCharts() {
+  switch(state.tab) {
+    case 'overview': initOverviewCharts(); break;
+    case 'aum': initAumCharts(); break;
+    case 'insurance': initInsCharts(); break;
+    case 'reports': initReportCharts(); break;
+  }
+}
+
+const CHART_DEFAULTS = {
+  color:'rgba(200,208,218,0.7)',
+  plugins:{legend:{labels:{color:'rgba(200,208,218,0.6)',font:{family:'Inter',size:11},boxWidth:10,padding:12}}},
+  scales:{}
+};
+
+function axisStyle() {
+  return {
+    grid:{color:'rgba(120,140,180,0.07)'},
+    ticks:{color:'rgba(200,208,218,0.5)',font:{family:'Inter',size:10}},
+    border:{color:'transparent'}
+  };
+}
+
+function makeGradient(ctx, color, alpha1=0.3, alpha2=0) {
+  const g=ctx.createLinearGradient(0,0,0,ctx.canvas.height);
+  g.addColorStop(0,color.replace(')',`,${alpha1})`).replace('rgb','rgba'));
+  g.addColorStop(1,color.replace(')',`,${alpha2})`).replace('rgb','rgba'));
+  return g;
+}
+
+function hexToRgb(hex) {
+  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  return `${r},${g},${b}`;
+}
+
+function initOverviewCharts() {
+  const {months,values}=aumGrowthData();
+  const fees=annualFees(), comm=totalCommissions();
+
+  const c1=document.getElementById('chart-aum-growth');
+  if(c1) {
+    const ctx=c1.getContext('2d');
+    const grad=ctx.createLinearGradient(0,0,0,200);
+    grad.addColorStop(0,'rgba(79,158,255,0.35)');
+    grad.addColorStop(1,'rgba(79,158,255,0)');
+    chartRegistry['ov-aum']=new Chart(ctx,{
+      type:'line',
+      data:{labels:months,datasets:[{label:'AUM',data:values,borderColor:'#4f9eff',borderWidth:2,backgroundColor:grad,fill:true,tension:0.4,pointRadius:0,pointHoverRadius:4}]},
+      options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:{backgroundColor:'#0c1018',borderColor:'rgba(120,140,180,0.2)',borderWidth:1,titleColor:'#c8d0da',bodyColor:'#c8d0da',callbacks:{label:ctx=>'AUM: '+fmt$(ctx.parsed.y)}}},scales:{x:axisStyle(),y:{...axisStyle(),ticks:{...axisStyle().ticks,callback:v=>fmt$(v)}}}}
+    });
+  }
+
+  const c2=document.getElementById('chart-rev-donut');
+  if(c2) {
+    chartRegistry['ov-donut']=new Chart(c2.getContext('2d'),{
+      type:'doughnut',
+      data:{labels:['Advisory Fees','Insurance Commissions'],datasets:[{data:[fees,comm],backgroundColor:['rgba(79,158,255,0.8)','rgba(176,126,248,0.8)'],borderColor:['#4f9eff','#b07ef8'],borderWidth:1.5,hoverOffset:4}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'68%',plugins:{legend:{position:'bottom',labels:{color:'rgba(200,208,218,0.6)',font:{family:'Inter',size:11},boxWidth:10,padding:12}},tooltip:{backgroundColor:'#0c1018',borderColor:'rgba(120,140,180,0.2)',borderWidth:1,callbacks:{label:ctx=>ctx.label+': '+fmt$(ctx.parsed)}}}}
+    });
+  }
+}
+
+function initAumCharts() {
+  const allocs=['Conservative','Moderate','Balanced','Growth','Aggressive'];
+  const allocColors=['rgba(79,158,255,0.8)','rgba(52,194,123,0.8)','rgba(232,184,75,0.8)','rgba(255,159,71,0.8)','rgba(240,80,74,0.8)'];
+  const allocTotals=allocs.map(a=>db.accounts.filter(acc=>acc.allocation===a).reduce((s,acc)=>s+acc.value,0));
+  const c=document.getElementById('chart-alloc-donut');
+  if(c) {
+    chartRegistry['aum-alloc']=new Chart(c.getContext('2d'),{
+      type:'doughnut',
+      data:{labels:allocs,datasets:[{data:allocTotals,backgroundColor:allocColors,borderColor:allocColors.map(c=>c.replace('0.8','1')),borderWidth:1.5,hoverOffset:4}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{position:'bottom',labels:{color:'rgba(200,208,218,0.6)',font:{family:'Inter',size:11},boxWidth:10,padding:10}},tooltip:{backgroundColor:'#0c1018',borderColor:'rgba(120,140,180,0.2)',borderWidth:1,callbacks:{label:ctx=>ctx.label+': '+fmt$(ctx.parsed)}}}}
+    });
+  }
+}
+
+function initInsCharts() {
+  const types=[...new Set(db.policies.filter(p=>p.status==='In-Force').map(p=>p.type))];
+  const premByType=types.map(t=>db.policies.filter(p=>p.type===t&&p.status==='In-Force').reduce((s,p)=>s+p.annualPremium,0));
+  const colors=['#4f9eff','#34c27b','#b07ef8','#e8b84b','#ff9f47','#f0504a','#00c9c9','#ff6eb4','#a0e0a0','#ffd700'];
+  const c=document.getElementById('chart-ins-bar');
+  if(c) {
+    chartRegistry['ins-bar']=new Chart(c.getContext('2d'),{
+      type:'bar',
+      data:{labels:types,datasets:[{label:'Annual Premium',data:premByType,backgroundColor:colors.slice(0,types.length).map(c=>c+'cc'),borderColor:colors.slice(0,types.length),borderWidth:1,borderRadius:4}]},
+      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:'#0c1018',borderColor:'rgba(120,140,180,0.2)',borderWidth:1,callbacks:{label:ctx=>'Premium: '+fmtFull$(ctx.parsed.x)}}},scales:{x:{...axisStyle(),ticks:{...axisStyle().ticks,callback:v=>fmt$(v)}},y:axisStyle()}}
+    });
+  }
+}
+
+function initReportCharts() {
+  const {months,values}=aumGrowthData();
+  const fees=annualFees(), comm=totalCommissions();
+  const monthlyFees=fees/12, monthlyComm=comm/12;
+
+  // Stacked revenue bar
+  const c1=document.getElementById('chart-rev-bar');
+  if(c1) {
+    const labels=months.slice(1); // 12 months
+    chartRegistry['rep-rev']=new Chart(c1.getContext('2d'),{
+      type:'bar',
+      data:{
+        labels,
+        datasets:[
+          {label:'Advisory Fees',data:labels.map(()=>monthlyFees*(0.9+Math.random()*0.2)),backgroundColor:'rgba(79,158,255,0.7)',borderRadius:3,stack:'rev'},
+          {label:'Insurance Comm',data:labels.map(()=>monthlyComm*(0.9+Math.random()*0.2)),backgroundColor:'rgba(176,126,248,0.7)',borderRadius:3,stack:'rev'}
+        ]
+      },
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:'rgba(200,208,218,0.6)',font:{family:'Inter',size:11},boxWidth:10,padding:10}},tooltip:{mode:'index',backgroundColor:'#0c1018',borderColor:'rgba(120,140,180,0.2)',borderWidth:1,callbacks:{label:ctx=>ctx.dataset.label+': '+fmt$(ctx.parsed.y)}}},scales:{x:axisStyle(),y:{...axisStyle(),stacked:true,ticks:{...axisStyle().ticks,callback:v=>fmt$(v)}}}}
+    });
+  }
+
+  // AUM growth line
+  const c2=document.getElementById('chart-aum-growth2');
+  if(c2) {
+    const ctx=c2.getContext('2d');
+    const grad=ctx.createLinearGradient(0,0,0,220);
+    grad.addColorStop(0,'rgba(52,194,123,0.3)');
+    grad.addColorStop(1,'rgba(52,194,123,0)');
+    chartRegistry['rep-aum']=new Chart(ctx,{
+      type:'line',
+      data:{labels:months,datasets:[{label:'AUM',data:values,borderColor:'#34c27b',borderWidth:2,backgroundColor:grad,fill:true,tension:0.4,pointRadius:0,pointHoverRadius:4}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:'#0c1018',borderColor:'rgba(120,140,180,0.2)',borderWidth:1,callbacks:{label:ctx=>'AUM: '+fmt$(ctx.parsed.y)}}},scales:{x:axisStyle(),y:{...axisStyle(),ticks:{...axisStyle().ticks,callback:v=>fmt$(v)}}}}
+    });
+  }
+
+  // Insurance production pie
+  const types=[...new Set(db.policies.filter(p=>p.status==='In-Force').map(p=>p.type))];
+  const premByType=types.map(t=>db.policies.filter(p=>p.type===t&&p.status==='In-Force').reduce((s,p)=>s+p.annualPremium,0));
+  const colors=['#4f9eff','#34c27b','#b07ef8','#e8b84b','#ff9f47','#f0504a','#00c9c9','#ff6eb4','#a0e0a0','#ffd700'];
+  const c3=document.getElementById('chart-ins-pie');
+  if(c3) {
+    chartRegistry['rep-ins']=new Chart(c3.getContext('2d'),{
+      type:'pie',
+      data:{labels:types,datasets:[{data:premByType,backgroundColor:colors.slice(0,types.length).map(c=>c+'cc'),borderColor:'#101520',borderWidth:2,hoverOffset:4}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:'rgba(200,208,218,0.6)',font:{family:'Inter',size:10},boxWidth:8,padding:8}},tooltip:{backgroundColor:'#0c1018',borderColor:'rgba(120,140,180,0.2)',borderWidth:1,callbacks:{label:ctx=>ctx.label+': '+fmtFull$(ctx.parsed)}}}}
+    });
+  }
+}
+
+// ============================================================
+// MODAL SYSTEM
+// ============================================================
+let modalContext={type:null,id:null,prefillClientId:null};
+
+function openModal(type, id=null, prefillClientId=null) {
+  modalContext={type,id,prefillClientId};
+  const titles={account:id?'Edit Account':'Add Account',policy:id?'Edit Policy':'Add Policy',client:id?'Edit Client':'Add Client',prospect:id?'Edit Prospect':'Add Prospect'};
+  document.getElementById('modal-title').textContent=titles[type]||'Add';
+  document.getElementById('modal-body').innerHTML=buildModalForm(type,id,prefillClientId);
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+  modalContext={type:null,id:null,prefillClientId:null};
+}
+
+function handleOverlayClick(e) {
+  if(e.target===document.getElementById('modal-overlay')) closeModal();
+}
+
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
+
+function clientOptions(selectedId) {
+  return db.clients.map(c=>`<option value="${c.id}"${c.id===selectedId?' selected':''}>${c.name}</option>`).join('');
+}
+
+function buildModalForm(type, id, prefillClientId) {
+  if(type==='account') {
+    const a=id?db.accounts.find(x=>x.id===id):{};
+    const cid=a.clientId||prefillClientId||'';
+    return `<div class="form-row">
+      <div class="form-group full"><label>Client</label><select class="form-control" id="f-clientId"><option value="">Select client…</option>${clientOptions(cid)}</select></div>
+      <div class="form-group"><label>Account Type</label><select class="form-control" id="f-type">
+        ${['IRA','Roth IRA','SEP-IRA','401k','403b Rollover IRA','Individual','Joint Taxable','Trust','529 Plan','Other'].map(t=>`<option${a.type===t?' selected':''}>${t}</option>`).join('')}
+      </select></div>
+      <div class="form-group"><label>Custodian</label><input class="form-control" id="f-custodian" value="${a.custodian||''}"></div>
+      <div class="form-group"><label>Market Value ($)</label><input class="form-control" id="f-value" type="number" value="${a.value||''}"></div>
+      <div class="form-group"><label>Allocation</label><select class="form-control" id="f-allocation">
+        ${['Conservative','Moderate','Balanced','Growth','Aggressive'].map(t=>`<option${a.allocation===t?' selected':''}>${t}</option>`).join('')}
+      </select></div>
+      <div class="form-group"><label>YTD Return (%)</label><input class="form-control" id="f-ytdReturn" type="number" step="0.1" value="${a.ytdReturn||''}"></div>
+      <div class="form-group"><label>Fee Rate (%)</label><input class="form-control" id="f-feeRate" type="number" step="0.01" value="${a.feeRate||''}"></div>
+      <div class="form-group"><label>Last Review</label><input class="form-control" id="f-lastReview" type="date" value="${a.lastReview||''}"></div>
+    </div>`;
+  }
+  if(type==='policy') {
+    const p=id?db.policies.find(x=>x.id===id):{};
+    const cid=p.clientId||prefillClientId||'';
+    return `<div class="form-row">
+      <div class="form-group full"><label>Client</label><select class="form-control" id="f-clientId"><option value="">Select client…</option>${clientOptions(cid)}</select></div>
+      <div class="form-group"><label>Policy Type</label><select class="form-control" id="f-type">
+        ${['Term Life','Whole Life','Universal Life','Indexed UL','Variable UL','Disability Income','Long-Term Care','Fixed Annuity','Variable Annuity','Indexed Annuity'].map(t=>`<option${p.type===t?' selected':''}>${t}</option>`).join('')}
+      </select></div>
+      <div class="form-group"><label>Carrier</label><input class="form-control" id="f-carrier" value="${p.carrier||''}"></div>
+      <div class="form-group"><label>Face Amount ($)</label><input class="form-control" id="f-faceAmount" type="number" value="${p.faceAmount||0}"></div>
+      <div class="form-group"><label>Annual Premium ($)</label><input class="form-control" id="f-annualPremium" type="number" value="${p.annualPremium||''}"></div>
+      <div class="form-group"><label>Commission %</label><input class="form-control" id="f-commissionPct" type="number" step="0.1" value="${p.commissionPct||''}"></div>
+      <div class="form-group"><label>Status</label><select class="form-control" id="f-status">
+        ${['In-Force','Pending','Lapsed','Surrendered'].map(t=>`<option${p.status===t?' selected':''}>${t}</option>`).join('')}
+      </select></div>
+      <div class="form-group"><label>Issue Date</label><input class="form-control" id="f-issueDate" type="date" value="${p.issueDate||''}"></div>
+      <div class="form-group"><label>Renewal Date</label><input class="form-control" id="f-renewalDate" type="date" value="${p.renewalDate||''}"></div>
+      <div class="form-group full"><label>Notes</label><textarea class="form-control" id="f-notes">${p.notes||''}</textarea></div>
+    </div>`;
+  }
+  if(type==='client') {
+    const c=id?db.clients.find(x=>x.id===id):{};
+    return `<div class="form-row">
+      <div class="form-group full"><label>Full Name</label><input class="form-control" id="f-name" value="${c.name||''}"></div>
+      <div class="form-group"><label>Type</label><select class="form-control" id="f-type">
+        ${['Individual','Family','Corporate'].map(t=>`<option${c.type===t?' selected':''}>${t}</option>`).join('')}
+      </select></div>
+      <div class="form-group"><label>Status</label><select class="form-control" id="f-status">
+        ${['Active','Inactive'].map(t=>`<option${c.status===t?' selected':''}>${t}</option>`).join('')}
+      </select></div>
+      <div class="form-group"><label>Email</label><input class="form-control" id="f-email" value="${c.email||''}"></div>
+      <div class="form-group"><label>Phone</label><input class="form-control" id="f-phone" value="${c.phone||''}"></div>
+      <div class="form-group"><label>Date of Birth</label><input class="form-control" id="f-dob" type="date" value="${c.dob||''}"></div>
+      <div class="form-group"><label>Risk Profile</label><select class="form-control" id="f-riskProfile">
+        ${['Conservative','Moderate','Balanced','Growth','Aggressive'].map(t=>`<option${c.riskProfile===t?' selected':''}>${t}</option>`).join('')}
+      </select></div>
+      <div class="form-group"><label>Client Since</label><input class="form-control" id="f-since" type="date" value="${c.since||''}"></div>
+      <div class="form-group full"><label>Address</label><input class="form-control" id="f-address" value="${c.address||''}"></div>
+      <div class="form-group full"><label>Notes</label><textarea class="form-control" id="f-notes">${c.notes||''}</textarea></div>
+    </div>`;
+  }
+  if(type==='prospect') {
+    const p=id?db.prospects.find(x=>x.id===id):{};
+    return `<div class="form-row">
+      <div class="form-group full"><label>Full Name</label><input class="form-control" id="f-name" value="${p.name||''}"></div>
+      <div class="form-group"><label>Email</label><input class="form-control" id="f-email" value="${p.email||''}"></div>
+      <div class="form-group"><label>Phone</label><input class="form-control" id="f-phone" value="${p.phone||''}"></div>
+      <div class="form-group"><label>Type</label><select class="form-control" id="f-type">
+        ${['Individual','Family','Corporate'].map(t=>`<option${p.type===t?' selected':''}>${t}</option>`).join('')}
+      </select></div>
+      <div class="form-group"><label>Stage</label><select class="form-control" id="f-stage">
+        ${['Lead','Discovery','Proposal','Negotiation'].map(t=>`<option${p.stage===t?' selected':''}>${t}</option>`).join('')}
+      </select></div>
+      <div class="form-group"><label>Expected AUM ($)</label><input class="form-control" id="f-expectedAUM" type="number" value="${p.expectedAUM||''}"></div>
+      <div class="form-group"><label>Expected Annual Premium ($)</label><input class="form-control" id="f-expectedPremium" type="number" value="${p.expectedPremium||''}"></div>
+      <div class="form-group"><label>Probability (0-100)</label><input class="form-control" id="f-probability" type="number" min="0" max="100" value="${p.probability||''}"></div>
+      <div class="form-group"><label>Source</label><select class="form-control" id="f-source">
+        ${['Client Referral','COI Referral','LinkedIn','Seminar','Website','Direct Mail','Other'].map(t=>`<option${p.source===t?' selected':''}>${t}</option>`).join('')}
+      </select></div>
+      <div class="form-group full"><label>Next Action</label><input class="form-control" id="f-nextAction" value="${p.nextAction||''}"></div>
+      <div class="form-group"><label>Next Action Date</label><input class="form-control" id="f-nextActionDate" type="date" value="${p.nextActionDate||''}"></div>
+      <div class="form-group full"><label>Notes</label><textarea class="form-control" id="f-notes">${p.notes||''}</textarea></div>
+    </div>`;
+  }
+  return '';
+}
+
+function uid() { return Math.random().toString(36).slice(2,10); }
+function gv(id) { const el=document.getElementById(id); return el?el.value:''; }
+function gn(id) { const v=parseFloat(gv(id)); return isNaN(v)?0:v; }
+
+function saveModal() {
+  const {type,id}=modalContext;
+  if(type==='account') {
+    const obj={
+      id:id||('a'+uid()),clientId:gv('f-clientId'),type:gv('f-type'),custodian:gv('f-custodian'),
+      value:gn('f-value'),allocation:gv('f-allocation'),ytdReturn:gn('f-ytdReturn'),
+      feeRate:gn('f-feeRate'),lastReview:gv('f-lastReview')
+    };
+    if(!obj.clientId){alert('Please select a client.');return;}
+    if(id){const i=db.accounts.findIndex(x=>x.id===id);db.accounts[i]=obj;}
+    else db.accounts.push(obj);
+  } else if(type==='policy') {
+    const obj={
+      id:id||('p'+uid()),clientId:gv('f-clientId'),type:gv('f-type'),carrier:gv('f-carrier'),
+      faceAmount:gn('f-faceAmount'),annualPremium:gn('f-annualPremium'),commissionPct:gn('f-commissionPct'),
+      status:gv('f-status'),issueDate:gv('f-issueDate'),renewalDate:gv('f-renewalDate')||null,notes:gv('f-notes')
+    };
+    if(!obj.clientId){alert('Please select a client.');return;}
+    if(id){const i=db.policies.findIndex(x=>x.id===id);db.policies[i]=obj;}
+    else db.policies.push(obj);
+  } else if(type==='client') {
+    const obj={
+      id:id||('c'+uid()),name:gv('f-name'),type:gv('f-type'),email:gv('f-email'),phone:gv('f-phone'),
+      dob:gv('f-dob'),riskProfile:gv('f-riskProfile'),since:gv('f-since'),status:gv('f-status'),
+      address:gv('f-address'),notes:gv('f-notes')
+    };
+    if(!obj.name){alert('Name is required.');return;}
+    if(id){const i=db.clients.findIndex(x=>x.id===id);db.clients[i]=obj;}
+    else db.clients.push(obj);
+  } else if(type==='prospect') {
+    const obj={
+      id:id||('pr'+uid()),name:gv('f-name'),email:gv('f-email'),phone:gv('f-phone'),type:gv('f-type'),
+      stage:gv('f-stage'),expectedAUM:gn('f-expectedAUM'),expectedPremium:gn('f-expectedPremium'),
+      probability:gn('f-probability'),source:gv('f-source'),nextAction:gv('f-nextAction'),
+      nextActionDate:gv('f-nextActionDate'),stageDate:id?(db.prospects.find(x=>x.id===id)||{}).stageDate:new Date().toISOString().split('T')[0],
+      notes:gv('f-notes')
+    };
+    if(!obj.name){alert('Name is required.');return;}
+    if(id){const i=db.prospects.findIndex(x=>x.id===id);db.prospects[i]=obj;}
+    else db.prospects.push(obj);
+  }
+  saveDB();
+  closeModal();
+  Object.values(chartRegistry).forEach(c=>c.destroy());
+  chartRegistry={};
+  render();
+  setTimeout(()=>initCharts(),50);
+}
+
+// ============================================================
+// DELETE
+// ============================================================
+function deleteRecord(type, id) {
+  const labels={account:'account',policy:'policy',client:'client and all their accounts & policies',prospect:'prospect'};
+  if(!confirm(`Delete this ${labels[type]||type}? This cannot be undone.`)) return;
+  if(type==='account') db.accounts=db.accounts.filter(x=>x.id!==id);
+  else if(type==='policy') db.policies=db.policies.filter(x=>x.id!==id);
+  else if(type==='client') {
+    db.accounts=db.accounts.filter(x=>x.clientId!==id);
+    db.policies=db.policies.filter(x=>x.clientId!==id);
+    db.clients=db.clients.filter(x=>x.id!==id);
+  } else if(type==='prospect') db.prospects=db.prospects.filter(x=>x.id!==id);
+  saveDB();
+  Object.values(chartRegistry).forEach(c=>c.destroy());
+  chartRegistry={};
+  // if we were in client detail, go back to grid
+  if(type==='client') {
+    document.getElementById('clients-list-view').style.display='block';
+    document.getElementById('client-detail-view').style.display='none';
+  }
+  render();
+  setTimeout(()=>initCharts(),50);
+}
+
+// ============================================================
+// BOOT
+// ============================================================
+loadDB();
+setupNavTabs();
+render();
+setTimeout(()=>initCharts(),50);
+</script>
+</body>
+</html>
