@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;0,8..60,700;1,8..60,400;1,8..60,500&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -259,12 +260,54 @@ textarea.form-control{resize:vertical;min-height:70px;font-family:var(--sans)}
 
 /* ============== EMPTY STATE ============== */
 .empty{padding:40px;text-align:center;color:var(--text-muted);font-family:var(--serif);font-style:italic;font-size:13px}
+
+/* ============== LOGIN OVERLAY ============== */
+#login-overlay{display:none;position:fixed;inset:0;background:var(--ink);z-index:200;align-items:center;justify-content:center;padding:24px}
+.login-card{background:var(--surface);border:1px solid var(--line-strong);max-width:440px;width:100%;padding:48px 44px;position:relative}
+.login-card::before{content:"";position:absolute;top:0;left:0;width:3px;height:56px;background:var(--gold)}
+.login-brand{font-family:var(--serif);font-weight:600;font-size:26px;color:var(--text-bright);line-height:1;margin-bottom:8px;letter-spacing:0.01em}
+.login-brand .amp{color:var(--gold);font-style:italic;font-weight:500}
+.login-sub{font-size:9px;font-weight:600;letter-spacing:0.32em;text-transform:uppercase;color:var(--text-muted);margin-bottom:40px}
+.login-eyebrow{font-size:9.5px;font-weight:600;letter-spacing:0.28em;text-transform:uppercase;color:var(--gold);margin-bottom:10px}
+.login-title{font-family:var(--serif);font-weight:500;font-size:20px;color:var(--text-bright);letter-spacing:-0.005em;margin-bottom:10px}
+.login-body{font-family:var(--serif);font-style:italic;font-size:13px;color:var(--text-muted);line-height:1.55;margin-bottom:26px}
+.login-input{width:100%;background:var(--ink-2);border:1px solid var(--line-strong);padding:12px 14px;color:var(--text-bright);font-family:var(--sans);font-size:13px;outline:none;margin-bottom:14px;letter-spacing:0.01em}
+.login-input:focus{border-color:var(--gold-dim)}
+.login-btn{width:100%;padding:13px;border:1px solid var(--gold-dim);background:transparent;color:var(--gold-bright);font-family:var(--sans);font-size:10.5px;font-weight:600;letter-spacing:0.22em;text-transform:uppercase;cursor:pointer;transition:all .15s}
+.login-btn:hover:not(:disabled){background:rgba(201,169,97,0.08);border-color:var(--gold)}
+.login-btn:disabled{opacity:0.5;cursor:wait}
+.login-msg{margin-top:16px;font-size:12px;line-height:1.55;font-family:var(--sans);min-height:18px}
+.login-msg.ok{color:var(--up)}
+.login-msg.err{color:var(--dn)}
+.login-foot{margin-top:36px;padding-top:20px;border-top:1px solid var(--line);font-size:10px;color:var(--text-faint);letter-spacing:0.04em;text-align:center;font-family:var(--serif);font-style:italic}
+
+/* App-loading state */
+#app-loading{display:none;position:fixed;inset:0;background:var(--ink);z-index:150;align-items:center;justify-content:center;color:var(--text-muted);font-family:var(--serif);font-style:italic;font-size:14px;letter-spacing:0.02em}
+#app-loading.on{display:flex}
 </style>
 </head>
 <body>
 
+<!-- ============== LOGIN ============== -->
+<div id="login-overlay">
+  <div class="login-card">
+    <div class="login-brand">Castillo <span class="amp">&amp;</span> Partners</div>
+    <div class="login-sub">Private Wealth Management · Est. 2018</div>
+    <div class="login-eyebrow">Secure Sign-in</div>
+    <div class="login-title">Authorized Access</div>
+    <div class="login-body">Enter your email address to receive a one-time sign-in link. This dashboard is restricted to credentialed advisors of the firm.</div>
+    <input type="email" id="login-email" class="login-input" placeholder="advisor@castillopartners.com" autocomplete="email" onkeydown="if(event.key==='Enter')sendMagicLink()">
+    <button id="login-btn" class="login-btn" onclick="sendMagicLink()">Send sign-in link</button>
+    <div class="login-msg" id="login-msg"></div>
+    <div class="login-foot">Castillo &amp; Partners · Confidential</div>
+  </div>
+</div>
+
+<!-- ============== APP-LOADING ============== -->
+<div id="app-loading" class="on">Loading practice data…</div>
+
 <!-- ============== MASTHEAD ============== -->
-<header id="masthead">
+<header id="masthead" style="display:none">
   <div class="masthead-top">
     <div class="brand">
       <div class="brand-mark">Castillo <span class="amp">&amp;</span> Partners</div>
@@ -287,13 +330,14 @@ textarea.form-control{resize:vertical;min-height:70px;font-family:var(--sans)}
       <button class="nav-tab" data-tab="reports">Performance &amp; Reporting</button>
     </div>
     <div class="nav-actions">
-      <span class="nav-ref">REF · CP-DASH-2026.Q2</span>
+      <span class="nav-ref" id="session-email">—</span>
+      <button class="btn btn-ghost btn-sm" onclick="signOut()">Sign out</button>
     </div>
   </div>
 </header>
 
 <!-- ============== TICKER ============== -->
-<div id="ticker">
+<div id="ticker" style="display:none">
   <div class="tick-item"><span class="tick-name">S&amp;P 500</span><span class="tick-val">5,308.42</span><span class="tick-chg up">+0.87%</span></div>
   <div class="tick-sep"></div>
   <div class="tick-item"><span class="tick-name">DJIA</span><span class="tick-val">39,127.80</span><span class="tick-chg up">+0.54%</span></div>
@@ -310,7 +354,7 @@ textarea.form-control{resize:vertical;min-height:70px;font-family:var(--sans)}
 </div>
 
 <!-- ============== MAIN ============== -->
-<main id="main">
+<main id="main" style="display:none">
 
   <!-- TAB 1: OVERVIEW -->
   <div id="tab-overview" class="tab-pane active">
@@ -629,20 +673,156 @@ let state = {
   prospectSort:{col:'expectedAUM',asc:false}
 };
 let chartRegistry = {};
-const LS_KEY = 'castillo-partners-dashboard-v1';
 
-function loadDB() {
-  const raw = localStorage.getItem(LS_KEY);
-  if (raw) { try { db = JSON.parse(raw); return; } catch(e){} }
-  db = {
-    clients: JSON.parse(JSON.stringify(SEED_CLIENTS)),
-    accounts: JSON.parse(JSON.stringify(SEED_ACCOUNTS)),
-    policies: JSON.parse(JSON.stringify(SEED_POLICIES)),
-    prospects: JSON.parse(JSON.stringify(SEED_PROSPECTS))
-  };
-  saveDB();
+// ============================================================
+// SUPABASE CONFIG & AUTH
+// ============================================================
+const SUPABASE_URL = 'https://hbnndxrmggvbhcedilpn.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhibm5keHJtZ2d2YmhjZWRpbHBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5MTgzMjcsImV4cCI6MjA5NDQ5NDMyN30.r6_1yVZ_x1clNPJEPsyQ5IwLWLWO6p4PIOP_gQoaZEQ';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {persistSession:true, autoRefreshToken:true, detectSessionInUrl:true}
+});
+let currentUser = null;
+
+function showLogin(){
+  document.getElementById('login-overlay').style.display='flex';
+  document.getElementById('masthead').style.display='none';
+  document.getElementById('ticker').style.display='none';
+  document.getElementById('main').style.display='none';
+  document.getElementById('app-loading').classList.remove('on');
 }
-function saveDB() { localStorage.setItem(LS_KEY, JSON.stringify(db)); }
+function showApp(){
+  document.getElementById('login-overlay').style.display='none';
+  document.getElementById('masthead').style.display='block';
+  document.getElementById('ticker').style.display='flex';
+  document.getElementById('main').style.display='block';
+  document.getElementById('app-loading').classList.remove('on');
+  const emailEl=document.getElementById('session-email');
+  if(emailEl && currentUser) emailEl.textContent=currentUser.email;
+}
+function showLoading(){ document.getElementById('app-loading').classList.add('on') }
+
+async function sendMagicLink(){
+  const email=document.getElementById('login-email').value.trim();
+  const msg=document.getElementById('login-msg');
+  if(!email || !email.includes('@')){ msg.textContent='Please enter a valid email address.'; msg.className='login-msg err'; return; }
+  const btn=document.getElementById('login-btn');
+  btn.disabled=true; btn.textContent='Sending…';
+  msg.textContent=''; msg.className='login-msg';
+  const redirectTo=window.location.href.split('#')[0].split('?')[0];
+  const {error}=await sb.auth.signInWithOtp({email, options:{emailRedirectTo:redirectTo}});
+  btn.disabled=false; btn.textContent='Send sign-in link';
+  if(error){
+    msg.textContent=error.message;
+    msg.className='login-msg err';
+  } else {
+    msg.innerHTML='Check <strong>'+email+'</strong> for a sign-in link. Delivery can take up to a minute — also check your spam folder.';
+    msg.className='login-msg ok';
+  }
+}
+
+async function signOut(){
+  await sb.auth.signOut();
+  currentUser=null;
+  db={clients:[], accounts:[], policies:[], prospects:[]};
+  showLogin();
+}
+
+async function bootApp(){
+  showLoading();
+  await loadDB();
+  setupNavTabs();
+  showApp();
+  render();
+  setTimeout(()=>initCharts(),50);
+}
+
+sb.auth.onAuthStateChange((event, session)=>{
+  if((event==='SIGNED_IN' || event==='INITIAL_SESSION') && session){
+    if(currentUser && currentUser.id===session.user.id) return;
+    currentUser=session.user;
+    bootApp();
+  } else if(event==='SIGNED_OUT'){
+    showLogin();
+  }
+});
+
+async function checkAuth(){
+  const {data:{session}}=await sb.auth.getSession();
+  if(session){
+    currentUser=session.user;
+    bootApp();
+  } else {
+    showLogin();
+  }
+}
+
+// ============================================================
+// DATA LAYER — Supabase
+// ============================================================
+async function loadDB(){
+  const [c,a,p,pr]=await Promise.all([
+    sb.from('clients').select('*').order('created_at'),
+    sb.from('accounts').select('*').order('created_at'),
+    sb.from('policies').select('*').order('created_at'),
+    sb.from('prospects').select('*').order('created_at')
+  ]);
+  const err=c.error||a.error||p.error||pr.error;
+  if(err){
+    console.error('Supabase load error:', err);
+    alert('Could not load data from Supabase: '+err.message+'\n\nDid you run the supabase-schema.sql in the SQL editor?');
+    return;
+  }
+  db={
+    clients:c.data||[],
+    accounts:a.data||[],
+    policies:p.data||[],
+    prospects:pr.data||[]
+  };
+  if(!db.clients.length && !db.accounts.length && !db.policies.length && !db.prospects.length){
+    await seedFirstLogin();
+  }
+}
+
+async function seedFirstLogin(){
+  const clientRows=SEED_CLIENTS.map(c=>({
+    name:c.name, type:c.type, email:c.email, phone:c.phone, riskProfile:c.riskProfile,
+    since:c.since, status:c.status, address:c.address, notes:c.notes
+  }));
+  const {data:cIns, error:cErr}=await sb.from('clients').insert(clientRows).select();
+  if(cErr){ console.error('Seed clients error:', cErr); return; }
+  const cmap={}; SEED_CLIENTS.forEach((c,i)=>cmap[c.id]=cIns[i].id);
+
+  const acctRows=SEED_ACCOUNTS.map(a=>({
+    clientId:cmap[a.clientId], type:a.type, custodian:a.custodian, value:a.value,
+    allocation:a.allocation, ytdReturn:a.ytdReturn, feeRate:a.feeRate, lastReview:a.lastReview
+  }));
+  const polRows=SEED_POLICIES.map(p=>({
+    clientId:cmap[p.clientId], type:p.type, carrier:p.carrier, faceAmount:p.faceAmount,
+    annualPremium:p.annualPremium, commissionPct:p.commissionPct, status:p.status,
+    issueDate:p.issueDate, renewalDate:p.renewalDate, notes:p.notes
+  }));
+  const prRows=SEED_PROSPECTS.map(p=>({
+    name:p.name, email:p.email, phone:p.phone, type:p.type, stage:p.stage,
+    expectedAUM:p.expectedAUM, expectedPremium:p.expectedPremium, probability:p.probability,
+    source:p.source, nextAction:p.nextAction, nextActionDate:p.nextActionDate,
+    stageDate:p.stageDate, notes:p.notes
+  }));
+  await Promise.all([
+    sb.from('accounts').insert(acctRows),
+    sb.from('policies').insert(polRows),
+    sb.from('prospects').insert(prRows)
+  ]);
+  const [a,p,pr]=await Promise.all([
+    sb.from('accounts').select('*').order('created_at'),
+    sb.from('policies').select('*').order('created_at'),
+    sb.from('prospects').select('*').order('created_at')
+  ]);
+  db.clients=cIns;
+  db.accounts=a.data||[];
+  db.policies=p.data||[];
+  db.prospects=pr.data||[];
+}
 
 // ============================================================
 // COMPUTED
@@ -1386,30 +1566,33 @@ function uid(){return Math.random().toString(36).slice(2,10)}
 function gv(id){const el=document.getElementById(id); return el?el.value:''}
 function gn(id){const v=parseFloat(gv(id)); return isNaN(v)?0:v}
 
-function saveModal(){
+const TABLE={account:'accounts', policy:'policies', client:'clients', prospect:'prospects'};
+
+async function saveModal(){
   const {type,id}=modalContext;
+  let obj;
   if(type==='account'){
-    const obj={id:id||('a'+uid()),clientId:gv('f-clientId'),type:gv('f-type'),custodian:gv('f-custodian'),value:gn('f-value'),allocation:gv('f-allocation'),ytdReturn:gn('f-ytdReturn'),feeRate:gn('f-feeRate'),lastReview:gv('f-lastReview')};
+    obj={clientId:gv('f-clientId'), type:gv('f-type'), custodian:gv('f-custodian'), value:gn('f-value'), allocation:gv('f-allocation'), ytdReturn:gn('f-ytdReturn'), feeRate:gn('f-feeRate'), lastReview:gv('f-lastReview')||null};
     if(!obj.clientId){alert('Please select a client.');return}
-    if(id){const i=db.accounts.findIndex(x=>x.id===id);db.accounts[i]=obj}
-    else db.accounts.push(obj);
   } else if(type==='policy'){
-    const obj={id:id||('p'+uid()),clientId:gv('f-clientId'),type:gv('f-type'),carrier:gv('f-carrier'),faceAmount:gn('f-faceAmount'),annualPremium:gn('f-annualPremium'),commissionPct:gn('f-commissionPct'),status:gv('f-status'),issueDate:gv('f-issueDate'),renewalDate:gv('f-renewalDate')||null,notes:gv('f-notes')};
+    obj={clientId:gv('f-clientId'), type:gv('f-type'), carrier:gv('f-carrier'), faceAmount:gn('f-faceAmount'), annualPremium:gn('f-annualPremium'), commissionPct:gn('f-commissionPct'), status:gv('f-status'), issueDate:gv('f-issueDate')||null, renewalDate:gv('f-renewalDate')||null, notes:gv('f-notes')};
     if(!obj.clientId){alert('Please select a client.');return}
-    if(id){const i=db.policies.findIndex(x=>x.id===id);db.policies[i]=obj}
-    else db.policies.push(obj);
   } else if(type==='client'){
-    const obj={id:id||('c'+uid()),name:gv('f-name'),type:gv('f-type'),email:gv('f-email'),phone:gv('f-phone'),dob:gv('f-dob'),riskProfile:gv('f-riskProfile'),since:gv('f-since'),status:gv('f-status'),address:gv('f-address'),notes:gv('f-notes')};
+    obj={name:gv('f-name'), type:gv('f-type'), email:gv('f-email'), phone:gv('f-phone'), riskProfile:gv('f-riskProfile'), since:gv('f-since')||null, status:gv('f-status'), address:gv('f-address'), notes:gv('f-notes')};
     if(!obj.name){alert('Name is required.');return}
-    if(id){const i=db.clients.findIndex(x=>x.id===id);db.clients[i]=obj}
-    else db.clients.push(obj);
   } else if(type==='prospect'){
-    const obj={id:id||('pr'+uid()),name:gv('f-name'),email:gv('f-email'),phone:gv('f-phone'),type:gv('f-type'),stage:gv('f-stage'),expectedAUM:gn('f-expectedAUM'),expectedPremium:gn('f-expectedPremium'),probability:gn('f-probability'),source:gv('f-source'),nextAction:gv('f-nextAction'),nextActionDate:gv('f-nextActionDate'),stageDate:id?(db.prospects.find(x=>x.id===id)||{}).stageDate:new Date().toISOString().split('T')[0],notes:gv('f-notes')};
+    obj={name:gv('f-name'), email:gv('f-email'), phone:gv('f-phone'), type:gv('f-type'), stage:gv('f-stage'), expectedAUM:gn('f-expectedAUM'), expectedPremium:gn('f-expectedPremium'), probability:gn('f-probability'), source:gv('f-source'), nextAction:gv('f-nextAction'), nextActionDate:gv('f-nextActionDate')||null, stageDate:id?(db.prospects.find(x=>x.id===id)||{}).stageDate:new Date().toISOString().split('T')[0], notes:gv('f-notes')};
     if(!obj.name){alert('Name is required.');return}
-    if(id){const i=db.prospects.findIndex(x=>x.id===id);db.prospects[i]=obj}
-    else db.prospects.push(obj);
   }
-  saveDB();
+  const table=TABLE[type];
+  const saveBtn=document.getElementById('modal-save-btn');
+  saveBtn.disabled=true; const orig=saveBtn.textContent; saveBtn.textContent='Saving…';
+  let res;
+  if(id) res=await sb.from(table).update(obj).eq('id',id);
+  else res=await sb.from(table).insert(obj);
+  saveBtn.disabled=false; saveBtn.textContent=orig;
+  if(res.error){ console.error(res.error); alert('Save failed: '+res.error.message); return; }
+  await loadDB();
   closeModal();
   Object.values(chartRegistry).forEach(c=>c.destroy());
   chartRegistry={};
@@ -1417,17 +1600,13 @@ function saveModal(){
   setTimeout(()=>initCharts(),50);
 }
 
-function deleteRecord(type,id){
-  const labels={account:'account',policy:'policy',client:'client (along with all accounts &amp; policies)',prospect:'prospect'};
-  if(!confirm(`Delete this ${labels[type]||type}? This action cannot be undone.`)) return;
-  if(type==='account') db.accounts=db.accounts.filter(x=>x.id!==id);
-  else if(type==='policy') db.policies=db.policies.filter(x=>x.id!==id);
-  else if(type==='client'){
-    db.accounts=db.accounts.filter(x=>x.clientId!==id);
-    db.policies=db.policies.filter(x=>x.clientId!==id);
-    db.clients=db.clients.filter(x=>x.id!==id);
-  } else if(type==='prospect') db.prospects=db.prospects.filter(x=>x.id!==id);
-  saveDB();
+async function deleteRecord(type,id){
+  const labels={account:'account',policy:'policy',client:'client (along with all associated accounts & policies)',prospect:'prospect'};
+  if(!confirm('Delete this '+(labels[type]||type)+'? This action cannot be undone.')) return;
+  const table=TABLE[type];
+  const {error}=await sb.from(table).delete().eq('id',id);
+  if(error){ console.error(error); alert('Delete failed: '+error.message); return; }
+  await loadDB();
   Object.values(chartRegistry).forEach(c=>c.destroy());
   chartRegistry={};
   if(type==='client'){
@@ -1441,12 +1620,9 @@ function deleteRecord(type,id){
 // ============================================================
 // BOOT
 // ============================================================
-loadDB();
-setupNavTabs();
 updateClock();
 updateDate();
-render();
-setTimeout(()=>initCharts(),50);
+checkAuth();
 </script>
 </body>
 </html>
