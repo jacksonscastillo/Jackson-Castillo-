@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Castillo &amp; Partners — Private Wealth Dashboard</title>
+<title>J Capital — Investment Advisory Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;0,8..60,700;1,8..60,400;1,8..60,500&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -12,26 +12,26 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  /* Institutional palette — ink + parchment + single gold accent */
-  --ink:#0b0e13;
-  --ink-2:#0e1219;
-  --surface:#11161f;
-  --surface-2:#161c27;
-  --card:#11161f;
-  --line:rgba(190,170,130,0.08);
-  --line-strong:rgba(190,170,130,0.18);
-  --line-soft:rgba(190,170,130,0.04);
-  --text:#cbc6b8;
-  --text-bright:#efeadb;
-  --text-muted:#7a786e;
-  --text-faint:#55534b;
-  --gold:#c9a961;
-  --gold-bright:#d9bd7a;
-  --gold-dim:#7a6839;
-  --steel:#7a93b3;
-  --steel-dim:#3d536f;
-  --up:#5e9e74;
-  --dn:#b8624f;
+  /* J Capital — navy + white institutional */
+  --ink:#f6f5f1;
+  --ink-2:#ecebe5;
+  --surface:#ffffff;
+  --surface-2:#f0eee8;
+  --card:#ffffff;
+  --line:rgba(26,58,110,0.10);
+  --line-strong:rgba(26,58,110,0.22);
+  --line-soft:rgba(26,58,110,0.05);
+  --text:#2a3753;
+  --text-bright:#0a1530;
+  --text-muted:#6b7a96;
+  --text-faint:#9aa6bf;
+  --gold:#1a3a6e;
+  --gold-bright:#2a5396;
+  --gold-dim:#7a8db5;
+  --steel:#5d7090;
+  --steel-dim:#9aa6bf;
+  --up:#1f7a4d;
+  --dn:#a82b1c;
   --serif:'Source Serif 4',Georgia,'Times New Roman',serif;
   --sans:'Inter',system-ui,-apple-system,sans-serif;
   --mono:'JetBrains Mono','SF Mono',Menlo,monospace;
@@ -51,7 +51,7 @@ html,body{height:100%;background:var(--ink);color:var(--text);font-family:var(--
 .session-meta .sess-date{font-family:var(--serif);font-style:italic;font-size:12px;color:var(--text);text-transform:none;letter-spacing:0.01em;font-weight:400}
 .session-meta .sess-clock{font-family:var(--mono);font-size:11px;color:var(--text-bright);letter-spacing:0.04em;text-transform:none}
 .session-meta .sess-status{display:flex;align-items:center;gap:6px}
-.dot{width:6px;height:6px;border-radius:50%;background:var(--up);box-shadow:0 0 8px rgba(94,158,116,0.6)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--up);box-shadow:0 0 8px rgba(31,122,77,0.45)}
 
 /* Nav row */
 .nav-row{display:flex;align-items:stretch;padding:0 28px;height:38px}
@@ -120,7 +120,7 @@ th{font-size:9.5px;font-weight:600;letter-spacing:0.18em;text-transform:uppercas
 th:hover{color:var(--text-bright)}
 th.num,td.num{text-align:right;font-variant-numeric:tabular-nums}
 td{padding:11px 14px;border-bottom:1px solid var(--line);font-size:12px;color:var(--text);white-space:nowrap;font-variant-numeric:tabular-nums}
-tbody tr:hover td{background:rgba(201,169,97,0.025)}
+tbody tr:hover td{background:rgba(26,58,110,0.025)}
 tbody tr:last-child td{border-bottom:none}
 td.client-name{font-family:var(--serif);font-weight:500;color:var(--text-bright);font-size:13px}
 td.up{color:var(--up)}
@@ -132,27 +132,27 @@ th:not(.sort-asc):not(.sort-desc) .sort-icon::after{content:'⇅'}
 
 /* ============== CHIPS / BADGES (restrained) ============== */
 .chip{display:inline-flex;align-items:center;padding:2px 8px;font-size:9.5px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;border:1px solid var(--line-strong);color:var(--text-muted);background:transparent;font-family:var(--sans)}
-.chip-gold{color:var(--gold);border-color:rgba(201,169,97,0.35)}
+.chip-gold{color:var(--gold);border-color:rgba(26,58,110,0.35)}
 .chip-up{color:var(--up);border-color:rgba(94,158,116,0.35)}
 .chip-dn{color:var(--dn);border-color:rgba(184,98,79,0.35)}
 .chip-steel{color:var(--steel);border-color:rgba(122,147,179,0.35)}
 .chip-muted{color:var(--text-muted)}
-.chip-solid{background:rgba(201,169,97,0.08);border-color:rgba(201,169,97,0.25);color:var(--gold-bright)}
+.chip-solid{background:rgba(26,58,110,0.08);border-color:rgba(26,58,110,0.25);color:var(--gold-bright)}
 
 /* Risk dot indicators */
 .risk-mark{display:inline-flex;align-items:center;gap:7px;font-size:11px;color:var(--text);letter-spacing:0.02em}
 .risk-dot{width:7px;height:7px;border-radius:50%;display:inline-block}
-.risk-Conservative{background:#3d536f}
-.risk-Moderate{background:#5e9e74}
-.risk-Balanced{background:#c9a961}
-.risk-Growth{background:#c98a4a}
-.risk-Aggressive{background:#b8624f}
+.risk-Conservative{background:#1a3a6e}
+.risk-Moderate{background:#3d6398}
+.risk-Balanced{background:#5d7090}
+.risk-Growth{background:#b88a3a}
+.risk-Aggressive{background:#a82b1c}
 
 /* ============== BUTTONS ============== */
 .btn{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border:1px solid var(--line-strong);background:transparent;color:var(--text);font-family:var(--sans);font-size:10.5px;font-weight:600;letter-spacing:0.16em;text-transform:uppercase;cursor:pointer;transition:all .15s;text-decoration:none}
 .btn:hover{border-color:var(--gold-dim);color:var(--text-bright)}
 .btn-primary{background:transparent;border-color:var(--gold-dim);color:var(--gold-bright)}
-.btn-primary:hover{background:rgba(201,169,97,0.08);border-color:var(--gold);color:var(--gold-bright)}
+.btn-primary:hover{background:rgba(26,58,110,0.08);border-color:var(--gold);color:var(--gold-bright)}
 .btn-ghost{border-color:var(--line);color:var(--text-muted)}
 .btn-ghost:hover{color:var(--text);border-color:var(--line-strong)}
 .btn-danger{border-color:rgba(184,98,79,0.4);color:var(--dn)}
@@ -206,7 +206,7 @@ th:not(.sort-asc):not(.sort-desc) .sort-icon::after{content:'⇅'}
 /* ============== TOGGLE ============== */
 .toggle-group{display:inline-flex;border:1px solid var(--line-strong)}
 .toggle-btn{padding:7px 14px;border:none;background:transparent;color:var(--text-muted);font-family:var(--sans);font-size:10px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;cursor:pointer}
-.toggle-btn.active{background:rgba(201,169,97,0.08);color:var(--gold-bright)}
+.toggle-btn.active{background:rgba(26,58,110,0.08);color:var(--gold-bright)}
 
 /* ============== UPCOMING / REVIEW LIST ============== */
 .review-list{display:flex;flex-direction:column}
@@ -218,7 +218,7 @@ th:not(.sort-asc):not(.sort-desc) .sort-icon::after{content:'⇅'}
 .review-tag{font-size:9px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:var(--text-faint)}
 
 /* ============== MODAL ============== */
-#modal-overlay{display:none;position:fixed;inset:0;background:rgba(8,11,16,0.82);backdrop-filter:blur(2px);z-index:1000;align-items:center;justify-content:center}
+#modal-overlay{display:none;position:fixed;inset:0;background:rgba(10,21,48,0.32);backdrop-filter:blur(2px);z-index:1000;align-items:center;justify-content:center}
 #modal-overlay.open{display:flex}
 .modal{background:var(--surface);border:1px solid var(--line-strong);width:560px;max-width:95vw;max-height:90vh;display:flex;flex-direction:column;position:relative}
 .modal::before{content:"";position:absolute;top:0;left:0;width:3px;height:48px;background:var(--gold)}
@@ -252,8 +252,8 @@ textarea.form-control{resize:vertical;min-height:70px;font-family:var(--sans)}
 /* ============== SCROLLBAR ============== */
 ::-webkit-scrollbar{width:6px;height:6px}
 ::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:rgba(201,169,97,0.15)}
-::-webkit-scrollbar-thumb:hover{background:rgba(201,169,97,0.3)}
+::-webkit-scrollbar-thumb{background:rgba(26,58,110,0.15)}
+::-webkit-scrollbar-thumb:hover{background:rgba(26,58,110,0.3)}
 
 /* ============== CHART CONTAINER ============== */
 .chart-container{position:relative;width:100%}
@@ -274,7 +274,7 @@ textarea.form-control{resize:vertical;min-height:70px;font-family:var(--sans)}
 .login-input{width:100%;background:var(--ink-2);border:1px solid var(--line-strong);padding:12px 14px;color:var(--text-bright);font-family:var(--sans);font-size:13px;outline:none;margin-bottom:14px;letter-spacing:0.01em}
 .login-input:focus{border-color:var(--gold-dim)}
 .login-btn{width:100%;padding:13px;border:1px solid var(--gold-dim);background:transparent;color:var(--gold-bright);font-family:var(--sans);font-size:10.5px;font-weight:600;letter-spacing:0.22em;text-transform:uppercase;cursor:pointer;transition:all .15s}
-.login-btn:hover:not(:disabled){background:rgba(201,169,97,0.08);border-color:var(--gold)}
+.login-btn:hover:not(:disabled){background:rgba(26,58,110,0.08);border-color:var(--gold)}
 .login-btn:disabled{opacity:0.5;cursor:wait}
 .login-msg{margin-top:16px;font-size:12px;line-height:1.55;font-family:var(--sans);min-height:18px}
 .login-msg.ok{color:var(--up)}
@@ -291,15 +291,15 @@ textarea.form-control{resize:vertical;min-height:70px;font-family:var(--sans)}
 <!-- ============== LOGIN ============== -->
 <div id="login-overlay">
   <div class="login-card">
-    <div class="login-brand">Castillo <span class="amp">&amp;</span> Partners</div>
-    <div class="login-sub">Private Wealth Management · Est. 2018</div>
+    <div class="login-brand">J Capital</div>
+    <div class="login-sub">Investment Advisory</div>
     <div class="login-eyebrow">Secure Sign-in</div>
     <div class="login-title">Authorized Access</div>
-    <div class="login-body">Enter your email address to receive a one-time sign-in link. This dashboard is restricted to credentialed advisors of the firm.</div>
-    <input type="email" id="login-email" class="login-input" placeholder="advisor@castillopartners.com" autocomplete="email" onkeydown="if(event.key==='Enter')sendMagicLink()">
+    <div class="login-body">Enter your email address to receive a one-time sign-in link. This dashboard is restricted to authorized personnel of J Capital.</div>
+    <input type="email" id="login-email" class="login-input" placeholder="you@jcapital.com" autocomplete="email" onkeydown="if(event.key==='Enter')sendMagicLink()">
     <button id="login-btn" class="login-btn" onclick="sendMagicLink()">Send sign-in link</button>
     <div class="login-msg" id="login-msg"></div>
-    <div class="login-foot">Castillo &amp; Partners · Confidential</div>
+    <div class="login-foot">J Capital · Confidential</div>
   </div>
 </div>
 
@@ -310,9 +310,9 @@ textarea.form-control{resize:vertical;min-height:70px;font-family:var(--sans)}
 <header id="masthead" style="display:none">
   <div class="masthead-top">
     <div class="brand">
-      <div class="brand-mark">Castillo <span class="amp">&amp;</span> Partners</div>
+      <div class="brand-mark">J Capital</div>
       <div class="brand-rule"></div>
-      <div class="brand-sub">Private Wealth Management · Est. 2018</div>
+      <div class="brand-sub">Investment Advisory</div>
     </div>
     <div class="session-meta">
       <div class="sess-status"><span class="dot"></span><span>Markets Open</span></div>
@@ -407,7 +407,7 @@ textarea.form-control{resize:vertical;min-height:70px;font-family:var(--sans)}
     </div>
 
     <div class="footnote">
-      <span>Prepared by Castillo &amp; Partners · Confidential — Internal Use Only</span>
+      <span>Prepared by J Capital · Confidential — Internal Use Only</span>
       <span>Figures as of <span id="footnote-date">—</span></span>
     </div>
   </div>
@@ -588,77 +588,26 @@ textarea.form-control{resize:vertical;min-height:70px;font-family:var(--sans)}
 // SEED DATA
 // ============================================================
 const SEED_CLIENTS = [
-  {id:'c1',name:'Robert & Sarah Thompson',type:'Family',email:'rthompson@gmail.com',phone:'(312) 555-0142',riskProfile:'Moderate',since:'2018-06-01',status:'Active',address:'847 Elmwood Drive, Winnetka, IL 60093',notes:'Referred by David Chen. Robert is a retired surgeon.'},
-  {id:'c2',name:'David Chen',type:'Individual',email:'dchen@techco.com',phone:'(415) 555-0189',riskProfile:'Growth',since:'2019-02-14',status:'Active',address:'2201 Pacific Heights Blvd, San Francisco, CA 94115',notes:'CTO at tech startup. Heavy RSU concentration.'},
-  {id:'c3',name:'Michael & Jennifer Rodriguez',type:'Family',email:'mrodriguez@lawfirm.com',phone:'(212) 555-0267',riskProfile:'Conservative',since:'2015-11-03',status:'Active',address:'420 Park Avenue, New York, NY 10022',notes:'Michael is a senior partner at law firm. Pre-retirement planning.'},
-  {id:'c4',name:'Elizabeth Warren',type:'Individual',email:'ewarren@medgroup.org',phone:'(617) 555-0334',riskProfile:'Balanced',since:'2020-08-22',status:'Active',address:'55 Commonwealth Ave, Boston, MA 02116',notes:'Hospital administrator. 403b rollover.'},
-  {id:'c5',name:'James & Patricia Sullivan',type:'Family',email:'jsullivan@realestate.com',phone:'(312) 555-0411',riskProfile:'Balanced',since:'2012-03-17',status:'Active',address:'1234 Lake Shore Drive, Chicago, IL 60611',notes:'Real estate developer. Complex trust structure.'},
-  {id:'c6',name:'William Foster',type:'Individual',email:'wfoster@foster-arch.com',phone:'(773) 555-0578',riskProfile:'Aggressive',since:'2021-04-05',status:'Active',address:'3312 N. Clark St, Chicago, IL 60657',notes:'Architect in growing practice. Early accumulation phase.'},
-  {id:'c7',name:'Amanda Clarke',type:'Individual',email:'aclarke@pharma.com',phone:'(858) 555-0623',riskProfile:'Growth',since:'2019-09-11',status:'Active',address:'9870 La Jolla Blvd, La Jolla, CA 92037',notes:'Pharmaceutical executive. Stock options.'},
-  {id:'c8',name:'Thomas & Mary Johnson',type:'Family',email:'tjohnson@johnson-mfg.com',phone:'(952) 555-0744',riskProfile:'Moderate',since:'2016-07-29',status:'Active',address:'4521 Wayzata Blvd, Wayzata, MN 55391',notes:'Manufacturing business owners. Business succession planning.'}
+  {id:'c1',name:'Sample Household One',type:'Family',email:'',phone:'',riskProfile:'Moderate',since:'2025-01-01',status:'Active',address:'',notes:'Placeholder — replace with a real client.'},
+  {id:'c2',name:'Sample Household Two',type:'Family',email:'',phone:'',riskProfile:'Balanced',since:'2024-06-01',status:'Active',address:'',notes:'Placeholder — replace with a real client.'},
+  {id:'c3',name:'Sample Individual Three',type:'Individual',email:'',phone:'',riskProfile:'Growth',since:'2025-03-01',status:'Active',address:'',notes:'Placeholder — replace with a real client.'}
 ];
 
 const SEED_ACCOUNTS = [
-  {id:'a1',clientId:'c1',type:'Joint Taxable',custodian:'Schwab',value:1250000,allocation:'Moderate',ytdReturn:9.2,feeRate:0.95,lastReview:'2026-01-15'},
-  {id:'a2',clientId:'c1',type:'IRA',custodian:'Schwab',value:875000,allocation:'Moderate',ytdReturn:8.8,feeRate:1.00,lastReview:'2026-01-15'},
-  {id:'a3',clientId:'c1',type:'Roth IRA',custodian:'Schwab',value:425000,allocation:'Growth',ytdReturn:12.1,feeRate:1.00,lastReview:'2026-01-15'},
-  {id:'a4',clientId:'c1',type:'Trust',custodian:'Schwab',value:285000,allocation:'Conservative',ytdReturn:5.4,feeRate:0.75,lastReview:'2026-01-15'},
-  {id:'a5',clientId:'c2',type:'Individual',custodian:'Fidelity',value:680000,allocation:'Growth',ytdReturn:14.3,feeRate:1.00,lastReview:'2025-11-20'},
-  {id:'a6',clientId:'c2',type:'IRA',custodian:'Fidelity',value:340000,allocation:'Aggressive',ytdReturn:18.7,feeRate:1.00,lastReview:'2025-11-20'},
-  {id:'a7',clientId:'c2',type:'Roth IRA',custodian:'Fidelity',value:185000,allocation:'Aggressive',ytdReturn:19.2,feeRate:1.00,lastReview:'2025-11-20'},
-  {id:'a8',clientId:'c3',type:'Joint Taxable',custodian:'Pershing',value:1800000,allocation:'Conservative',ytdReturn:4.8,feeRate:0.80,lastReview:'2025-12-10'},
-  {id:'a9',clientId:'c3',type:'IRA',custodian:'Pershing',value:980000,allocation:'Conservative',ytdReturn:4.2,feeRate:0.85,lastReview:'2025-12-10'},
-  {id:'a10',clientId:'c3',type:'Trust',custodian:'Pershing',value:720000,allocation:'Moderate',ytdReturn:7.1,feeRate:0.70,lastReview:'2025-12-10'},
-  {id:'a11',clientId:'c4',type:'403b Rollover IRA',custodian:'Vanguard',value:540000,allocation:'Balanced',ytdReturn:7.9,feeRate:0.90,lastReview:'2026-02-28'},
-  {id:'a12',clientId:'c4',type:'Roth IRA',custodian:'Vanguard',value:210000,allocation:'Growth',ytdReturn:11.4,feeRate:0.90,lastReview:'2026-02-28'},
-  {id:'a13',clientId:'c4',type:'Individual',custodian:'Vanguard',value:140000,allocation:'Balanced',ytdReturn:8.1,feeRate:0.90,lastReview:'2026-02-28'},
-  {id:'a14',clientId:'c5',type:'Trust',custodian:'Northern Trust',value:2100000,allocation:'Balanced',ytdReturn:8.3,feeRate:0.65,lastReview:'2025-10-05'},
-  {id:'a15',clientId:'c5',type:'IRA',custodian:'Northern Trust',value:1200000,allocation:'Moderate',ytdReturn:7.8,feeRate:0.70,lastReview:'2025-10-05'},
-  {id:'a16',clientId:'c5',type:'Roth IRA',custodian:'Northern Trust',value:480000,allocation:'Balanced',ytdReturn:8.9,feeRate:0.70,lastReview:'2025-10-05'},
-  {id:'a17',clientId:'c5',type:'Joint Taxable',custodian:'Northern Trust',value:420000,allocation:'Conservative',ytdReturn:5.2,feeRate:0.65,lastReview:'2025-10-05'},
-  {id:'a18',clientId:'c6',type:'Individual',custodian:'TD Ameritrade',value:320000,allocation:'Aggressive',ytdReturn:21.4,feeRate:1.10,lastReview:'2026-03-01'},
-  {id:'a19',clientId:'c6',type:'Roth IRA',custodian:'TD Ameritrade',value:185000,allocation:'Aggressive',ytdReturn:22.1,feeRate:1.10,lastReview:'2026-03-01'},
-  {id:'a20',clientId:'c6',type:'SEP-IRA',custodian:'TD Ameritrade',value:145000,allocation:'Growth',ytdReturn:15.3,feeRate:1.00,lastReview:'2026-03-01'},
-  {id:'a21',clientId:'c7',type:'Individual',custodian:'Schwab',value:890000,allocation:'Growth',ytdReturn:13.7,feeRate:0.95,lastReview:'2025-09-18'},
-  {id:'a22',clientId:'c7',type:'IRA',custodian:'Schwab',value:560000,allocation:'Growth',ytdReturn:13.1,feeRate:0.95,lastReview:'2025-09-18'},
-  {id:'a23',clientId:'c7',type:'529 Plan',custodian:'Schwab',value:185000,allocation:'Moderate',ytdReturn:8.4,feeRate:0.50,lastReview:'2025-09-18'},
-  {id:'a24',clientId:'c7',type:'Roth IRA',custodian:'Schwab',value:165000,allocation:'Growth',ytdReturn:14.0,feeRate:0.95,lastReview:'2025-09-18'},
-  {id:'a25',clientId:'c8',type:'Joint Taxable',custodian:'Raymond James',value:950000,allocation:'Moderate',ytdReturn:8.6,feeRate:0.85,lastReview:'2025-12-20'},
-  {id:'a26',clientId:'c8',type:'IRA',custodian:'Raymond James',value:720000,allocation:'Moderate',ytdReturn:8.2,feeRate:0.90,lastReview:'2025-12-20'},
-  {id:'a27',clientId:'c8',type:'Trust',custodian:'Raymond James',value:440000,allocation:'Conservative',ytdReturn:5.8,feeRate:0.75,lastReview:'2025-12-20'}
+  {id:'a1',clientId:'c1',type:'Joint Taxable',custodian:'—',value:500000,allocation:'Moderate',ytdReturn:7.5,feeRate:1.00,lastReview:'2026-01-15'},
+  {id:'a2',clientId:'c1',type:'IRA',custodian:'—',value:300000,allocation:'Moderate',ytdReturn:7.2,feeRate:1.00,lastReview:'2026-01-15'},
+  {id:'a3',clientId:'c2',type:'Trust',custodian:'—',value:800000,allocation:'Balanced',ytdReturn:8.0,feeRate:0.90,lastReview:'2025-12-10'},
+  {id:'a4',clientId:'c3',type:'Individual',custodian:'—',value:250000,allocation:'Growth',ytdReturn:12.0,feeRate:1.00,lastReview:'2025-11-20'}
 ];
 
 const SEED_POLICIES = [
-  {id:'p1',clientId:'c1',type:'Whole Life',carrier:'MassMutual',faceAmount:1000000,annualPremium:12480,commissionPct:55,status:'In-Force',issueDate:'2018-08-01',renewalDate:'2027-08-01',notes:'Paid-up additions rider.'},
-  {id:'p2',clientId:'c1',type:'Long-Term Care',carrier:'Genworth',faceAmount:0,annualPremium:7200,commissionPct:8,status:'In-Force',issueDate:'2019-03-15',renewalDate:'2027-03-15',notes:'Shared care policy.'},
-  {id:'p3',clientId:'c1',type:'Term Life',carrier:'Protective',faceAmount:500000,annualPremium:1840,commissionPct:90,status:'In-Force',issueDate:'2020-05-01',renewalDate:'2030-05-01',notes:'10-year level term.'},
-  {id:'p4',clientId:'c2',type:'Indexed UL',carrier:'North American',faceAmount:2000000,annualPremium:18600,commissionPct:60,status:'In-Force',issueDate:'2020-04-01',renewalDate:'2028-04-01',notes:'Overfunded IUL.'},
-  {id:'p5',clientId:'c2',type:'Disability Income',carrier:'Guardian',faceAmount:0,annualPremium:4200,commissionPct:50,status:'In-Force',issueDate:'2019-06-15',renewalDate:'2027-06-15',notes:'$8,000/mo benefit.'},
-  {id:'p6',clientId:'c3',type:'Whole Life',carrier:'New York Life',faceAmount:3000000,annualPremium:28400,commissionPct:55,status:'In-Force',issueDate:'2015-12-01',renewalDate:'2030-12-01',notes:'ILIT structure.'},
-  {id:'p7',clientId:'c3',type:'Long-Term Care',carrier:'Nationwide',faceAmount:0,annualPremium:6400,commissionPct:8,status:'In-Force',issueDate:'2018-09-01',renewalDate:'2026-09-01',notes:''},
-  {id:'p8',clientId:'c3',type:'Disability Income',carrier:'Principal',faceAmount:0,annualPremium:5200,commissionPct:50,status:'In-Force',issueDate:'2016-03-15',renewalDate:'2026-03-15',notes:''},
-  {id:'p9',clientId:'c4',type:'Term Life',carrier:'Banner',faceAmount:750000,annualPremium:2100,commissionPct:90,status:'In-Force',issueDate:'2020-10-01',renewalDate:'2030-10-01',notes:''},
-  {id:'p10',clientId:'c4',type:'Disability Income',carrier:'Ameritas',faceAmount:0,annualPremium:3600,commissionPct:50,status:'In-Force',issueDate:'2020-12-01',renewalDate:'2028-12-01',notes:''},
-  {id:'p11',clientId:'c4',type:'Fixed Annuity',carrier:'Allianz',faceAmount:0,annualPremium:6200,commissionPct:4,status:'In-Force',issueDate:'2021-07-01',renewalDate:null,notes:''},
-  {id:'p12',clientId:'c5',type:'Variable UL',carrier:'Prudential',faceAmount:5000000,annualPremium:22800,commissionPct:55,status:'In-Force',issueDate:'2012-05-01',renewalDate:null,notes:'Second-to-die VUL.'},
-  {id:'p13',clientId:'c5',type:'Long-Term Care',carrier:'Lincoln Financial',faceAmount:0,annualPremium:9600,commissionPct:8,status:'In-Force',issueDate:'2015-07-01',renewalDate:'2027-07-01',notes:''},
-  {id:'p14',clientId:'c6',type:'Term Life',carrier:'Haven Life',faceAmount:1000000,annualPremium:1240,commissionPct:90,status:'In-Force',issueDate:'2021-05-15',renewalDate:'2041-05-15',notes:''},
-  {id:'p15',clientId:'c6',type:'Disability Income',carrier:'Ohio National',faceAmount:0,annualPremium:2880,commissionPct:50,status:'In-Force',issueDate:'2021-06-01',renewalDate:'2031-06-01',notes:''},
-  {id:'p16',clientId:'c7',type:'Indexed UL',carrier:'Pacific Life',faceAmount:1500000,annualPremium:14400,commissionPct:60,status:'In-Force',issueDate:'2020-01-01',renewalDate:null,notes:'Max-funded IUL.'},
-  {id:'p17',clientId:'c7',type:'Disability Income',carrier:'MetLife',faceAmount:0,annualPremium:5200,commissionPct:50,status:'In-Force',issueDate:'2019-10-01',renewalDate:'2027-10-01',notes:''},
-  {id:'p18',clientId:'c8',type:'Whole Life',carrier:'Northwestern Mutual',faceAmount:2000000,annualPremium:18400,commissionPct:55,status:'In-Force',issueDate:'2016-08-01',renewalDate:null,notes:'Key-man policy.'},
-  {id:'p19',clientId:'c8',type:'Variable Annuity',carrier:'Jackson National',faceAmount:0,annualPremium:8400,commissionPct:5,status:'In-Force',issueDate:'2019-02-01',renewalDate:null,notes:''},
-  {id:'p20',clientId:'c8',type:'Long-Term Care',carrier:'Transamerica',faceAmount:0,annualPremium:4800,commissionPct:8,status:'In-Force',issueDate:'2018-11-15',renewalDate:'2026-11-15',notes:''}
+  {id:'p1',clientId:'c1',type:'Term Life',carrier:'—',faceAmount:500000,annualPremium:1200,commissionPct:90,status:'In-Force',issueDate:'2024-01-01',renewalDate:'2034-01-01',notes:'Placeholder.'},
+  {id:'p2',clientId:'c2',type:'Whole Life',carrier:'—',faceAmount:1000000,annualPremium:8000,commissionPct:55,status:'In-Force',issueDate:'2023-06-01',renewalDate:null,notes:'Placeholder.'}
 ];
 
 const SEED_PROSPECTS = [
-  {id:'pr1',name:'Kevin Park',email:'kpark@techfirm.io',phone:'(408) 555-0123',type:'Individual',stage:'Discovery',expectedAUM:850000,expectedPremium:8400,probability:45,source:'Client Referral',nextAction:'Send financial planning proposal',nextActionDate:'2026-05-20',stageDate:'2026-03-15',notes:'Referred by David Chen. Software engineer.'},
-  {id:'pr2',name:'Sandra & Mark Mitchell',email:'smitchell@consulting.com',phone:'(847) 555-0287',type:'Family',stage:'Proposal',expectedAUM:2200000,expectedPremium:18000,probability:65,source:'COI Referral',nextAction:'Follow up on investment proposal',nextActionDate:'2026-05-16',stageDate:'2026-02-28',notes:'Referred by CPA. Mark is retiring VP at Abbott.'},
-  {id:'pr3',name:'Richard Barnes',email:'rbarnes@barneslaw.com',phone:'(312) 555-0356',type:'Individual',stage:'Negotiation',expectedAUM:1500000,expectedPremium:22000,probability:80,source:'Seminar',nextAction:'Review and sign advisory agreement',nextActionDate:'2026-05-15',stageDate:'2026-03-01',notes:'Met at estate planning seminar.'},
-  {id:'pr4',name:'Laura Schmidt',email:'lschmidt@schmidt-re.com',phone:'(720) 555-0489',type:'Individual',stage:'Lead',expectedAUM:650000,expectedPremium:6000,probability:30,source:'LinkedIn',nextAction:'Schedule introductory call',nextActionDate:'2026-05-22',stageDate:'2026-04-08',notes:'Real estate investor.'},
-  {id:'pr5',name:'Daniel & Rebecca Torres',email:'dtorres@healthsystem.org',phone:'(954) 555-0512',type:'Family',stage:'Discovery',expectedAUM:1100000,expectedPremium:12000,probability:55,source:'Client Referral',nextAction:'Complete risk tolerance questionnaire',nextActionDate:'2026-05-25',stageDate:'2026-03-25',notes:'Referred by Elizabeth Warren. Daniel is a physician.'},
-  {id:'pr6',name:"Catherine O'Brien",email:'cobrien@university.edu',phone:'(617) 555-0634',type:'Individual',stage:'Discovery',expectedAUM:420000,expectedPremium:4800,probability:40,source:'Seminar',nextAction:'Review 403(b) options',nextActionDate:'2026-05-28',stageDate:'2026-03-30',notes:'University professor approaching early retirement.'},
-  {id:'pr7',name:'Gregory & Helen Nakamura',email:'gnakamura@executive.com',phone:'(206) 555-0758',type:'Family',stage:'Proposal',expectedAUM:3200000,expectedPremium:28000,probability:70,source:'COI Referral',nextAction:'Deliver estate and insurance analysis',nextActionDate:'2026-05-17',stageDate:'2026-03-10',notes:'Tech executive. Complex equity comp.'}
+  {id:'pr1',name:'Sample Prospect A',email:'',phone:'',type:'Individual',stage:'Discovery',expectedAUM:500000,expectedPremium:5000,probability:40,source:'Client Referral',nextAction:'Schedule discovery call',nextActionDate:'2026-06-01',stageDate:'2026-05-01',notes:'Placeholder — replace with a real prospect.'},
+  {id:'pr2',name:'Sample Prospect B',email:'',phone:'',type:'Family',stage:'Proposal',expectedAUM:1500000,expectedPremium:12000,probability:65,source:'COI Referral',nextAction:'Deliver investment proposal',nextActionDate:'2026-05-25',stageDate:'2026-04-15',notes:'Placeholder — replace with a real prospect.'}
 ];
 
 // ============================================================
@@ -1351,14 +1300,14 @@ function initCharts(){
 }
 function axisStyle(){
   return {
-    grid:{color:'rgba(190,170,130,0.05)',drawBorder:false},
-    ticks:{color:'rgba(125,124,117,0.85)',font:{family:'Inter',size:10,weight:'500'}},
-    border:{color:'rgba(190,170,130,0.12)'}
+    grid:{color:'rgba(26,58,110,0.05)',drawBorder:false},
+    ticks:{color:'rgba(107,122,150,0.95)',font:{family:'Inter',size:10,weight:'500'}},
+    border:{color:'rgba(26,58,110,0.12)'}
   };
 }
 const TOOLTIP_STYLE={
-  backgroundColor:'#0b0e13',borderColor:'rgba(201,169,97,0.4)',borderWidth:1,
-  titleColor:'#efeadb',bodyColor:'#cbc6b8',titleFont:{family:'Source Serif 4',size:12,weight:'500'},
+  backgroundColor:'#f6f5f1',borderColor:'rgba(26,58,110,0.4)',borderWidth:1,
+  titleColor:'#0a1530',bodyColor:'#2a3753',titleFont:{family:'Source Serif 4',size:12,weight:'500'},
   bodyFont:{family:'JetBrains Mono',size:11},padding:10,cornerRadius:0,displayColors:false
 };
 
@@ -1369,11 +1318,11 @@ function initOverviewCharts(){
   if(c1){
     const ctx=c1.getContext('2d');
     const grad=ctx.createLinearGradient(0,0,0,240);
-    grad.addColorStop(0,'rgba(201,169,97,0.22)');
-    grad.addColorStop(1,'rgba(201,169,97,0)');
+    grad.addColorStop(0,'rgba(26,58,110,0.22)');
+    grad.addColorStop(1,'rgba(26,58,110,0)');
     chartRegistry['ov-aum']=new Chart(ctx,{
       type:'line',
-      data:{labels:months,datasets:[{label:'AUM',data:values,borderColor:'#c9a961',borderWidth:1.5,backgroundColor:grad,fill:true,tension:0.35,pointRadius:0,pointHoverRadius:4,pointHoverBackgroundColor:'#d9bd7a',pointHoverBorderColor:'#11161f',pointHoverBorderWidth:2}]},
+      data:{labels:months,datasets:[{label:'AUM',data:values,borderColor:'#1a3a6e',borderWidth:1.5,backgroundColor:grad,fill:true,tension:0.35,pointRadius:0,pointHoverRadius:4,pointHoverBackgroundColor:'#2a5396',pointHoverBorderColor:'#ffffff',pointHoverBorderWidth:2}]},
       options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:{...TOOLTIP_STYLE,callbacks:{label:ctx=>'AUM  '+fmt$(ctx.parsed.y)}}},scales:{x:axisStyle(),y:{...axisStyle(),ticks:{...axisStyle().ticks,callback:v=>fmt$(v)}}}}
     });
   }
@@ -1381,28 +1330,28 @@ function initOverviewCharts(){
   if(c2){
     chartRegistry['ov-donut']=new Chart(c2.getContext('2d'),{
       type:'doughnut',
-      data:{labels:['Advisory Fees','Insurance Commission'],datasets:[{data:[fees,comm],backgroundColor:['#c9a961','#7a93b3'],borderColor:'#11161f',borderWidth:2,hoverOffset:6}]},
-      options:{responsive:true,maintainAspectRatio:false,cutout:'70%',plugins:{legend:{position:'bottom',labels:{color:'#cbc6b8',font:{family:'Inter',size:10,weight:'600'},boxWidth:8,boxHeight:8,padding:14,usePointStyle:true,pointStyle:'rect'}},tooltip:{...TOOLTIP_STYLE,callbacks:{label:ctx=>ctx.label+'  '+fmt$(ctx.parsed)}}}}
+      data:{labels:['Advisory Fees','Insurance Commission'],datasets:[{data:[fees,comm],backgroundColor:['#1a3a6e','#7a9ec8'],borderColor:'#ffffff',borderWidth:2,hoverOffset:6}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'70%',plugins:{legend:{position:'bottom',labels:{color:'#2a3753',font:{family:'Inter',size:10,weight:'600'},boxWidth:8,boxHeight:8,padding:14,usePointStyle:true,pointStyle:'rect'}},tooltip:{...TOOLTIP_STYLE,callbacks:{label:ctx=>ctx.label+'  '+fmt$(ctx.parsed)}}}}
     });
   }
 }
 function initAumCharts(){
   const allocs=['Conservative','Moderate','Balanced','Growth','Aggressive'];
-  const palette=['#3d536f','#5e9e74','#c9a961','#c98a4a','#b8624f'];
+  const palette=['#1a3a6e','#3d6398','#7a9ec8','#c89556','#a8472d'];
   const allocTotals=allocs.map(a=>db.accounts.filter(acc=>acc.allocation===a).reduce((s,acc)=>s+acc.value,0));
   const c=document.getElementById('chart-alloc-donut');
   if(c){
     chartRegistry['aum-alloc']=new Chart(c.getContext('2d'),{
       type:'doughnut',
-      data:{labels:allocs,datasets:[{data:allocTotals,backgroundColor:palette,borderColor:'#11161f',borderWidth:2,hoverOffset:6}]},
-      options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{position:'bottom',labels:{color:'#cbc6b8',font:{family:'Inter',size:10,weight:'600'},boxWidth:8,boxHeight:8,padding:10,usePointStyle:true,pointStyle:'rect'}},tooltip:{...TOOLTIP_STYLE,callbacks:{label:ctx=>ctx.label+'  '+fmt$(ctx.parsed)}}}}
+      data:{labels:allocs,datasets:[{data:allocTotals,backgroundColor:palette,borderColor:'#ffffff',borderWidth:2,hoverOffset:6}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{position:'bottom',labels:{color:'#2a3753',font:{family:'Inter',size:10,weight:'600'},boxWidth:8,boxHeight:8,padding:10,usePointStyle:true,pointStyle:'rect'}},tooltip:{...TOOLTIP_STYLE,callbacks:{label:ctx=>ctx.label+'  '+fmt$(ctx.parsed)}}}}
     });
   }
 }
 function initInsCharts(){
   const types=[...new Set(db.policies.filter(p=>p.status==='In-Force').map(p=>p.type))];
   const premByType=types.map(t=>db.policies.filter(p=>p.type===t&&p.status==='In-Force').reduce((s,p)=>s+p.annualPremium,0));
-  const palette=['#c9a961','#7a93b3','#5e9e74','#c98a4a','#3d536f','#8a7a4f','#b8624f','#9eb8c9','#7d7c75','#6a5a39'];
+  const palette=['#1a3a6e','#3d6398','#6b89b8','#9aafd1','#1f7a4d','#5fa37a','#b88a3a','#c89556','#a82b1c','#6b7a96'];
   const c=document.getElementById('chart-ins-bar');
   if(c){
     chartRegistry['ins-bar']=new Chart(c.getContext('2d'),{
@@ -1422,33 +1371,33 @@ function initReportCharts(){
     chartRegistry['rep-rev']=new Chart(c1.getContext('2d'),{
       type:'bar',
       data:{labels,datasets:[
-        {label:'Advisory Fees',data:labels.map(()=>monthlyFees*(0.9+Math.random()*0.2)),backgroundColor:'#c9a961',borderRadius:0,stack:'rev',barThickness:14},
-        {label:'Insurance Commission',data:labels.map(()=>monthlyComm*(0.9+Math.random()*0.2)),backgroundColor:'#7a93b3',borderRadius:0,stack:'rev',barThickness:14}
+        {label:'Advisory Fees',data:labels.map(()=>monthlyFees*(0.9+Math.random()*0.2)),backgroundColor:'#1a3a6e',borderRadius:0,stack:'rev',barThickness:14},
+        {label:'Insurance Commission',data:labels.map(()=>monthlyComm*(0.9+Math.random()*0.2)),backgroundColor:'#7a9ec8',borderRadius:0,stack:'rev',barThickness:14}
       ]},
-      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:'#cbc6b8',font:{family:'Inter',size:10,weight:'600'},boxWidth:8,boxHeight:8,padding:10,usePointStyle:true,pointStyle:'rect'}},tooltip:{...TOOLTIP_STYLE,mode:'index',callbacks:{label:ctx=>ctx.dataset.label+'  '+fmt$(ctx.parsed.y)}}},scales:{x:axisStyle(),y:{...axisStyle(),stacked:true,ticks:{...axisStyle().ticks,callback:v=>fmt$(v)}}}}
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:'#2a3753',font:{family:'Inter',size:10,weight:'600'},boxWidth:8,boxHeight:8,padding:10,usePointStyle:true,pointStyle:'rect'}},tooltip:{...TOOLTIP_STYLE,mode:'index',callbacks:{label:ctx=>ctx.dataset.label+'  '+fmt$(ctx.parsed.y)}}},scales:{x:axisStyle(),y:{...axisStyle(),stacked:true,ticks:{...axisStyle().ticks,callback:v=>fmt$(v)}}}}
     });
   }
   const c2=document.getElementById('chart-aum-growth2');
   if(c2){
     const ctx=c2.getContext('2d');
     const grad=ctx.createLinearGradient(0,0,0,240);
-    grad.addColorStop(0,'rgba(201,169,97,0.22)');
-    grad.addColorStop(1,'rgba(201,169,97,0)');
+    grad.addColorStop(0,'rgba(26,58,110,0.22)');
+    grad.addColorStop(1,'rgba(26,58,110,0)');
     chartRegistry['rep-aum']=new Chart(ctx,{
       type:'line',
-      data:{labels:months,datasets:[{label:'AUM',data:values,borderColor:'#c9a961',borderWidth:1.5,backgroundColor:grad,fill:true,tension:0.35,pointRadius:0,pointHoverRadius:4}]},
+      data:{labels:months,datasets:[{label:'AUM',data:values,borderColor:'#1a3a6e',borderWidth:1.5,backgroundColor:grad,fill:true,tension:0.35,pointRadius:0,pointHoverRadius:4}]},
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...TOOLTIP_STYLE,callbacks:{label:ctx=>'AUM  '+fmt$(ctx.parsed.y)}}},scales:{x:axisStyle(),y:{...axisStyle(),ticks:{...axisStyle().ticks,callback:v=>fmt$(v)}}}}
     });
   }
   const types=[...new Set(db.policies.filter(p=>p.status==='In-Force').map(p=>p.type))];
   const premByType=types.map(t=>db.policies.filter(p=>p.type===t&&p.status==='In-Force').reduce((s,p)=>s+p.annualPremium,0));
-  const palette=['#c9a961','#7a93b3','#5e9e74','#c98a4a','#3d536f','#8a7a4f','#b8624f','#9eb8c9','#7d7c75','#6a5a39'];
+  const palette=['#1a3a6e','#3d6398','#6b89b8','#9aafd1','#1f7a4d','#5fa37a','#b88a3a','#c89556','#a82b1c','#6b7a96'];
   const c3=document.getElementById('chart-ins-pie');
   if(c3){
     chartRegistry['rep-ins']=new Chart(c3.getContext('2d'),{
       type:'doughnut',
-      data:{labels:types,datasets:[{data:premByType,backgroundColor:palette.slice(0,types.length),borderColor:'#11161f',borderWidth:2,hoverOffset:6}]},
-      options:{responsive:true,maintainAspectRatio:false,cutout:'58%',plugins:{legend:{position:'bottom',labels:{color:'#cbc6b8',font:{family:'Inter',size:9,weight:'600'},boxWidth:7,boxHeight:7,padding:8,usePointStyle:true,pointStyle:'rect'}},tooltip:{...TOOLTIP_STYLE,callbacks:{label:ctx=>ctx.label+'  '+fmtFull$(ctx.parsed)}}}}
+      data:{labels:types,datasets:[{data:premByType,backgroundColor:palette.slice(0,types.length),borderColor:'#ffffff',borderWidth:2,hoverOffset:6}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'58%',plugins:{legend:{position:'bottom',labels:{color:'#2a3753',font:{family:'Inter',size:9,weight:'600'},boxWidth:7,boxHeight:7,padding:8,usePointStyle:true,pointStyle:'rect'}},tooltip:{...TOOLTIP_STYLE,callbacks:{label:ctx=>ctx.label+'  '+fmtFull$(ctx.parsed)}}}}
     });
   }
 }
