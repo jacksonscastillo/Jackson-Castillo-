@@ -3,857 +3,1229 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Buffett Stock Screener</title>
+  <title>Buffett Equity Screener — Institutional Research</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #13141a;
-      --surface: #1a1d25;
-      --card: #1f2230;
+      --bg: #070b12;
+      --surface: #0d1219;
+      --card: #111820;
+      --card2: #161e2a;
       --border: rgba(255,255,255,0.07);
-      --muted: rgba(255,255,255,0.35);
-      --dim: rgba(255,255,255,0.14);
-      --good: #16a34a;
-      --good-lt: #22c55e;
-      --warn: #d97706;
-      --warn-lt: #fbbf24;
-      --bad: #dc2626;
-      --bad-lt: #ef4444;
-      --gold: #d97706;
-      --gold-lt: #fbbf24;
-      --text: #f1f1f5;
+      --border2: rgba(255,255,255,0.04);
+      --text: #c8d4e0;
+      --text-bright: #e8f0f8;
+      --muted: rgba(200,212,224,0.45);
+      --dim: rgba(200,212,224,0.22);
+      --gold: #f59e0b;
+      --gold-dim: rgba(245,158,11,0.15);
+      --good: #10b981;
+      --good-dim: rgba(16,185,129,0.12);
+      --warn: #f59e0b;
+      --warn-dim: rgba(245,158,11,0.12);
+      --bad: #ef4444;
+      --bad-dim: rgba(239,68,68,0.12);
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: var(--bg); color: var(--text); font-family: Inter, system-ui, sans-serif; min-height: 100vh; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 14px; }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: Inter, system-ui, sans-serif;
+      min-height: 100vh; line-height: 1.5;
+      font-variant-numeric: tabular-nums;
+    }
+    a { color: var(--gold); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    button { cursor: pointer; font-family: inherit; }
 
-    /* ── NAV ── */
-    .nav {
+    /* ── HEADER ── */
+    .header {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 11px 24px; border-bottom: 1px solid var(--border);
-      background: rgba(0,0,0,0.25); backdrop-filter: blur(8px);
-      position: sticky; top: 0; z-index: 10;
+      padding: 0 24px; height: 52px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      position: sticky; top: 0; z-index: 100;
     }
-    .brand { display: flex; align-items: center; gap: 11px; }
-    .logo {
-      width: 30px; height: 30px; border-radius: 8px;
-      background: linear-gradient(135deg, #92400e 0%, #d97706 100%);
+    .header-left { display: flex; align-items: center; gap: 14px; }
+    .shield {
+      width: 32px; height: 32px; border-radius: 6px;
+      background: linear-gradient(135deg, #92400e 0%, #f59e0b 100%);
       display: flex; align-items: center; justify-content: center;
-      font-weight: 900; font-size: 14px;
+      font-size: 16px; flex-shrink: 0;
     }
-    .brand-name { font-size: 14px; font-weight: 800; }
-    .brand-sub { font-size: 9px; color: var(--dim); font-weight: 600; }
-    .nav-right { display: flex; align-items: center; gap: 10px; }
-    .nav-tag {
-      font-size: 9px; font-weight: 800; letter-spacing: 0.8px;
-      color: var(--gold); background: rgba(217,119,6,0.12);
-      padding: 3px 10px; border-radius: 4px;
+    .brand-block { display: flex; flex-direction: column; gap: 1px; }
+    .brand-name {
+      font-size: 13px; font-weight: 800; letter-spacing: 0.5px;
+      color: var(--text-bright); text-transform: uppercase;
     }
-    .reset-btn {
-      font-size: 10px; font-weight: 700; color: var(--dim);
-      background: none; border: 1px solid var(--border);
-      border-radius: 6px; padding: 4px 12px; cursor: pointer;
+    .brand-sub {
+      font-size: 9px; font-weight: 600; letter-spacing: 1.5px;
+      color: var(--gold); text-transform: uppercase;
     }
-    .reset-btn:hover { color: var(--muted); border-color: rgba(255,255,255,0.15); }
+    .header-right { display: flex; align-items: center; gap: 16px; }
+    .datetime {
+      font-size: 11px; color: var(--dim); font-weight: 500;
+      font-variant-numeric: tabular-nums;
+    }
+    .api-chip {
+      display: flex; align-items: center; gap: 6px;
+      padding: 4px 10px; border-radius: 4px;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.3px;
+      border: 1px solid; cursor: pointer; transition: all 0.15s;
+    }
+    .api-chip.connected { border-color: rgba(16,185,129,0.35); background: rgba(16,185,129,0.08); color: var(--good); }
+    .api-chip.demo { border-color: rgba(245,158,11,0.35); background: var(--gold-dim); color: var(--gold); }
+    .api-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
 
-    /* ── HERO ── */
-    .hero { padding: 28px 24px 0; max-width: 1100px; margin: 0 auto; }
-    .hero-kicker { font-size: 10px; font-weight: 700; color: var(--dim); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 7px; }
-    .hero-title { font-size: 34px; font-weight: 900; letter-spacing: -1.2px; line-height: 1.05; }
-    .hero-title span { color: var(--gold); }
-    .hero-desc { font-size: 12px; color: var(--muted); margin-top: 9px; line-height: 1.65; max-width: 580px; }
-
-    /* ── QUICK FILL ── */
-    .quick-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 18px 0 0; }
-    .quick-label { font-size: 10px; font-weight: 700; color: var(--dim); align-self: center; }
-    .qbtn {
-      display: flex; align-items: center; gap: 7px;
+    /* ── API BANNER ── */
+    .api-banner {
+      background: linear-gradient(90deg, rgba(245,158,11,0.08) 0%, rgba(245,158,11,0.04) 100%);
+      border-bottom: 1px solid rgba(245,158,11,0.15);
+      padding: 10px 24px;
+      display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    }
+    .api-banner-text { font-size: 12px; color: var(--muted); flex: 1; min-width: 200px; }
+    .api-banner-text strong { color: var(--gold); }
+    .api-key-row { display: flex; gap: 8px; align-items: center; }
+    .api-input {
       background: var(--card); border: 1px solid var(--border);
-      border-radius: 8px; padding: 7px 13px; cursor: pointer;
-      transition: border-color 0.15s, background 0.15s;
+      color: var(--text-bright); font-family: inherit; font-size: 12px;
+      padding: 6px 12px; border-radius: 4px; width: 280px;
+      outline: none; transition: border-color 0.15s;
     }
-    .qbtn:hover { border-color: rgba(217,119,6,0.45); background: rgba(217,119,6,0.06); }
-    .qbtn.active { border-color: var(--gold); background: rgba(217,119,6,0.1); }
-    .qbtn-ticker { font-size: 11px; font-weight: 900; color: var(--gold-lt); }
-    .qbtn-name { font-size: 9px; color: var(--muted); font-weight: 500; }
-    .qbtn-score { font-size: 9px; font-weight: 800; }
+    .api-input:focus { border-color: rgba(245,158,11,0.4); }
+    .btn-save-key {
+      background: var(--gold); color: #000; border: none;
+      font-size: 11px; font-weight: 700; padding: 6px 14px;
+      border-radius: 4px; transition: opacity 0.15s;
+    }
+    .btn-save-key:hover { opacity: 0.85; }
+    .btn-demo-load {
+      background: none; border: 1px solid var(--border);
+      color: var(--muted); font-size: 11px; font-weight: 600;
+      padding: 5px 12px; border-radius: 4px; transition: all 0.15s;
+    }
+    .btn-demo-load:hover { border-color: rgba(245,158,11,0.35); color: var(--gold); }
 
-    /* ── LAYOUT ── */
-    .wrap { max-width: 1100px; margin: 20px auto 0; padding: 0 24px 48px; display: grid; grid-template-columns: 1fr 400px; gap: 16px; align-items: start; }
-    @media(max-width:860px) { .wrap { grid-template-columns: 1fr; } }
-
-    /* ── SECTION CARDS ── */
-    .section { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 18px; margin-bottom: 14px; }
-    .sec-title {
-      font-size: 9px; font-weight: 800; color: var(--dim);
-      letter-spacing: 1px; text-transform: uppercase;
-      display: flex; align-items: center; gap: 7px; margin-bottom: 15px;
-    }
-    .sec-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-
-    /* ── FIELD GRID ── */
-    .field-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-    .field-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .field {
-      background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);
-      border-radius: 9px; padding: 10px 12px; transition: border-color 0.15s;
-    }
-    .field:focus-within { border-color: rgba(217,119,6,0.4); }
-    .field label { display: block; font-size: 9px; font-weight: 700; color: var(--dim); letter-spacing: 0.4px; text-transform: uppercase; margin-bottom: 5px; }
-    .field input {
-      width: 100%; background: none; border: none; outline: none;
-      color: var(--text); font-family: inherit; font-size: 14px; font-weight: 700;
-    }
-    .field input::placeholder { color: rgba(255,255,255,0.1); font-weight: 400; font-size: 12px; }
-    .field .hint { font-size: 8px; color: rgba(255,255,255,0.12); margin-top: 3px; }
-
-    /* ── METRIC FIELDS (with score bar) ── */
-    .metric-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .mfield {
-      background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.06);
-      border-radius: 9px; padding: 11px 13px; transition: border-color 0.15s;
-    }
-    .mfield:focus-within { border-color: rgba(217,119,6,0.38); }
-    .mfield-head {
-      display: flex; justify-content: space-between; align-items: baseline;
-      margin-bottom: 6px;
-    }
-    .mfield-head label { font-size: 9px; font-weight: 700; color: var(--dim); text-transform: uppercase; letter-spacing: 0.4px; cursor: pointer; }
-    .mfield-head .target { font-size: 8px; color: rgba(255,255,255,0.1); font-weight: 600; }
-    .mfield input[type=number] {
-      width: 100%; background: none; border: none; outline: none;
-      color: var(--text); font-family: inherit; font-size: 15px; font-weight: 800;
-    }
-    .mfield input::placeholder { color: rgba(255,255,255,0.1); font-weight: 400; font-size: 12px; }
-    .mbar-bg { height: 2px; background: rgba(255,255,255,0.05); border-radius: 1px; margin-top: 9px; }
-    .mbar-fill { height: 100%; border-radius: 1px; transition: width .35s, background .35s; }
-    .mpts { font-size: 8px; font-weight: 800; color: var(--dim); margin-top: 4px; text-align: right; transition: color .3s; }
-
-    /* ── CHECKLIST ── */
-    .checklist { display: flex; flex-direction: column; gap: 9px; }
-    .chk-item { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
-    .chk-item input[type=checkbox] { accent-color: var(--gold); width: 14px; height: 14px; flex-shrink: 0; margin-top: 1px; cursor: pointer; }
-    .chk-label { font-size: 11px; color: rgba(255,255,255,0.45); line-height: 1.45; }
-    .chk-label b { color: rgba(255,255,255,0.78); font-weight: 700; }
-
-    /* ── RESULTS ── */
-    .result-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
-    .result-head {
-      padding: 18px 20px 16px;
+    /* ── SEARCH ── */
+    .search-bar-wrap {
+      padding: 16px 24px;
+      background: var(--surface);
       border-bottom: 1px solid var(--border);
     }
-    .result-stock-name { font-size: 11px; font-weight: 700; color: var(--dim); margin-bottom: 4px; min-height: 15px; }
+    .search-inner {
+      max-width: 680px; position: relative; margin: 0 auto;
+    }
+    .search-icon {
+      position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+      color: var(--dim); pointer-events: none; font-size: 16px;
+    }
+    .search-input {
+      width: 100%; height: 48px; padding: 0 120px 0 44px;
+      background: var(--card); border: 1px solid var(--border);
+      color: var(--text-bright); font-family: inherit;
+      font-size: 16px; font-weight: 600; letter-spacing: 0.5px;
+      border-radius: 6px; outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      text-transform: uppercase;
+    }
+    .search-input::placeholder { text-transform: none; font-weight: 400; color: var(--dim); font-size: 14px; }
+    .search-input:focus {
+      border-color: rgba(245,158,11,0.5);
+      box-shadow: 0 0 0 3px rgba(245,158,11,0.08);
+    }
+    .search-btn {
+      position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+      background: var(--gold); color: #000; border: none;
+      font-size: 11px; font-weight: 800; letter-spacing: 0.5px;
+      padding: 0 16px; height: 36px; border-radius: 4px;
+      transition: opacity 0.15s; display: flex; align-items: center; gap: 6px;
+    }
+    .search-btn:hover { opacity: 0.85; }
+    .search-spinner {
+      display: none; width: 16px; height: 16px;
+      border: 2px solid rgba(0,0,0,0.3); border-top-color: #000;
+      border-radius: 50%; animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .search-error {
+      font-size: 11px; color: var(--bad); margin-top: 6px;
+      display: none; text-align: center;
+    }
 
-    /* Score ring */
-    .score-area { display: flex; align-items: center; gap: 18px; }
-    .ring-wrap { position: relative; width: 96px; height: 96px; flex-shrink: 0; }
+    /* ── MAIN LAYOUT ── */
+    .main { display: grid; grid-template-columns: 1fr 420px; gap: 0; min-height: calc(100vh - 160px); }
+    @media (max-width: 1000px) { .main { grid-template-columns: 1fr; } }
+    .left-panel { border-right: 1px solid var(--border); padding: 20px 24px 40px; min-height: 600px; }
+    .right-panel { padding: 20px 20px 40px; background: var(--surface); }
+
+    /* ── EMPTY STATE ── */
+    .empty-state {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      height: 100%; min-height: 400px; gap: 12px; text-align: center;
+      color: var(--dim);
+    }
+    .empty-icon { font-size: 40px; opacity: 0.3; }
+    .empty-title { font-size: 14px; font-weight: 600; color: var(--muted); }
+    .empty-sub { font-size: 12px; max-width: 280px; line-height: 1.6; }
+
+    /* ── COMPANY HEADER ── */
+    .co-header { margin-bottom: 20px; }
+    .co-meta-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .co-name-block { flex: 1; min-width: 200px; }
+    .co-name { font-size: 22px; font-weight: 800; color: var(--text-bright); letter-spacing: -0.5px; line-height: 1.2; }
+    .co-badges { display: flex; align-items: center; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+    .badge {
+      display: inline-block; padding: 2px 8px; border-radius: 3px;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.3px;
+    }
+    .badge-ticker { background: rgba(245,158,11,0.15); color: var(--gold); border: 1px solid rgba(245,158,11,0.3); }
+    .badge-exchange { background: rgba(200,212,224,0.07); color: var(--muted); border: 1px solid var(--border); }
+    .badge-sector { background: rgba(200,212,224,0.05); color: var(--dim); border: 1px solid var(--border2); }
+    .co-price-block { text-align: right; }
+    .co-price { font-size: 32px; font-weight: 900; color: var(--text-bright); letter-spacing: -1px; line-height: 1; }
+    .co-change { font-size: 13px; font-weight: 700; margin-top: 4px; }
+    .co-change.pos { color: var(--good); }
+    .co-change.neg { color: var(--bad); }
+    .co-stats-row { display: flex; gap: 24px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border2); flex-wrap: wrap; }
+    .co-stat { display: flex; flex-direction: column; gap: 2px; }
+    .co-stat-lbl { font-size: 9px; font-weight: 700; color: var(--dim); letter-spacing: 0.5px; text-transform: uppercase; }
+    .co-stat-val { font-size: 13px; font-weight: 700; color: var(--text); }
+
+    /* ── SCORE RING AREA ── */
+    .score-section { display: flex; align-items: center; gap: 24px; margin-bottom: 24px; padding: 20px; background: var(--card); border: 1px solid var(--border); border-radius: 6px; }
+    .ring-wrap { position: relative; width: 110px; height: 110px; flex-shrink: 0; }
     .ring-wrap svg { width: 100%; height: 100%; transform: rotate(-90deg); }
-    .ring-bg { fill: none; stroke: rgba(255,255,255,0.05); stroke-width: 7; }
-    .ring-fill { fill: none; stroke-width: 7; stroke-linecap: round; transition: stroke-dashoffset .7s cubic-bezier(.4,0,.2,1), stroke .4s; }
+    .ring-bg-c { fill: none; stroke: rgba(255,255,255,0.05); stroke-width: 8; }
+    .ring-fill-c { fill: none; stroke-width: 8; stroke-linecap: round; transition: stroke-dashoffset 0.8s cubic-bezier(0.4,0,0.2,1), stroke 0.4s; }
     .ring-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-    .ring-num { font-size: 26px; font-weight: 900; line-height: 1; letter-spacing: -1px; transition: color .4s; }
-    .ring-denom { font-size: 8px; color: var(--dim); font-weight: 700; }
-    .score-info { flex: 1; min-width: 0; }
+    .ring-num { font-size: 30px; font-weight: 900; line-height: 1; letter-spacing: -1px; transition: color 0.4s; }
+    .ring-denom { font-size: 9px; color: var(--dim); font-weight: 700; margin-top: 1px; }
+    .score-right { flex: 1; }
     .rec-badge {
-      display: inline-block; padding: 5px 14px; border-radius: 5px;
-      font-size: 12px; font-weight: 900; letter-spacing: 0.3px; margin-bottom: 7px;
-      transition: background .4s, color .4s;
+      display: inline-block; padding: 5px 14px; border-radius: 4px;
+      font-size: 12px; font-weight: 900; letter-spacing: 0.5px; margin-bottom: 8px;
+      transition: background 0.4s, color 0.4s;
     }
-    .rec-desc { font-size: 11px; color: var(--muted); line-height: 1.55; }
+    .score-desc { font-size: 12px; color: var(--muted); line-height: 1.6; }
 
-    /* IV section */
-    .iv-section { padding: 15px 20px; border-bottom: 1px solid var(--border); }
-    .iv-sec-title { font-size: 9px; font-weight: 800; color: var(--dim); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px; }
-    .iv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
-    .iv-tile { background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.05); border-radius: 9px; padding: 10px 12px; }
-    .iv-lbl { font-size: 8px; font-weight: 700; color: var(--dim); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; }
-    .iv-val { font-size: 20px; font-weight: 900; letter-spacing: -0.5px; transition: color .3s; }
-    .iv-sub { font-size: 8px; color: var(--dim); margin-top: 3px; }
-    .mos-tile { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); border-radius: 9px; padding: 10px 13px; }
-    .mos-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
-    .mos-lbl { font-size: 9px; font-weight: 700; color: var(--dim); text-transform: uppercase; letter-spacing: 0.5px; }
-    .mos-val { font-size: 16px; font-weight: 900; transition: color .3s; }
-    .bar2 { height: 4px; background: rgba(255,255,255,0.05); border-radius: 2px; }
-    .bar2-fill { height: 100%; border-radius: 2px; transition: width .5s, background .4s; }
-    .mos-sub { font-size: 8px; color: var(--dim); margin-top: 5px; }
+    /* ── METRICS TABLE ── */
+    .section-label {
+      font-size: 9px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase;
+      color: var(--dim); margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
+    }
+    .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border2); }
+    .metrics-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+    .metrics-table th {
+      font-size: 9px; font-weight: 700; color: var(--dim); letter-spacing: 0.5px;
+      text-transform: uppercase; padding: 0 8px 8px; text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .metrics-table th:last-child, .metrics-table td:last-child { text-align: right; }
+    .metrics-table td {
+      padding: 9px 8px; border-bottom: 1px solid var(--border2);
+      font-size: 12px; vertical-align: middle;
+    }
+    .metrics-table tr:last-child td { border-bottom: none; }
+    .met-name { font-weight: 600; color: var(--text); }
+    .met-target { font-size: 10px; color: var(--dim); margin-top: 1px; }
+    .met-val { font-size: 13px; font-weight: 700; }
+    .met-val.good { color: var(--good); }
+    .met-val.warn { color: var(--warn); }
+    .met-val.bad { color: var(--bad); }
+    .met-val.muted { color: var(--dim); }
+    .score-pill {
+      display: inline-flex; align-items: center; justify-content: flex-end;
+      font-size: 11px; font-weight: 700;
+      gap: 2px; padding: 2px 0;
+    }
+    .score-pill.good { color: var(--good); }
+    .score-pill.warn { color: var(--warn); }
+    .score-pill.bad { color: var(--bad); }
+    .score-pill.muted { color: var(--dim); }
 
-    /* Strengths/Concerns */
-    .sc-section { padding: 15px 20px; border-bottom: 1px solid var(--border); display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .sc-col-title { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px; }
-    .sc-list { display: flex; flex-direction: column; gap: 5px; }
-    .sc-item { display: flex; align-items: flex-start; gap: 6px; font-size: 10px; font-weight: 500; color: var(--muted); line-height: 1.4; }
+    /* ── IV CARDS ── */
+    .iv-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+    .iv-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 6px; padding: 14px 12px;
+    }
+    .iv-lbl { font-size: 9px; font-weight: 700; color: var(--dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .iv-val { font-size: 20px; font-weight: 900; letter-spacing: -0.5px; color: var(--text-bright); transition: color 0.3s; }
+    .iv-sub { font-size: 10px; color: var(--dim); margin-top: 4px; }
+
+    /* ── STRENGTHS / CONCERNS ── */
+    .sc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+    .sc-block { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 14px; }
+    .sc-block-title { font-size: 10px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 10px; }
+    .sc-block-title.good { color: var(--good); }
+    .sc-block-title.bad { color: var(--bad); }
+    .sc-item { display: flex; gap: 8px; font-size: 11px; color: var(--muted); line-height: 1.45; margin-bottom: 7px; }
+    .sc-item:last-child { margin-bottom: 0; }
     .sc-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
-    .sc-empty { font-size: 9px; color: var(--dim); font-style: italic; }
+    .sc-empty { font-size: 10px; color: var(--dim); font-style: italic; }
 
-    /* Breakdown */
-    .bk-section { padding: 15px 20px; border-bottom: 1px solid var(--border); }
-    .bk-title { font-size: 9px; font-weight: 800; color: var(--dim); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 10px; }
-    .bk-list { display: flex; flex-direction: column; gap: 6px; }
-    .bk-row { display: flex; align-items: center; gap: 8px; }
-    .bk-lbl { font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.4); width: 118px; flex-shrink: 0; }
-    .bk-bar { flex: 1; height: 3px; background: rgba(255,255,255,0.05); border-radius: 2px; }
-    .bk-fill { height: 100%; border-radius: 2px; transition: width .4s, background .35s; }
-    .bk-pts { font-size: 9px; font-weight: 800; width: 32px; text-align: right; transition: color .3s; }
-
-    /* PEG indicator chip */
-    .peg-chip {
-      display: inline-block; font-size: 8px; font-weight: 800; padding: 2px 7px;
-      border-radius: 3px; margin-top: 4px;
+    /* ── MOAT CHECKLIST ── */
+    .moat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 4px; }
+    .moat-item {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 12px; background: var(--card); border: 1px solid var(--border);
+      border-radius: 6px; cursor: pointer; transition: border-color 0.15s, background 0.15s;
     }
+    .moat-item:hover { border-color: rgba(245,158,11,0.25); }
+    .moat-item.checked { border-color: rgba(16,185,129,0.3); background: var(--good-dim); }
+    .moat-item input[type=checkbox] { width: 14px; height: 14px; flex-shrink: 0; margin-top: 1px; accent-color: var(--good); cursor: pointer; }
+    .moat-text { font-size: 11px; color: var(--muted); line-height: 1.4; }
+    .moat-text b { color: var(--text); font-weight: 600; }
 
-    /* Quote */
-    .quote-section { padding: 14px 20px; }
-    .quote-box { background: rgba(217,119,6,0.06); border: 1px solid rgba(217,119,6,0.13); border-radius: 10px; padding: 13px 15px; }
-    .quote-text { font-size: 11px; color: rgba(255,255,255,0.45); font-style: italic; line-height: 1.65; }
-    .quote-src { font-size: 9px; font-weight: 800; color: var(--gold); margin-top: 6px; }
+    /* ── RIGHT PANEL: LEADERBOARD ── */
+    .lb-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .lb-title { font-size: 11px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-bright); }
+    .lb-subtitle { font-size: 10px; color: var(--dim); margin-top: 2px; }
+    .scan-btn {
+      background: none; border: 1px solid var(--border);
+      color: var(--muted); font-size: 11px; font-weight: 700;
+      padding: 6px 14px; border-radius: 4px;
+      transition: all 0.15s; white-space: nowrap;
+    }
+    .scan-btn:hover { border-color: rgba(245,158,11,0.4); color: var(--gold); background: var(--gold-dim); }
+    .scan-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .scan-progress { margin-bottom: 14px; display: none; }
+    .scan-progress-label { font-size: 10px; color: var(--dim); margin-bottom: 5px; display: flex; justify-content: space-between; }
+    .scan-progress-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+    .scan-progress-fill { height: 100%; background: var(--gold); border-radius: 2px; transition: width 0.3s; }
+    .lb-table { width: 100%; border-collapse: collapse; }
+    .lb-table th {
+      font-size: 9px; font-weight: 700; color: var(--dim); letter-spacing: 0.5px;
+      text-transform: uppercase; padding: 0 8px 8px; text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .lb-table th:first-child { width: 24px; }
+    .lb-table td {
+      padding: 10px 8px; border-bottom: 1px solid var(--border2);
+      font-size: 12px; vertical-align: middle;
+    }
+    .lb-table tr:last-child td { border-bottom: none; }
+    .lb-table tr.lb-row { cursor: pointer; transition: background 0.12s; }
+    .lb-table tr.lb-row:hover td { background: rgba(255,255,255,0.025); }
+    .lb-table tr.lb-row.active td { background: rgba(245,158,11,0.06); }
+    .lb-rank { font-size: 10px; color: var(--dim); font-weight: 600; }
+    .lb-ticker { font-size: 12px; font-weight: 800; color: var(--gold); }
+    .lb-co { font-size: 10px; color: var(--muted); margin-top: 1px; max-width: 110px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .lb-score-badge {
+      display: inline-block; padding: 3px 8px; border-radius: 3px;
+      font-size: 11px; font-weight: 800;
+    }
+    .lb-rec-pill {
+      display: inline-block; padding: 2px 6px; border-radius: 3px;
+      font-size: 9px; font-weight: 700; letter-spacing: 0.2px;
+    }
+    .lb-num { font-size: 11px; color: var(--text); font-weight: 600; }
+    .lb-num.muted { color: var(--dim); }
+    .lb-loading { text-align: center; padding: 40px 20px; color: var(--dim); font-size: 12px; }
+    .lb-skeleton { display: flex; flex-direction: column; gap: 1px; }
+    .lb-skel-row { height: 42px; background: linear-gradient(90deg, var(--card) 25%, var(--card2) 50%, var(--card) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-bottom: 1px solid var(--border2); }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
-    /* Footer */
-    .foot { padding: 10px 24px 20px; font-size: 8px; color: rgba(255,255,255,0.1); line-height: 1.7; text-align: center; }
+    /* ── RISK FREE RATE ── */
+    .rfr-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--border2); margin-top: 4px; }
+    .rfr-lbl { font-size: 11px; color: var(--muted); flex: 1; }
+    .rfr-input {
+      width: 70px; background: var(--card); border: 1px solid var(--border);
+      color: var(--text-bright); font-family: inherit; font-size: 13px; font-weight: 700;
+      padding: 5px 8px; border-radius: 4px; text-align: right; outline: none;
+      transition: border-color 0.15s;
+    }
+    .rfr-input:focus { border-color: rgba(245,158,11,0.4); }
+    .rfr-pct { font-size: 12px; color: var(--dim); font-weight: 600; }
 
-    /* divider */
-    hr { border: none; border-top: 1px solid var(--border); }
+    /* ── MISC ── */
+    .divider { border: none; border-top: 1px solid var(--border2); margin: 20px 0; }
+    .riskfree-section { padding: 0 0 16px; }
+    .footer { padding: 16px 24px; border-top: 1px solid var(--border2); font-size: 10px; color: var(--dim); text-align: center; line-height: 1.7; }
+
+    /* Loading overlay on analysis */
+    .analysis-loading {
+      display: none; flex-direction: column; align-items: center; justify-content: center;
+      padding: 60px 20px; gap: 14px; color: var(--dim);
+    }
+    .analysis-spinner {
+      width: 36px; height: 36px; border: 3px solid var(--border);
+      border-top-color: var(--gold); border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    .analysis-loading-text { font-size: 13px; font-weight: 600; }
+
+    /* Mobile tweaks */
+    @media (max-width: 700px) {
+      .iv-grid { grid-template-columns: 1fr 1fr; }
+      .moat-grid { grid-template-columns: 1fr; }
+      .sc-grid { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
 
-<!-- NAV -->
-<div class="nav">
-  <div class="brand">
-    <div class="logo">W</div>
-    <div>
-      <div class="brand-name">Buffett Stock Screener</div>
-      <div class="brand-sub">Value Investing Algorithm · v2</div>
+<!-- ── HEADER ── -->
+<header class="header">
+  <div class="header-left">
+    <div class="shield">&#x1F6E1;&#xFE0F;</div>
+    <div class="brand-block">
+      <div class="brand-name">Buffett Equity Screener</div>
+      <div class="brand-sub">· Institutional Research</div>
     </div>
   </div>
-  <div class="nav-right">
-    <div class="nav-tag">BUFFETT FRAMEWORK</div>
-    <button class="reset-btn" onclick="resetAll()">Clear All</button>
+  <div class="header-right">
+    <div class="datetime" id="datetime">—</div>
+    <div class="api-chip demo" id="apiChip" onclick="toggleApiPanel()">
+      <span class="dot"></span>
+      <span id="apiChipText">DEMO MODE</span>
+    </div>
   </div>
-</div>
+</header>
 
-<!-- HERO -->
-<div class="hero">
-  <div class="hero-kicker">Warren Buffett · Intrinsic Value · Margin of Safety</div>
-  <div class="hero-title">Is it a <span>Buffett deal?</span></div>
-  <div class="hero-desc">
-    Score any stock 0–100 against Buffett's core principles — quality earnings, durable moat,
-    financial strength, and a price well below intrinsic value. Or load a real Buffett holding below.
+<!-- ── API BANNER ── -->
+<div class="api-banner" id="apiBanner">
+  <div class="api-banner-text">
+    <strong>Enter your free FMP API key to unlock live data.</strong>
+    Get yours at <a href="https://financialmodelingprep.com" target="_blank">financialmodelingprep.com</a> — free tier supports all required endpoints.
   </div>
-
-  <!-- Quick-fill buttons -->
-  <div class="quick-row">
-    <div class="quick-label">Load example →</div>
-    <button class="qbtn" id="qbtn-KO"   onclick="loadExample('KO')">
-      <span class="qbtn-ticker">KO</span>
-      <span class="qbtn-name">Coca-Cola</span>
-      <span class="qbtn-score" style="color:#fbbf24">★ Held since '88</span>
-    </button>
-    <button class="qbtn" id="qbtn-AAPL" onclick="loadExample('AAPL')">
-      <span class="qbtn-ticker">AAPL</span>
-      <span class="qbtn-name">Apple</span>
-      <span class="qbtn-score" style="color:#fbbf24">★ Largest holding</span>
-    </button>
-    <button class="qbtn" id="qbtn-OXY"  onclick="loadExample('OXY')">
-      <span class="qbtn-ticker">OXY</span>
-      <span class="qbtn-name">Occidental</span>
-      <span class="qbtn-score" style="color:#fbbf24">★ Recent buy</span>
-    </button>
-    <button class="qbtn" id="qbtn-AXP"  onclick="loadExample('AXP')">
-      <span class="qbtn-ticker">AXP</span>
-      <span class="qbtn-name">American Express</span>
-      <span class="qbtn-score" style="color:#fbbf24">★ 30-yr hold</span>
-    </button>
+  <div class="api-key-row">
+    <input type="text" class="api-input" id="apiKeyInput" placeholder="Paste API key here..." autocomplete="off" />
+    <button class="btn-save-key" onclick="saveApiKey()">Save Key</button>
+    <button class="btn-demo-load" onclick="loadDemoAll()">Load Demo</button>
   </div>
 </div>
 
-<!-- MAIN GRID -->
-<div class="wrap">
-
-  <!-- ── LEFT INPUTS ── -->
-  <div>
-
-    <!-- Stock Info -->
-    <div class="section">
-      <div class="sec-title"><span class="sec-dot" style="background:#818cf8"></span>Stock Info</div>
-      <div class="field-grid-3">
-        <div class="field">
-          <label>Company Name</label>
-          <input type="text" id="companyName" placeholder="e.g. Coca-Cola" oninput="score()" />
-        </div>
-        <div class="field">
-          <label>Ticker</label>
-          <input type="text" id="ticker" placeholder="e.g. KO" maxlength="6" style="text-transform:uppercase" oninput="score()" />
-        </div>
-        <div class="field">
-          <label>Current Price ($)</label>
-          <input type="number" id="price" placeholder="e.g. 65.50" min="0" step="0.01" oninput="score()" />
-          <div class="hint">Per share market price</div>
-        </div>
-      </div>
-      <div class="field-grid-2">
-        <div class="field">
-          <label>EPS — Trailing 12mo ($)</label>
-          <input type="number" id="eps" placeholder="e.g. 2.47" step="0.01" oninput="score()" />
-          <div class="hint">Diluted earnings per share</div>
-        </div>
-        <div class="field">
-          <label>Book Value / Share ($)</label>
-          <input type="number" id="bvps" placeholder="e.g. 6.40" step="0.01" oninput="score()" />
-          <div class="hint">Stockholders' equity ÷ shares</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Valuation -->
-    <div class="section">
-      <div class="sec-title"><span class="sec-dot" style="background:#d97706"></span>Valuation Ratios</div>
-      <div class="metric-grid-2">
-        <div class="mfield">
-          <div class="mfield-head">
-            <label for="pe">P/E Ratio</label>
-            <span class="target">Ideal: ≤ 15</span>
-          </div>
-          <input type="number" id="pe" placeholder="e.g. 14" min="0" step="0.1" oninput="score()" />
-          <div class="mbar-bg"><div class="mbar-fill" id="mbar-pe"></div></div>
-          <div class="mpts" id="mpts-pe">—</div>
-        </div>
-        <div class="mfield">
-          <div class="mfield-head">
-            <label for="pb">P/B Ratio</label>
-            <span class="target">Ideal: ≤ 1.5</span>
-          </div>
-          <input type="number" id="pb" placeholder="e.g. 2.8" min="0" step="0.1" oninput="score()" />
-          <div class="mbar-bg"><div class="mbar-fill" id="mbar-pb"></div></div>
-          <div class="mpts" id="mpts-pb">—</div>
-        </div>
-        <div class="mfield">
-          <div class="mfield-head">
-            <label for="fcfYield">FCF Yield (%)</label>
-            <span class="target">Ideal: ≥ 5%</span>
-          </div>
-          <input type="number" id="fcfYield" placeholder="e.g. 6.2" step="0.1" oninput="score()" />
-          <div class="mbar-bg"><div class="mbar-fill" id="mbar-fcf"></div></div>
-          <div class="mpts" id="mpts-fcf">—</div>
-        </div>
-        <div class="mfield">
-          <div class="mfield-head">
-            <label for="peg">PEG Ratio</label>
-            <span class="target">Ideal: ≤ 1.0</span>
-          </div>
-          <input type="number" id="peg" placeholder="auto or enter" step="0.01" min="0" oninput="score()" />
-          <div class="mbar-bg"><div class="mbar-fill" id="mbar-peg"></div></div>
-          <div class="mpts" id="mpts-peg">—</div>
-          <div id="peg-auto" style="font-size:8px;color:rgba(255,255,255,0.12);margin-top:2px;"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Profitability -->
-    <div class="section">
-      <div class="sec-title"><span class="sec-dot" style="background:#22c55e"></span>Profitability & Growth</div>
-      <div class="metric-grid-2">
-        <div class="mfield">
-          <div class="mfield-head">
-            <label for="roe">Return on Equity (%)</label>
-            <span class="target">Ideal: ≥ 15%</span>
-          </div>
-          <input type="number" id="roe" placeholder="e.g. 38" step="0.1" oninput="score()" />
-          <div class="mbar-bg"><div class="mbar-fill" id="mbar-roe"></div></div>
-          <div class="mpts" id="mpts-roe">—</div>
-        </div>
-        <div class="mfield">
-          <div class="mfield-head">
-            <label for="margin">Net Profit Margin (%)</label>
-            <span class="target">Ideal: ≥ 20%</span>
-          </div>
-          <input type="number" id="margin" placeholder="e.g. 22" step="0.1" oninput="score()" />
-          <div class="mbar-bg"><div class="mbar-fill" id="mbar-margin"></div></div>
-          <div class="mpts" id="mpts-margin">—</div>
-        </div>
-        <div class="mfield">
-          <div class="mfield-head">
-            <label for="epsGrowth">EPS Growth — 5yr avg (%)</label>
-            <span class="target">Ideal: ≥ 10%</span>
-          </div>
-          <input type="number" id="epsGrowth" placeholder="e.g. 8" step="0.1" oninput="score()" />
-          <div class="mbar-bg"><div class="mbar-fill" id="mbar-epsg"></div></div>
-          <div class="mpts" id="mpts-epsg">—</div>
-        </div>
-        <div class="mfield">
-          <div class="mfield-head">
-            <label for="revGrowth">Revenue Growth — 5yr avg (%)</label>
-            <span class="target">Ideal: ≥ 5%</span>
-          </div>
-          <input type="number" id="revGrowth" placeholder="e.g. 6" step="0.1" oninput="score()" />
-          <div class="mbar-bg"><div class="mbar-fill" id="mbar-revg"></div></div>
-          <div class="mpts" id="mpts-revg">—</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Financial Health -->
-    <div class="section">
-      <div class="sec-title"><span class="sec-dot" style="background:#818cf8"></span>Financial Health</div>
-      <div class="metric-grid-2">
-        <div class="mfield">
-          <div class="mfield-head">
-            <label for="de">Debt / Equity</label>
-            <span class="target">Ideal: ≤ 0.5</span>
-          </div>
-          <input type="number" id="de" placeholder="e.g. 0.4" step="0.01" min="0" oninput="score()" />
-          <div class="mbar-bg"><div class="mbar-fill" id="mbar-de"></div></div>
-          <div class="mpts" id="mpts-de">—</div>
-        </div>
-        <div class="mfield">
-          <div class="mfield-head">
-            <label for="cr">Current Ratio</label>
-            <span class="target">Ideal: ≥ 1.5</span>
-          </div>
-          <input type="number" id="cr" placeholder="e.g. 2.1" step="0.01" min="0" oninput="score()" />
-          <div class="mbar-bg"><div class="mbar-fill" id="mbar-cr"></div></div>
-          <div class="mpts" id="mpts-cr">—</div>
-        </div>
-        <div class="mfield" style="grid-column:1/-1;">
-          <div class="mfield-head">
-            <label for="riskFreeRate">10-yr Treasury Yield (%)</label>
-            <span class="target">Default: 4.5%</span>
-          </div>
-          <input type="number" id="riskFreeRate" placeholder="4.5" step="0.05" min="0.1" max="20" oninput="score()" />
-          <div style="font-size:8px;color:rgba(255,255,255,0.12);margin-top:5px;">Used as discount rate in Graham IV formula — find current rate at treasury.gov</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Moat Checklist -->
-    <div class="section">
-      <div class="sec-title">
-        <span class="sec-dot" style="background:#d97706"></span>
-        Durable Moat Checklist
-        <span style="font-size:8px;color:rgba(255,255,255,0.12);text-transform:none;letter-spacing:0;font-weight:600;">(+2 pts each, max 12)</span>
-      </div>
-      <div class="checklist">
-        <label class="chk-item">
-          <input type="checkbox" id="chk1" onchange="score()" />
-          <span class="chk-label"><b>Simple, understandable business</b> — you can explain how it makes money in one sentence</span>
-        </label>
-        <label class="chk-item">
-          <input type="checkbox" id="chk2" onchange="score()" />
-          <span class="chk-label"><b>10+ years of consistent earnings growth</b> — no erratic or declining EPS history</span>
-        </label>
-        <label class="chk-item">
-          <input type="checkbox" id="chk3" onchange="score()" />
-          <span class="chk-label"><b>Strong brand or pricing power</b> — customers keep buying regardless of price increases</span>
-        </label>
-        <label class="chk-item">
-          <input type="checkbox" id="chk4" onchange="score()" />
-          <span class="chk-label"><b>Products people always need</b> — non-cyclical, recurring demand</span>
-        </label>
-        <label class="chk-item">
-          <input type="checkbox" id="chk5" onchange="score()" />
-          <span class="chk-label"><b>High switching costs or network effect</b> — competitors cannot easily lure customers away</span>
-        </label>
-        <label class="chk-item">
-          <input type="checkbox" id="chk6" onchange="score()" />
-          <span class="chk-label"><b>Shareholder-friendly management</b> — capital deployed wisely, buybacks at sensible prices</span>
-        </label>
-      </div>
-    </div>
+<!-- ── SEARCH BAR ── -->
+<div class="search-bar-wrap">
+  <div class="search-inner">
+    <span class="search-icon">&#9906;</span>
+    <input type="text" class="search-input" id="searchInput"
+      placeholder="Enter ticker symbol, e.g. AAPL, KO, MSFT..."
+      maxlength="10"
+      onkeydown="if(event.key==='Enter') fetchTicker()" />
+    <button class="search-btn" onclick="fetchTicker()" id="searchBtn">
+      <div class="search-spinner" id="searchSpinner"></div>
+      <span id="searchBtnText">ANALYZE</span>
+    </button>
   </div>
+  <div class="search-error" id="searchError"></div>
+</div>
 
-  <!-- ── RIGHT: RESULTS ── -->
-  <div>
-    <div class="result-card">
+<!-- ── MAIN LAYOUT ── -->
+<div class="main">
 
-      <!-- Header / Score -->
-      <div class="result-head">
-        <div class="result-stock-name" id="resName">—</div>
-        <div class="score-area">
-          <div class="ring-wrap">
-            <svg viewBox="0 0 100 100">
-              <circle class="ring-bg" cx="50" cy="50" r="42"/>
-              <circle class="ring-fill" id="ringFill" cx="50" cy="50" r="42"
-                stroke-dasharray="263.9" stroke-dashoffset="263.9"
-                stroke="rgba(255,255,255,0.07)"/>
-            </svg>
-            <div class="ring-center">
-              <div class="ring-num" id="scoreNum">—</div>
-              <div class="ring-denom">/ 100</div>
+  <!-- ── LEFT: ANALYSIS PANEL ── -->
+  <div class="left-panel" id="leftPanel">
+
+    <!-- Loading state -->
+    <div class="analysis-loading" id="analysisLoading">
+      <div class="analysis-spinner"></div>
+      <div class="analysis-loading-text">Fetching financial data...</div>
+    </div>
+
+    <!-- Empty state -->
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">&#128200;</div>
+      <div class="empty-title">No stock selected</div>
+      <div class="empty-sub">Type a ticker above and press Analyze, or click any stock in the leaderboard to load it.</div>
+    </div>
+
+    <!-- Analysis content (hidden until stock loaded) -->
+    <div id="analysisContent" style="display:none">
+
+      <!-- Company Header -->
+      <div class="co-header">
+        <div class="co-meta-row">
+          <div class="co-name-block">
+            <div class="co-name" id="coName">—</div>
+            <div class="co-badges">
+              <span class="badge badge-ticker" id="coBadgeTicker">—</span>
+              <span class="badge badge-exchange" id="coBadgeExchange">—</span>
+              <span class="badge badge-sector" id="coBadgeSector">—</span>
             </div>
           </div>
-          <div class="score-info">
-            <div class="rec-badge" id="recBadge"
-              style="background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.2)">
-              Awaiting data
-            </div>
-            <div class="rec-desc" id="recDesc">Enter financial metrics to generate a Buffett-style recommendation.</div>
+          <div class="co-price-block">
+            <div class="co-price" id="coPrice">—</div>
+            <div class="co-change" id="coChange">—</div>
           </div>
         </div>
+        <div class="co-stats-row">
+          <div class="co-stat"><span class="co-stat-lbl">Market Cap</span><span class="co-stat-val" id="coMktCap">—</span></div>
+          <div class="co-stat"><span class="co-stat-lbl">Beta</span><span class="co-stat-val" id="coBeta">—</span></div>
+          <div class="co-stat"><span class="co-stat-lbl">P/E Ratio</span><span class="co-stat-val" id="coStatPe">—</span></div>
+          <div class="co-stat"><span class="co-stat-lbl">EPS (TTM)</span><span class="co-stat-val" id="coStatEps">—</span></div>
+          <div class="co-stat"><span class="co-stat-lbl">ROE (TTM)</span><span class="co-stat-val" id="coStatRoe">—</span></div>
+        </div>
+      </div>
+
+      <!-- Score Ring -->
+      <div class="score-section">
+        <div class="ring-wrap">
+          <svg viewBox="0 0 120 120">
+            <circle class="ring-bg-c" cx="60" cy="60" r="50"/>
+            <circle class="ring-fill-c" id="ringFill" cx="60" cy="60" r="50"
+              stroke-dasharray="314.16" stroke-dashoffset="314.16"
+              stroke="rgba(255,255,255,0.07)"/>
+          </svg>
+          <div class="ring-center">
+            <div class="ring-num" id="scoreNum">—</div>
+            <div class="ring-denom">/ 100</div>
+          </div>
+        </div>
+        <div class="score-right">
+          <div class="rec-badge" id="recBadge" style="background:rgba(255,255,255,0.05);color:var(--dim)">Awaiting Data</div>
+          <div class="score-desc" id="scoreDesc">Load a stock to generate a Buffett-style recommendation.</div>
+        </div>
+      </div>
+
+      <!-- Metrics Table -->
+      <div class="section-label">Quantitative Metrics</div>
+      <table class="metrics-table">
+        <thead>
+          <tr>
+            <th>Metric</th>
+            <th>Value</th>
+            <th>Target</th>
+            <th>Score / Max</th>
+          </tr>
+        </thead>
+        <tbody id="metricsBody"></tbody>
+      </table>
+
+      <!-- Risk-free rate -->
+      <div class="rfr-row">
+        <span class="rfr-lbl">10-yr Treasury yield (used in Graham IV)</span>
+        <input type="number" class="rfr-input" id="rfrInput" value="4.5" min="0.1" max="20" step="0.05" onchange="recalcFromCurrentData()" />
+        <span class="rfr-pct">%</span>
       </div>
 
       <!-- Intrinsic Value -->
-      <div class="iv-section">
-        <div class="iv-sec-title">Intrinsic Value Estimates</div>
-        <div class="iv-grid">
-          <div class="iv-tile">
-            <div class="iv-lbl">Graham Number</div>
-            <div class="iv-val" id="gnVal">—</div>
-            <div class="iv-sub" id="gnSub">√(22.5 × EPS × BVPS)</div>
-          </div>
-          <div class="iv-tile">
-            <div class="iv-lbl">Graham IV Formula</div>
-            <div class="iv-val" id="givVal">—</div>
-            <div class="iv-sub" id="givSub">EPS × (8.5 + 2g) × 4.4 / Y</div>
-          </div>
+      <div class="section-label" style="margin-top:20px">Intrinsic Value</div>
+      <div class="iv-grid">
+        <div class="iv-card">
+          <div class="iv-lbl">Graham Number</div>
+          <div class="iv-val" id="ivGN">—</div>
+          <div class="iv-sub" id="ivGNsub">√(22.5 × EPS × BVPS)</div>
         </div>
-        <div class="mos-tile">
-          <div class="mos-row">
-            <span class="mos-lbl">Margin of Safety (vs Graham #)</span>
-            <span class="mos-val" id="mosVal">—</span>
-          </div>
-          <div class="bar2"><div class="bar2-fill" id="mosBar" style="width:0%"></div></div>
-          <div class="mos-sub" id="mosSub">Enter price + EPS + book value to compute</div>
+        <div class="iv-card">
+          <div class="iv-lbl">Graham IV</div>
+          <div class="iv-val" id="ivGIV">—</div>
+          <div class="iv-sub" id="ivGIVsub">EPS × (8.5 + 2g) × 4.4 / Y</div>
+        </div>
+        <div class="iv-card">
+          <div class="iv-lbl">Margin of Safety</div>
+          <div class="iv-val" id="ivMoS">—</div>
+          <div class="iv-sub" id="ivMoSsub">vs Graham Number</div>
         </div>
       </div>
 
       <!-- Strengths / Concerns -->
-      <div class="sc-section">
-        <div>
-          <div class="sc-col-title" style="color:var(--good-lt)">Key Strengths</div>
-          <div class="sc-list" id="strengthsList">
-            <span class="sc-empty">Fill in metrics to see analysis</span>
-          </div>
+      <div class="section-label">Analysis</div>
+      <div class="sc-grid">
+        <div class="sc-block">
+          <div class="sc-block-title good">Strengths</div>
+          <div id="strengthsList"><span class="sc-empty">—</span></div>
         </div>
-        <div>
-          <div class="sc-col-title" style="color:var(--bad-lt)">Key Concerns</div>
-          <div class="sc-list" id="concernsList">
-            <span class="sc-empty">Fill in metrics to see analysis</span>
-          </div>
+        <div class="sc-block">
+          <div class="sc-block-title bad">Concerns</div>
+          <div id="concernsList"><span class="sc-empty">—</span></div>
         </div>
       </div>
 
-      <!-- Score Breakdown -->
-      <div class="bk-section">
-        <div class="bk-title">Score Breakdown</div>
-        <div class="bk-list">
-          <div class="bk-row"><span class="bk-lbl">ROE</span><div class="bk-bar"><div class="bk-fill" id="bk-roe"></div></div><span class="bk-pts" id="bkp-roe">—</span></div>
-          <div class="bk-row"><span class="bk-lbl">FCF Yield</span><div class="bk-bar"><div class="bk-fill" id="bk-fcf"></div></div><span class="bk-pts" id="bkp-fcf">—</span></div>
-          <div class="bk-row"><span class="bk-lbl">P/E Ratio</span><div class="bk-bar"><div class="bk-fill" id="bk-pe"></div></div><span class="bk-pts" id="bkp-pe">—</span></div>
-          <div class="bk-row"><span class="bk-lbl">EPS Growth</span><div class="bk-bar"><div class="bk-fill" id="bk-epsg"></div></div><span class="bk-pts" id="bkp-epsg">—</span></div>
-          <div class="bk-row"><span class="bk-lbl">Debt / Equity</span><div class="bk-bar"><div class="bk-fill" id="bk-de"></div></div><span class="bk-pts" id="bkp-de">—</span></div>
-          <div class="bk-row"><span class="bk-lbl">Net Margin</span><div class="bk-bar"><div class="bk-fill" id="bk-margin"></div></div><span class="bk-pts" id="bkp-margin">—</span></div>
-          <div class="bk-row"><span class="bk-lbl">PEG Ratio</span><div class="bk-bar"><div class="bk-fill" id="bk-peg"></div></div><span class="bk-pts" id="bkp-peg">—</span></div>
-          <div class="bk-row"><span class="bk-lbl">Revenue Growth</span><div class="bk-bar"><div class="bk-fill" id="bk-revg"></div></div><span class="bk-pts" id="bkp-revg">—</span></div>
-          <div class="bk-row"><span class="bk-lbl">P/B Ratio</span><div class="bk-bar"><div class="bk-fill" id="bk-pb"></div></div><span class="bk-pts" id="bkp-pb">—</span></div>
-          <div class="bk-row"><span class="bk-lbl">Current Ratio</span><div class="bk-bar"><div class="bk-fill" id="bk-cr"></div></div><span class="bk-pts" id="bkp-cr">—</span></div>
-          <div class="bk-row"><span class="bk-lbl">Moat Checklist</span><div class="bk-bar"><div class="bk-fill" id="bk-moat"></div></div><span class="bk-pts" id="bkp-moat">—</span></div>
-        </div>
-      </div>
+      <!-- Moat Checklist -->
+      <div class="section-label">Durable Moat Checklist <span style="font-weight:500;color:var(--dim);letter-spacing:0;text-transform:none">&nbsp;(+2 pts each, max 12 — your qualitative judgment)</span></div>
+      <div class="moat-grid" id="moatGrid"></div>
 
-      <!-- Quote -->
-      <div class="quote-section">
-        <div class="quote-box">
-          <div class="quote-text" id="quoteText">"Price is what you pay. Value is what you get."</div>
-          <div class="quote-src">— Warren Buffett</div>
-        </div>
+    </div><!-- /analysisContent -->
+  </div><!-- /left-panel -->
+
+  <!-- ── RIGHT: LEADERBOARD ── -->
+  <div class="right-panel">
+    <div class="lb-header">
+      <div>
+        <div class="lb-title">Top Value Opportunities</div>
+        <div class="lb-subtitle">Buffett Watchlist — 20 stocks</div>
+      </div>
+      <button class="scan-btn" id="scanBtn" onclick="scanWatchlist()">&#x25B6; Scan Watchlist</button>
+    </div>
+
+    <div class="scan-progress" id="scanProgress">
+      <div class="scan-progress-label">
+        <span id="scanLabel">Scanning...</span>
+        <span id="scanFrac">0 / 20</span>
+      </div>
+      <div class="scan-progress-bar">
+        <div class="scan-progress-fill" id="scanFill" style="width:0%"></div>
       </div>
     </div>
 
-    <div class="foot">
-      Approximate data for examples sourced from public filings (2024). For educational use only — not financial advice.<br>
-      Always verify metrics against the company's latest 10-K or earnings report.
+    <div id="lbContainer">
+      <div class="lb-skeleton" id="lbSkeleton" style="display:none">
+        <div class="lb-skel-row"></div><div class="lb-skel-row"></div><div class="lb-skel-row"></div>
+        <div class="lb-skel-row"></div><div class="lb-skel-row"></div>
+      </div>
+      <div id="lbEmpty" style="text-align:center;padding:40px 12px;color:var(--dim);font-size:12px;">
+        Click "Scan Watchlist" to rank top Buffett stocks, or load demo data.
+      </div>
+      <table class="lb-table" id="lbTable" style="display:none">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Ticker / Co.</th>
+            <th>Score</th>
+            <th>Rec</th>
+            <th>P/E</th>
+            <th>ROE%</th>
+            <th>D/E</th>
+            <th>MoS%</th>
+          </tr>
+        </thead>
+        <tbody id="lbBody"></tbody>
+      </table>
+    </div>
+
+    <div class="footer" style="margin-top:24px;border-top:1px solid var(--border2);padding-top:16px;">
+      Data via Financial Modeling Prep. For educational use only — not financial advice.<br>
+      Verify all metrics against latest 10-K / earnings report before investing.
     </div>
   </div>
 </div>
 
 <script>
-// ── PRE-LOADED EXAMPLE DATA (approximate 2024 figures) ─────────────
-const EXAMPLES = {
-  KO: {
-    companyName:'Coca-Cola', ticker:'KO', price:65.5, eps:2.47, bvps:6.4,
-    pe:26.5, pb:10.2, fcfYield:3.9, peg:null,
-    roe:42, margin:22.4, epsGrowth:4.2, revGrowth:3.1,
-    de:1.7, cr:1.1, riskFreeRate:4.5,
-    chk:[true,true,true,true,false,true]
-  },
-  AAPL: {
-    companyName:'Apple', ticker:'AAPL', price:196, eps:6.56, bvps:4.2,
-    pe:29.9, pb:46.7, fcfYield:3.4, peg:null,
-    roe:157, margin:26.4, epsGrowth:10.2, revGrowth:7.3,
-    de:1.5, cr:0.9, riskFreeRate:4.5,
-    chk:[true,true,true,true,true,true]
-  },
-  OXY: {
-    companyName:'Occidental Petroleum', ticker:'OXY', price:47, eps:3.80, bvps:22.5,
-    pe:12.4, pb:2.1, fcfYield:6.2, peg:null,
-    roe:16.2, margin:12.1, epsGrowth:18.4, revGrowth:12.0,
-    de:0.71, cr:1.2, riskFreeRate:4.5,
-    chk:[true,false,false,true,false,true]
-  },
-  AXP: {
-    companyName:'American Express', ticker:'AXP', price:267, eps:13.5, bvps:42,
-    pe:19.8, pb:6.4, fcfYield:3.1, peg:null,
-    roe:33.4, margin:14.2, epsGrowth:15.1, revGrowth:11.3,
-    de:1.9, cr:1.0, riskFreeRate:4.5,
-    chk:[true,true,true,false,true,true]
-  }
-};
+// ─────────────────────────────────────────────────────────────────────────────
+// CONSTANTS
+// ─────────────────────────────────────────────────────────────────────────────
+const FMP_BASE = 'https://financialmodelingprep.com/api/v3';
+const WATCHLIST = ['KO','AAPL','AXP','OXY','BAC','CVX','MCO','COST','JNJ','PG','WMT','MCD','JPM','V','MSFT','UNH','HD','XOM','VRSN','NKE'];
 
-// ── MAX POINTS ─────────────────────────────────────────────────────
-const MAX = {
-  roe:15, fcf:13, pe:12, epsg:12, de:11, margin:10, peg:8, revg:7, pb:6, cr:4, moat:12
-};
-// Sum quant = 98, but we normalize to 88 and add 12 moat = 100
-
-// ── SCORING FUNCTIONS ──────────────────────────────────────────────
-function sROE(v)    { if(v===null)return null; if(v>=25)return MAX.roe; if(v>=20)return r(MAX.roe,.85); if(v>=15)return r(MAX.roe,.60); if(v>=10)return r(MAX.roe,.25); return 0; }
-function sFCF(v)    { if(v===null)return null; if(v>=8)return MAX.fcf; if(v>=5)return r(MAX.fcf,.80); if(v>=3)return r(MAX.fcf,.50); if(v>=1)return r(MAX.fcf,.20); return 0; }
-function sPE(v)     { if(v===null)return null; if(v<=0)return 0; if(v<=10)return MAX.pe; if(v<=15)return r(MAX.pe,.88); if(v<=20)return r(MAX.pe,.55); if(v<=25)return r(MAX.pe,.22); return 0; }
-function sEPSG(v)   { if(v===null)return null; if(v>=20)return MAX.epsg; if(v>=15)return r(MAX.epsg,.85); if(v>=10)return r(MAX.epsg,.62); if(v>=5)return r(MAX.epsg,.30); if(v>=0)return r(MAX.epsg,.05); return 0; }
-function sDE(v)     { if(v===null)return null; if(v<0)return 0; if(v<=0.1)return MAX.de; if(v<=0.5)return r(MAX.de,.80); if(v<=1.0)return r(MAX.de,.45); if(v<=2.0)return r(MAX.de,.15); return 0; }
-function sMargin(v) { if(v===null)return null; if(v>=30)return MAX.margin; if(v>=20)return r(MAX.margin,.85); if(v>=10)return r(MAX.margin,.50); if(v>=5)return r(MAX.margin,.20); return 0; }
-function sPEG(v)    { if(v===null)return null; if(v<=0)return 0; if(v<=0.5)return MAX.peg; if(v<=1.0)return r(MAX.peg,.85); if(v<=1.5)return r(MAX.peg,.50); if(v<=2.0)return r(MAX.peg,.20); return 0; }
-function sRevG(v)   { if(v===null)return null; if(v>=15)return MAX.revg; if(v>=10)return r(MAX.revg,.85); if(v>=5)return r(MAX.revg,.60); if(v>=2)return r(MAX.revg,.25); return 0; }
-function sPB(v)     { if(v===null)return null; if(v<=0)return 0; if(v<=1.0)return MAX.pb; if(v<=1.5)return r(MAX.pb,.85); if(v<=2.5)return r(MAX.pb,.55); if(v<=4)return r(MAX.pb,.20); return 0; }
-function sCR(v)     { if(v===null)return null; if(v>=2.5)return MAX.cr; if(v>=1.5)return r(MAX.cr,.80); if(v>=1.0)return r(MAX.cr,.40); return 0; }
-
-function r(max, ratio) { return Math.round(max * ratio); }
-function gv(id) { const v=parseFloat(document.getElementById(id).value); return isNaN(v)?null:v; }
-
-// ── INTRINSIC VALUE ────────────────────────────────────────────────
-function grahamNumber(eps, bvps) {
-  if(eps===null||bvps===null||eps<=0||bvps<=0) return null;
-  return Math.sqrt(22.5*eps*bvps);
-}
-function grahamIV(eps, g, Y) {
-  if(eps===null||g===null) return null;
-  const y = Y&&Y>0 ? Y : 4.5;
-  const iv = eps*(8.5+2*g)*(4.4/y);
-  return iv>0?iv:null;
-}
-function fmt$(n) { return n===null||isNaN(n) ? '—' : '$'+n.toFixed(2); }
-
-// ── STRENGTHS / CONCERNS ───────────────────────────────────────────
-function buildSC(vals) {
-  const strengths=[], concerns=[];
-  const {pe,pb,fcf,peg,roe,margin,epsg,revg,de,cr,mos} = vals;
-
-  if(roe!==null) { if(roe>=20) strengths.push(`Exceptional ROE of ${roe.toFixed(1)}% — signals durable competitive advantage`); else if(roe<10) concerns.push(`ROE of ${roe.toFixed(1)}% is too low — Buffett wants ≥15% consistently`); }
-  if(pe!==null) { if(pe<=15) strengths.push(`P/E of ${pe} is attractively priced — stock looks cheap on earnings`); else if(pe>25) concerns.push(`P/E of ${pe} is expensive — Buffett prefers ≤15 for a great margin of safety`); }
-  if(fcf!==null) { if(fcf>=5) strengths.push(`FCF yield of ${fcf.toFixed(1)}% is strong — company generates real cash for owners`); else if(fcf<2) concerns.push(`FCF yield of ${fcf.toFixed(1)}% is thin — earnings may not be translating to cash`); }
-  if(de!==null) { if(de<=0.5) strengths.push(`Low debt/equity of ${de.toFixed(2)} — fortress balance sheet Buffett appreciates`); else if(de>1.5) concerns.push(`High debt/equity of ${de.toFixed(2)} — leverage amplifies risk during downturns`); }
-  if(margin!==null) { if(margin>=20) strengths.push(`${margin.toFixed(1)}% profit margin signals strong pricing power and moat`); else if(margin<8) concerns.push(`Thin margin of ${margin.toFixed(1)}% — leaves little room for error or competitors`); }
-  if(epsg!==null) { if(epsg>=12) strengths.push(`Consistent ${epsg.toFixed(1)}%/yr EPS growth — earnings compounding nicely`); else if(epsg<3) concerns.push(`Slow EPS growth of ${epsg.toFixed(1)}%/yr — may not beat inflation long-term`); }
-  if(peg!==null) { if(peg<=1.0) strengths.push(`PEG ratio of ${peg.toFixed(2)} — you're not overpaying for growth`); else if(peg>2.0) concerns.push(`PEG of ${peg.toFixed(2)} — growth is priced in and then some`); }
-  if(mos!==null) { if(mos>=25) strengths.push(`${mos.toFixed(0)}% margin of safety vs Graham Number — solid downside protection`); else if(mos<0) concerns.push(`Stock trades above Graham Number — no margin of safety`); }
-  if(cr!==null&&cr<1.0) concerns.push(`Current ratio below 1.0 — company may struggle to meet short-term obligations`);
-  if(revg!==null&&revg<0) concerns.push(`Negative revenue growth — the business may be shrinking`);
-
-  return {strengths: strengths.slice(0,4), concerns: concerns.slice(0,4)};
-}
-
-// ── BUFFETT QUOTES ─────────────────────────────────────────────────
-const QUOTES = [
-  {min:80, t:`"It's far better to buy a wonderful company at a fair price than a fair company at a wonderful price."`},
-  {min:65, t:`"Whether we're talking about socks or stocks, I like buying quality merchandise when it is marked down."`},
-  {min:50, t:`"The stock market is a device for transferring money from the impatient to the patient."`},
-  {min:35, t:`"Risk comes from not knowing what you're doing."`},
-  {min:0,  t:`"Only when the tide goes out do you discover who's been swimming naked."`},
+const MOAT_ITEMS = [
+  { label:'Simple, understandable business', sub:'Can explain how it earns money in one sentence' },
+  { label:'10+ years consistent earnings growth', sub:'No erratic or declining EPS history' },
+  { label:'Strong brand / pricing power', sub:'Customers buy regardless of price increases' },
+  { label:'Products people always need', sub:'Non-cyclical, recurring demand' },
+  { label:'High switching costs or network effect', sub:'Competitors cannot easily lure customers away' },
+  { label:'Shareholder-friendly management', sub:'Capital deployed wisely, sensible buybacks' },
 ];
 
-// ── SET ELEMENT HELPERS ────────────────────────────────────────────
-function color(pts, max) {
-  if(pts===null) return 'rgba(255,255,255,0.12)';
-  const r = pts/max;
-  return r>=0.7 ? 'var(--good-lt)' : r>=0.35 ? 'var(--warn-lt)' : 'var(--bad-lt)';
-}
-function setMBar(key, pts, max) {
-  const bar=document.getElementById('mbar-'+key), pts_el=document.getElementById('mpts-'+key);
-  if(!bar) return;
-  if(pts===null){ bar.style.width='0%'; bar.style.background='rgba(255,255,255,0.07)'; if(pts_el)pts_el.textContent='—'; return; }
-  bar.style.width=(pts/max*100)+'%'; bar.style.background=color(pts,max);
-  if(pts_el){ pts_el.textContent=pts+' / '+max+' pts'; pts_el.style.color=color(pts,max); }
-}
-function setBK(key, pts, max) {
-  const bar=document.getElementById('bk-'+key), pts_el=document.getElementById('bkp-'+key);
-  if(!bar) return;
-  if(pts===null){ bar.style.width='0%'; bar.style.background='rgba(255,255,255,0.06)'; if(pts_el){pts_el.textContent='—';pts_el.style.color='var(--dim)';} return; }
-  bar.style.width=(pts/max*100)+'%'; bar.style.background=color(pts,max);
-  if(pts_el){ pts_el.textContent=pts+'/'+max; pts_el.style.color=color(pts,max); }
-}
+const DEMO_DATA = [
+  { name:'Coca-Cola Co.', ticker:'KO', sector:'Consumer Staples', industry:'Beverages—Non-Alcoholic', exchange:'NYSE', price:65.50, priceChangePct:0.49, marketCap:283e9, eps:2.47, bvps:6.40, beta:0.57, pe:26.5, pb:10.2, fcfYield:3.9, peg:6.3, roe:42.0, margin:22.4, de:1.7, cr:1.1, epsGrowth:4.2, revGrowth:3.1 },
+  { name:'Apple Inc.', ticker:'AAPL', sector:'Technology', industry:'Consumer Electronics', exchange:'NASDAQ', price:196.00, priceChangePct:-0.61, marketCap:3020e9, eps:6.56, bvps:4.20, beta:1.24, pe:29.9, pb:46.7, fcfYield:3.4, peg:2.9, roe:157.0, margin:26.4, de:1.5, cr:0.9, epsGrowth:10.2, revGrowth:7.3 },
+  { name:'Occidental Petroleum', ticker:'OXY', sector:'Energy', industry:'Oil & Gas E&P', exchange:'NYSE', price:47.00, priceChangePct:-1.78, marketCap:43e9, eps:3.80, bvps:22.50, beta:1.52, pe:12.4, pb:2.1, fcfYield:6.2, peg:0.67, roe:16.2, margin:12.1, de:0.71, cr:1.2, epsGrowth:18.4, revGrowth:12.0 },
+  { name:'American Express Co.', ticker:'AXP', sector:'Financial Services', industry:'Credit Services', exchange:'NYSE', price:267.00, priceChangePct:1.31, marketCap:191e9, eps:13.50, bvps:42.00, beta:1.10, pe:19.8, pb:6.4, fcfYield:3.1, peg:1.3, roe:33.4, margin:14.2, de:1.9, cr:1.0, epsGrowth:15.1, revGrowth:11.3 },
+];
 
-// ── MAIN SCORE ─────────────────────────────────────────────────────
-function score() {
-  const price=gv('price'), eps=gv('eps'), bvps=gv('bvps');
-  const pe=gv('pe'), pb=gv('pb'), fcf=gv('fcfYield'), pegIn=gv('peg');
-  const rfr=gv('riskFreeRate'), roe=gv('roe'), margin=gv('margin');
-  const epsg=gv('epsGrowth'), revg=gv('revGrowth'), de=gv('de'), cr=gv('cr');
-  const moatChecks=['chk1','chk2','chk3','chk4','chk5','chk6'].filter(id=>document.getElementById(id).checked).length;
+// ─────────────────────────────────────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────────────────────────────────────
+const state = {
+  apiKey: localStorage.getItem('bfApiKey') || '',
+  currentData: null,
+  moatChecks: [false,false,false,false,false,false],
+  leaderboard: [],
+  scanning: false,
+  activeTicker: null,
+  riskFreeRate: 4.5,
+};
 
-  // Auto PEG = PE / EPS growth
-  let peg = pegIn;
-  const pegAuto = document.getElementById('peg-auto');
-  if(peg===null && pe!==null && epsg!==null && epsg>0) {
-    peg = +(pe/epsg).toFixed(2);
-    document.getElementById('peg').value = '';
-    pegAuto.textContent = 'Auto-calculated: '+peg;
-  } else {
-    pegAuto.textContent = '';
-  }
+// ─────────────────────────────────────────────────────────────────────────────
+// SCORING
+// ─────────────────────────────────────────────────────────────────────────────
+const MAX_PTS = { roe:15, fcf:13, pe:12, epsg:12, de:11, margin:10, peg:8, revg:7, pb:6, cr:4 };
 
-  const scores = {
-    roe:sROE(roe), fcf:sFCF(fcf), pe:sPE(pe), epsg:sEPSG(epsg),
-    de:sDE(de), margin:sMargin(margin), peg:sPEG(peg),
-    revg:sRevG(revg), pb:sPB(pb), cr:sCR(cr)
+function scoreROE(v)    { if(v===null)return null; if(v>=25)return 15; if(v>=20)return 13; if(v>=15)return 9; if(v>=10)return 4; return 0; }
+function scoreFCF(v)    { if(v===null)return null; if(v>=8)return 13; if(v>=5)return 10; if(v>=3)return 7; if(v>=1)return 3; return 0; }
+function scorePE(v)     { if(v===null)return null; if(v<=0)return 0; if(v<=10)return 12; if(v<=15)return 11; if(v<=20)return 7; if(v<=25)return 3; return 0; }
+function scoreEPSG(v)   { if(v===null)return null; if(v>=20)return 12; if(v>=15)return 10; if(v>=10)return 8; if(v>=5)return 4; if(v>=0)return 1; return 0; }
+function scoreDE(v)     { if(v===null)return null; if(v<0)return 0; if(v<=0.1)return 11; if(v<=0.5)return 9; if(v<=1)return 5; if(v<=2)return 2; return 0; }
+function scoreMargin(v) { if(v===null)return null; if(v>=30)return 10; if(v>=20)return 9; if(v>=10)return 5; if(v>=5)return 2; return 0; }
+function scorePEG(v)    { if(v===null)return null; if(v<=0)return 0; if(v<=0.5)return 8; if(v<=1)return 7; if(v<=1.5)return 4; if(v<=2)return 2; return 0; }
+function scoreRevG(v)   { if(v===null)return null; if(v>=15)return 7; if(v>=10)return 6; if(v>=5)return 4; if(v>=2)return 2; return 0; }
+function scorePB(v)     { if(v===null)return null; if(v<=0)return 0; if(v<=1)return 6; if(v<=1.5)return 5; if(v<=2.5)return 3; if(v<=4)return 1; return 0; }
+function scoreCR(v)     { if(v===null)return null; if(v>=2.5)return 4; if(v>=1.5)return 3; if(v>=1)return 2; return 0; }
+
+function computeScore(d, moatChecks) {
+  const rawScores = {
+    roe: scoreROE(d.roe),
+    fcf: scoreFCF(d.fcfYield),
+    pe:  scorePE(d.pe),
+    epsg: scoreEPSG(d.epsGrowth),
+    de:  scoreDE(d.de),
+    margin: scoreMargin(d.margin),
+    peg: scorePEG(d.peg),
+    revg: scoreRevG(d.revGrowth),
+    pb:  scorePB(d.pb),
+    cr:  scoreCR(d.cr),
   };
-  const maxMap = {roe:MAX.roe,fcf:MAX.fcf,pe:MAX.pe,epsg:MAX.epsg,de:MAX.de,margin:MAX.margin,peg:MAX.peg,revg:MAX.revg,pb:MAX.pb,cr:MAX.cr};
-
-  // Update inline metric bars
-  setMBar('pe', scores.pe, MAX.pe); setMBar('pb', scores.pb, MAX.pb);
-  setMBar('fcf', scores.fcf, MAX.fcf); setMBar('peg', scores.peg, MAX.peg);
-  setMBar('roe', scores.roe, MAX.roe); setMBar('margin', scores.margin, MAX.margin);
-  setMBar('epsg', scores.epsg, MAX.epsg); setMBar('revg', scores.revg, MAX.revg);
-  setMBar('de', scores.de, MAX.de); setMBar('cr', scores.cr, MAX.cr);
-
-  // Update breakdown panel
-  setBK('roe',scores.roe,MAX.roe); setBK('fcf',scores.fcf,MAX.fcf);
-  setBK('pe',scores.pe,MAX.pe); setBK('epsg',scores.epsg,MAX.epsg);
-  setBK('de',scores.de,MAX.de); setBK('margin',scores.margin,MAX.margin);
-  setBK('peg',scores.peg,MAX.peg); setBK('revg',scores.revg,MAX.revg);
-  setBK('pb',scores.pb,MAX.pb); setBK('cr',scores.cr,MAX.cr);
-  setBK('moat', moatChecks*2, MAX.moat);
-
-  const filled = Object.values(scores).filter(v=>v!==null);
-  const moatPts = moatChecks*2;
-
-  if(filled.length===0 && moatChecks===0) { resetResults(); return; }
-
-  // Normalize quant score to 88 pts based on filled metrics only
-  let earned=0, maxFilled=0;
-  for(const k of Object.keys(scores)) {
-    if(scores[k]!==null) { earned+=scores[k]; maxFilled+=maxMap[k]; }
+  let earned = 0, maxFilled = 0;
+  for (const k of Object.keys(rawScores)) {
+    if (rawScores[k] !== null) { earned += rawScores[k]; maxFilled += MAX_PTS[k]; }
   }
-  const quantNorm = maxFilled>0 ? Math.round((earned/maxFilled)*88) : 0;
+  const quantNorm = maxFilled > 0 ? Math.round((earned / maxFilled) * 88) : 0;
+  const moatPts = moatChecks.filter(Boolean).length * 2;
   const total = Math.min(100, quantNorm + moatPts);
+  return { total, quantNorm, moatPts, rawScores };
+}
 
-  // ── Ring ──
-  const circ=263.9, offset=circ-(total/100)*circ;
-  const ring=document.getElementById('ringFill');
-  ring.style.strokeDashoffset=offset;
-  const ringColor = total>=70?'#22c55e':total>=55?'#fbbf24':'#ef4444';
-  ring.style.stroke=ringColor;
-  const numEl=document.getElementById('scoreNum');
-  numEl.textContent=total; numEl.style.color=ringColor;
+function getRec(score) {
+  if (score >= 80) return { text:'STRONG BUY', color:'#fff', bg:'rgba(16,185,129,0.25)', desc:"Meets nearly all of Buffett's criteria. Excellent fundamentals with strong moat characteristics. Consider a full position with a ≥25% margin of safety." };
+  if (score >= 65) return { text:'BUY', color:VAR_GOOD, bg:'rgba(16,185,129,0.12)', desc:"Solid value opportunity with most Buffett criteria met. A few metrics short of ideal — Buffett would likely take a starter position and add on weakness." };
+  if (score >= 50) return { text:'WATCH', color:VAR_WARN, bg:'rgba(245,158,11,0.12)', desc:"Fair price, not a great deal yet. Monitor for a pullback or improving fundamentals before committing capital. Add to watchlist." };
+  if (score >= 35) return { text:'AVOID', color:'#f97316', bg:'rgba(249,115,22,0.12)', desc:"Overpriced or financially weak relative to Buffett standards. Risk/reward doesn't justify buying at current levels." };
+  return { text:'STRONG AVOID', color:'#fff', bg:'rgba(239,68,68,0.25)', desc:"Fails most of Buffett's criteria. Speculative or significantly overvalued — material downside risk present." };
+}
 
-  // ── Stock name ──
-  const ticker=document.getElementById('ticker').value.trim().toUpperCase()||'';
-  const name=document.getElementById('companyName').value.trim();
-  document.getElementById('resName').textContent = [name,ticker?'('+ticker+')':''].filter(Boolean).join(' ')||'—';
+const VAR_GOOD = '#10b981';
+const VAR_WARN = '#f59e0b';
+const VAR_BAD  = '#ef4444';
 
-  // ── Recommendation ──
-  let rec, recColor, recBg, desc;
-  if(total>=80){ rec='Strong Buy'; recColor='#fff'; recBg='rgba(34,197,94,0.20)'; desc='Meets nearly all of Buffett\'s criteria. Consider a full position — confirm a ≥25% margin of safety before committing capital.'; }
-  else if(total>=65){ rec='Buy'; recColor='#22c55e'; recBg='rgba(34,197,94,0.11)'; desc='Solid value opportunity with a few metrics below ideal thresholds. Buffett would likely take a starter position and add on weakness.'; }
-  else if(total>=50){ rec='Watch'; recColor='#fbbf24'; recBg='rgba(251,191,36,0.12)'; desc='Fair price, not a great deal yet. Wait for a pullback or improving fundamentals before buying. Add to your watchlist.'; }
-  else if(total>=35){ rec='Avoid'; recColor='#f97316'; recBg='rgba(249,115,22,0.12)'; desc='Overpriced or financially weak relative to Buffett\'s standards. The risk/reward doesn\'t justify buying now.'; }
-  else { rec='Strong Avoid'; recColor='#fff'; recBg='rgba(239,68,68,0.22)'; desc='This stock fails most of Buffett\'s criteria. Speculative and likely overvalued — significant downside risk.'; }
+function metricColor(pts, max) {
+  if (pts === null) return 'muted';
+  const r = pts / max;
+  return r >= 0.7 ? 'good' : r >= 0.35 ? 'warn' : 'bad';
+}
 
-  const badge=document.getElementById('recBadge');
-  badge.textContent=rec; badge.style.background=recBg; badge.style.color=recColor;
-  document.getElementById('recDesc').textContent=desc;
+// ─────────────────────────────────────────────────────────────────────────────
+// INTRINSIC VALUE
+// ─────────────────────────────────────────────────────────────────────────────
+function grahamNumber(eps, bvps) {
+  if (eps == null || bvps == null || eps <= 0 || bvps <= 0) return null;
+  return Math.sqrt(22.5 * eps * bvps);
+}
+function grahamIV(eps, g, Y) {
+  if (eps == null || g == null) return null;
+  const y = (Y && Y > 0) ? Y : 4.5;
+  const iv = eps * (8.5 + 2 * g) * (4.4 / y);
+  return iv > 0 ? iv : null;
+}
+function marginOfSafety(gn, price) {
+  if (gn == null || price == null || gn <= 0) return null;
+  return ((gn - price) / gn) * 100;
+}
 
-  // ── IV ──
+// ─────────────────────────────────────────────────────────────────────────────
+// FORMAT HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+function fmtDollar(n) { return n == null || isNaN(n) ? '—' : '$' + n.toFixed(2); }
+function fmtPct(n, dec=1) { return n == null || isNaN(n) ? '—' : n.toFixed(dec) + '%'; }
+function fmtNum(n, dec=2) { return n == null || isNaN(n) ? '—' : n.toFixed(dec); }
+function fmtMarketCap(n) {
+  if (n == null || isNaN(n)) return '—';
+  if (n >= 1e12) return '$' + (n/1e12).toFixed(2) + 'T';
+  if (n >= 1e9)  return '$' + (n/1e9).toFixed(2) + 'B';
+  if (n >= 1e6)  return '$' + Math.round(n/1e6) + 'M';
+  return '$' + n.toLocaleString();
+}
+function esc(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// API
+// ─────────────────────────────────────────────────────────────────────────────
+async function apiFetch(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+
+async function fetchStockData(ticker) {
+  const key = state.apiKey;
+  if (!key) throw new Error('NO_KEY');
+  const t = ticker.trim().toUpperCase();
+  const [profile, ratios, growth] = await Promise.all([
+    apiFetch(`${FMP_BASE}/profile/${t}?apikey=${key}`),
+    apiFetch(`${FMP_BASE}/ratios-ttm/${t}?apikey=${key}`),
+    apiFetch(`${FMP_BASE}/financial-growth/${t}?limit=1&apikey=${key}`),
+  ]);
+  if (!profile || profile.length === 0) throw new Error('TICKER_NOT_FOUND');
+  const p = profile[0];
+  const r = ratios[0] || {};
+  const g = growth[0] || {};
+  const price = p.price;
+  const fcfPerShare = r.freeCashFlowPerShareTTM;
+  const fcfYield = (fcfPerShare != null && price > 0) ? (fcfPerShare / price) * 100 : null;
+  return {
+    name: p.companyName,
+    ticker: p.symbol,
+    sector: p.sector,
+    industry: p.industry,
+    exchange: p.exchangeShortName,
+    price: price,
+    priceChangePct: p.changesPercentage,
+    marketCap: p.mktCap,
+    eps: p.eps,
+    bvps: null, // not in profile v3 directly; use ratios
+    beta: p.beta,
+    pe: r.peRatioTTM != null ? r.peRatioTTM : (p.pe || null),
+    pb: r.priceToBookRatioTTM,
+    fcfYield: fcfYield,
+    peg: r.pegRatioTTM,
+    roe: r.returnOnEquityTTM != null ? r.returnOnEquityTTM * 100 : null,
+    margin: r.netProfitMarginTTM != null ? r.netProfitMarginTTM * 100 : null,
+    de: r.debtEquityRatioTTM,
+    cr: r.currentRatioTTM,
+    epsGrowth: g.epsgrowth != null ? g.epsgrowth * 100 : null,
+    revGrowth: g.revenueGrowth != null ? g.revenueGrowth * 100 : null,
+    // Graham needs bvps = equity/shares. Approximate: price / pb
+    get _bvps() { return (this.pb > 0 && this.price > 0) ? this.price / this.pb : null; },
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FETCH & RENDER TICKER
+// ─────────────────────────────────────────────────────────────────────────────
+async function fetchTicker(tickerOverride) {
+  const rawInput = tickerOverride || document.getElementById('searchInput').value;
+  const ticker = rawInput.trim().toUpperCase();
+  if (!ticker) return;
+
+  setSearchLoading(true);
+  hideSearchError();
+  showAnalysisLoading(true);
+
+  try {
+    let data;
+    if (!state.apiKey) {
+      // Demo fallback
+      data = DEMO_DATA.find(d => d.ticker === ticker);
+      if (!data) throw new Error('DEMO_NOT_FOUND');
+      data = Object.assign({}, data);
+    } else {
+      data = await fetchStockData(ticker);
+      // Resolve bvps
+      if (data._bvps !== undefined) {
+        data.bvps = data._bvps;
+      }
+    }
+    state.currentData = data;
+    state.moatChecks = [false,false,false,false,false,false];
+    state.activeTicker = ticker;
+    renderAnalysis(data);
+    updateLbActiveRow(ticker);
+  } catch(e) {
+    showAnalysisEmpty();
+    let msg = 'Failed to load ticker data.';
+    if (e.message === 'NO_KEY') msg = 'No API key set. Enter your FMP key above or load demo data.';
+    else if (e.message === 'TICKER_NOT_FOUND') msg = `Ticker "${ticker}" not found. Check the symbol and try again.`;
+    else if (e.message === 'DEMO_NOT_FOUND') msg = `"${ticker}" is not in demo data. Set an API key to search any ticker.`;
+    showSearchError(msg);
+  } finally {
+    setSearchLoading(false);
+  }
+}
+
+function setSearchLoading(on) {
+  document.getElementById('searchSpinner').style.display = on ? 'block' : 'none';
+  document.getElementById('searchBtnText').style.display = on ? 'none' : 'inline';
+}
+function showSearchError(msg) {
+  const el = document.getElementById('searchError');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+function hideSearchError() {
+  document.getElementById('searchError').style.display = 'none';
+}
+function showAnalysisLoading(on) {
+  document.getElementById('analysisLoading').style.display = on ? 'flex' : 'none';
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('analysisContent').style.display = 'none';
+}
+function showAnalysisEmpty() {
+  document.getElementById('analysisLoading').style.display = 'none';
+  document.getElementById('emptyState').style.display = 'flex';
+  document.getElementById('analysisContent').style.display = 'none';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RENDER ANALYSIS
+// ─────────────────────────────────────────────────────────────────────────────
+function renderAnalysis(d) {
+  document.getElementById('analysisLoading').style.display = 'none';
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('analysisContent').style.display = 'block';
+
+  // Company header
+  document.getElementById('coName').textContent = d.name || '—';
+  document.getElementById('coBadgeTicker').textContent = d.ticker || '—';
+  document.getElementById('coBadgeExchange').textContent = d.exchange || '—';
+  document.getElementById('coBadgeSector').textContent = d.sector || '—';
+  document.getElementById('coPrice').textContent = d.price != null ? '$' + d.price.toFixed(2) : '—';
+  const chgEl = document.getElementById('coChange');
+  if (d.priceChangePct != null) {
+    const sign = d.priceChangePct >= 0 ? '▲' : '▼';
+    chgEl.textContent = `${sign} ${Math.abs(d.priceChangePct).toFixed(2)}%`;
+    chgEl.className = 'co-change ' + (d.priceChangePct >= 0 ? 'pos' : 'neg');
+  } else {
+    chgEl.textContent = '—';
+    chgEl.className = 'co-change';
+  }
+  document.getElementById('coMktCap').textContent = fmtMarketCap(d.marketCap);
+  document.getElementById('coBeta').textContent = d.beta != null ? d.beta.toFixed(2) : '—';
+  document.getElementById('coStatPe').textContent = d.pe != null ? d.pe.toFixed(1) : '—';
+  document.getElementById('coStatEps').textContent = d.eps != null ? '$' + d.eps.toFixed(2) : '—';
+  document.getElementById('coStatRoe').textContent = d.roe != null ? d.roe.toFixed(1) + '%' : '—';
+
+  renderScore(d, state.moatChecks);
+  renderMoatGrid();
+}
+
+function renderScore(d, moatChecks) {
+  const { total, rawScores } = computeScore(d, moatChecks);
+  const rfr = parseFloat(document.getElementById('rfrInput').value) || 4.5;
+
+  // Ring
+  const circ = 314.16;
+  const ring = document.getElementById('ringFill');
+  ring.style.strokeDashoffset = circ - (total / 100) * circ;
+  const ringColor = total >= 70 ? VAR_GOOD : total >= 50 ? VAR_WARN : VAR_BAD;
+  ring.style.stroke = ringColor;
+  const numEl = document.getElementById('scoreNum');
+  numEl.textContent = total;
+  numEl.style.color = ringColor;
+
+  // Rec badge
+  const rec = getRec(total);
+  const badge = document.getElementById('recBadge');
+  badge.textContent = rec.text;
+  badge.style.background = rec.bg;
+  badge.style.color = rec.color;
+  document.getElementById('scoreDesc').textContent = rec.desc;
+
+  // Metrics table
+  const eps = d.eps;
+  const bvps = d.bvps || d._bvps;
+  const metricRows = [
+    { key:'roe',    label:'Return on Equity',   val: d.roe,       fmt: v => fmtPct(v),     target:'≥ 25%',  pts: rawScores.roe,    max: MAX_PTS.roe },
+    { key:'fcf',    label:'FCF Yield',           val: d.fcfYield,  fmt: v => fmtPct(v),     target:'≥ 8%',   pts: rawScores.fcf,    max: MAX_PTS.fcf },
+    { key:'pe',     label:'P/E Ratio',           val: d.pe,        fmt: v => fmtNum(v,1),   target:'≤ 15',   pts: rawScores.pe,     max: MAX_PTS.pe },
+    { key:'epsg',   label:'EPS Growth (TTM)',    val: d.epsGrowth, fmt: v => fmtPct(v),     target:'≥ 15%',  pts: rawScores.epsg,   max: MAX_PTS.epsg },
+    { key:'de',     label:'Debt / Equity',       val: d.de,        fmt: v => fmtNum(v,2),   target:'≤ 0.5',  pts: rawScores.de,     max: MAX_PTS.de },
+    { key:'margin', label:'Net Profit Margin',   val: d.margin,    fmt: v => fmtPct(v),     target:'≥ 20%',  pts: rawScores.margin, max: MAX_PTS.margin },
+    { key:'peg',    label:'PEG Ratio',           val: d.peg,       fmt: v => fmtNum(v,2),   target:'≤ 1.0',  pts: rawScores.peg,    max: MAX_PTS.peg },
+    { key:'revg',   label:'Revenue Growth',      val: d.revGrowth, fmt: v => fmtPct(v),     target:'≥ 10%',  pts: rawScores.revg,   max: MAX_PTS.revg },
+    { key:'pb',     label:'P/B Ratio',           val: d.pb,        fmt: v => fmtNum(v,1),   target:'≤ 1.5',  pts: rawScores.pb,     max: MAX_PTS.pb },
+    { key:'cr',     label:'Current Ratio',       val: d.cr,        fmt: v => fmtNum(v,2),   target:'≥ 2.5',  pts: rawScores.cr,     max: MAX_PTS.cr },
+  ];
+
+  const tbody = document.getElementById('metricsBody');
+  tbody.innerHTML = metricRows.map(row => {
+    const cls = metricColor(row.pts, row.max);
+    const valStr = row.val != null ? esc(row.fmt(row.val)) : '<span style="color:var(--dim)">N/A</span>';
+    const scoreStr = row.pts !== null
+      ? `<span class="score-pill ${cls}">${row.pts}/${row.max}</span>`
+      : `<span class="score-pill muted">—</span>`;
+    return `<tr>
+      <td><div class="met-name">${esc(row.label)}</div><div class="met-target">${esc(row.target)}</div></td>
+      <td><span class="met-val ${cls}">${valStr}</span></td>
+      <td style="color:var(--dim);font-size:11px">${esc(row.target)}</td>
+      <td>${scoreStr}</td>
+    </tr>`;
+  }).join('');
+
+  // IV
   const gn = grahamNumber(eps, bvps);
-  const giv = grahamIV(eps, epsg, rfr);
+  const giv = grahamIV(eps, d.epsGrowth, rfr);
+  const mos = marginOfSafety(gn, d.price);
 
-  // Graham Number
-  const gnEl=document.getElementById('gnVal'), gnSub=document.getElementById('gnSub');
-  if(gn!==null){
-    gnEl.textContent=fmt$(gn);
-    gnEl.style.color=price!==null?(price<gn?'var(--good-lt)':'var(--bad-lt)'):'#fff';
-    if(price!==null){ const d=((gn-price)/gn*100); gnSub.textContent=price<gn?d.toFixed(0)+'% discount to fair value':Math.abs(d).toFixed(0)+'% above fair value — overvalued'; }
-    else gnSub.textContent='Enter price to compare';
-  } else { gnEl.textContent='—'; gnEl.style.color='#fff'; gnSub.textContent='Need EPS + Book Value'; }
+  const gnEl = document.getElementById('ivGN');
+  gnEl.textContent = fmtDollar(gn);
+  if (gn != null && d.price != null) {
+    gnEl.style.color = d.price < gn ? VAR_GOOD : VAR_BAD;
+    const pct = ((gn - d.price)/gn*100);
+    document.getElementById('ivGNsub').textContent = d.price < gn ? `${pct.toFixed(0)}% discount to intrinsic value` : `${Math.abs(pct).toFixed(0)}% above Graham Number`;
+  } else {
+    gnEl.style.color = 'var(--text-bright)';
+    document.getElementById('ivGNsub').textContent = '√(22.5 × EPS × BVPS)';
+  }
 
-  // Graham IV
-  const givEl=document.getElementById('givVal'), givSub=document.getElementById('givSub');
-  if(giv!==null){
-    givEl.textContent=fmt$(giv);
-    givEl.style.color=price!==null?(price<giv?'var(--good-lt)':'var(--bad-lt)'):'#fff';
-    if(price!==null){ const d=((giv-price)/giv*100); givSub.textContent=price<giv?d.toFixed(0)+'% discount to IV':Math.abs(d).toFixed(0)+'% above IV'; }
-    else givSub.textContent='Enter price to compare';
-  } else { givEl.textContent='—'; givEl.style.color='#fff'; givSub.textContent='Need EPS + EPS growth rate'; }
+  const givEl = document.getElementById('ivGIV');
+  givEl.textContent = fmtDollar(giv);
+  if (giv != null && d.price != null) {
+    givEl.style.color = d.price < giv ? VAR_GOOD : VAR_BAD;
+    const pct = ((giv - d.price)/giv*100);
+    document.getElementById('ivGIVsub').textContent = d.price < giv ? `${pct.toFixed(0)}% discount to IV` : `${Math.abs(pct).toFixed(0)}% above IV`;
+  } else {
+    givEl.style.color = 'var(--text-bright)';
+    document.getElementById('ivGIVsub').textContent = 'EPS × (8.5 + 2g) × 4.4 / Y';
+  }
 
-  // Margin of Safety
-  const mosEl=document.getElementById('mosVal'), mosSub=document.getElementById('mosSub'), mosBar=document.getElementById('mosBar');
-  let mosVal=null;
-  if(gn!==null&&price!==null){
-    mosVal=((gn-price)/gn)*100;
-    mosEl.textContent=mosVal.toFixed(1)+'%';
-    const mc=mosVal>=25?'var(--good-lt)':mosVal>=0?'var(--warn-lt)':'var(--bad-lt)';
-    mosEl.style.color=mc;
-    mosSub.textContent=mosVal>=25?'Excellent — meets Buffett\'s preferred ≥25% buffer':mosVal>=0?'Thin — consider waiting for a better entry':'Stock trades above intrinsic value — no safety net';
-    const bw=Math.min(100,Math.max(0,mosVal/50*100));
-    mosBar.style.width=bw+'%'; mosBar.style.background=mc;
-  } else { mosEl.textContent='—'; mosEl.style.color='#fff'; mosSub.textContent='Enter price + EPS + book value'; mosBar.style.width='0%'; }
+  const mosEl = document.getElementById('ivMoS');
+  if (mos != null) {
+    mosEl.textContent = mos.toFixed(1) + '%';
+    mosEl.style.color = mos >= 25 ? VAR_GOOD : mos >= 0 ? VAR_WARN : VAR_BAD;
+    document.getElementById('ivMoSsub').textContent = mos >= 25 ? 'Excellent — ≥25% Buffett threshold met' : mos >= 0 ? 'Thin — consider waiting for a better entry' : 'No margin of safety — trading above GN';
+  } else {
+    mosEl.textContent = '—';
+    mosEl.style.color = 'var(--text-bright)';
+    document.getElementById('ivMoSsub').textContent = 'Needs EPS + BVPS to compute';
+  }
 
-  // ── Strengths / Concerns ──
-  const {strengths, concerns} = buildSC({pe,pb,fcf,peg,roe,margin,epsg,revg,de,cr,mos:mosVal});
-  const sEl=document.getElementById('strengthsList'), cEl=document.getElementById('concernsList');
-  sEl.innerHTML = strengths.length ? strengths.map(s=>`<div class="sc-item"><span class="sc-dot" style="background:var(--good-lt)"></span><span>${s}</span></div>`).join('') : '<span class="sc-empty">No notable strengths yet</span>';
-  cEl.innerHTML = concerns.length ? concerns.map(c=>`<div class="sc-item"><span class="sc-dot" style="background:var(--bad-lt)"></span><span>${c}</span></div>`).join('') : '<span class="sc-empty">No major concerns</span>';
-
-  // ── Quote ──
-  const q=QUOTES.find(q=>total>=q.min)||QUOTES[QUOTES.length-1];
-  document.getElementById('quoteText').textContent=q.t;
+  // Strengths / Concerns
+  renderSC(d, mos);
 }
 
-// ── LOAD EXAMPLE ───────────────────────────────────────────────────
-function loadExample(key) {
-  const d=EXAMPLES[key]; if(!d) return;
-  document.querySelectorAll('.qbtn').forEach(b=>b.classList.remove('active'));
-  document.getElementById('qbtn-'+key).classList.add('active');
+function renderSC(d, mos) {
+  const strengths = [], concerns = [];
+  const { roe, pe, fcfYield, de, margin, epsGrowth, peg, revGrowth, cr } = d;
 
-  const set=(id,v)=>{ const el=document.getElementById(id); if(el&&v!==null&&v!==undefined) el.value=v; };
-  set('companyName',d.companyName); set('ticker',d.ticker); set('price',d.price);
-  set('eps',d.eps); set('bvps',d.bvps);
-  set('pe',d.pe); set('pb',d.pb); set('fcfYield',d.fcfYield);
-  document.getElementById('peg').value='';
-  set('roe',d.roe); set('margin',d.margin); set('epsGrowth',d.epsGrowth); set('revGrowth',d.revGrowth);
-  set('de',d.de); set('cr',d.cr); set('riskFreeRate',d.riskFreeRate);
-  d.chk.forEach((v,i)=>{ document.getElementById('chk'+(i+1)).checked=v; });
-  score();
+  if (roe != null) {
+    if (roe >= 20) strengths.push(`Exceptional ROE of ${roe.toFixed(1)}% — signals durable competitive advantage`);
+    else if (roe < 10) concerns.push(`Low ROE of ${roe.toFixed(1)}% — Buffett requires consistent ≥15%`);
+  }
+  if (pe != null) {
+    if (pe <= 15) strengths.push(`P/E of ${pe.toFixed(1)}x is attractively priced on earnings`);
+    else if (pe > 25) concerns.push(`P/E of ${pe.toFixed(1)}x is elevated — limited margin of safety`);
+  }
+  if (fcfYield != null) {
+    if (fcfYield >= 5) strengths.push(`FCF yield of ${fcfYield.toFixed(1)}% — strong cash generation for owners`);
+    else if (fcfYield < 2) concerns.push(`FCF yield of ${fcfYield.toFixed(1)}% is thin — earnings quality risk`);
+  }
+  if (de != null) {
+    if (de <= 0.5) strengths.push(`Low D/E of ${de.toFixed(2)} — fortress balance sheet`);
+    else if (de > 1.5) concerns.push(`High D/E of ${de.toFixed(2)} — leverage amplifies downside risk`);
+  }
+  if (margin != null) {
+    if (margin >= 20) strengths.push(`${margin.toFixed(1)}% net margin — strong pricing power and moat`);
+    else if (margin < 8) concerns.push(`Thin ${margin.toFixed(1)}% margin — competitive pressure or commodity exposure`);
+  }
+  if (epsGrowth != null) {
+    if (epsGrowth >= 12) strengths.push(`${epsGrowth.toFixed(1)}% EPS growth — earnings compounding nicely`);
+    else if (epsGrowth < 3) concerns.push(`Slow ${epsGrowth.toFixed(1)}% EPS growth — may underperform inflation`);
+  }
+  if (peg != null) {
+    if (peg <= 1.0) strengths.push(`PEG ratio of ${peg.toFixed(2)} — not overpaying for growth`);
+    else if (peg > 2.0) concerns.push(`PEG of ${peg.toFixed(2)} — growth is fully priced in`);
+  }
+  if (mos != null) {
+    if (mos >= 25) strengths.push(`${mos.toFixed(0)}% margin of safety — solid downside protection`);
+    else if (mos < 0) concerns.push(`Stock trades above Graham Number — no margin of safety`);
+  }
+  if (cr != null && cr < 1.0) concerns.push(`Current ratio of ${cr.toFixed(2)} — potential short-term liquidity risk`);
+  if (revGrowth != null && revGrowth < 0) concerns.push(`Negative revenue growth of ${revGrowth.toFixed(1)}% — top line contracting`);
+  if (roe != null && roe > 100) concerns.push(`ROE of ${roe.toFixed(0)}% may reflect negative equity (high leverage), not genuine quality`);
+
+  const sEl = document.getElementById('strengthsList');
+  sEl.innerHTML = strengths.length
+    ? strengths.slice(0,4).map(s => `<div class="sc-item"><span class="sc-dot" style="background:${VAR_GOOD}"></span><span>${esc(s)}</span></div>`).join('')
+    : '<span class="sc-empty">No notable strengths identified</span>';
+
+  const cEl = document.getElementById('concernsList');
+  cEl.innerHTML = concerns.length
+    ? concerns.slice(0,4).map(c => `<div class="sc-item"><span class="sc-dot" style="background:${VAR_BAD}"></span><span>${esc(c)}</span></div>`).join('')
+    : '<span class="sc-empty">No major concerns identified</span>';
 }
 
-// ── RESET ─────────────────────────────────────────────────────────
-function resetAll() {
-  ['companyName','ticker','price','eps','bvps','pe','pb','fcfYield','peg','roe','margin','epsGrowth','revGrowth','de','cr','riskFreeRate']
-    .forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
-  ['chk1','chk2','chk3','chk4','chk5','chk6'].forEach(id=>{ document.getElementById(id).checked=false; });
-  document.querySelectorAll('.qbtn').forEach(b=>b.classList.remove('active'));
-  resetResults();
+function renderMoatGrid() {
+  const grid = document.getElementById('moatGrid');
+  grid.innerHTML = MOAT_ITEMS.map((item, i) => {
+    const checked = state.moatChecks[i];
+    return `<label class="moat-item ${checked ? 'checked' : ''}" id="moat-label-${i}">
+      <input type="checkbox" ${checked ? 'checked' : ''} onchange="toggleMoat(${i}, this.checked)" />
+      <div class="moat-text"><b>${esc(item.label)}</b><br><span style="font-size:10px;color:var(--dim)">${esc(item.sub)}</span></div>
+    </label>`;
+  }).join('');
 }
 
-function resetResults() {
-  const ring=document.getElementById('ringFill');
-  ring.style.strokeDashoffset='263.9'; ring.style.stroke='rgba(255,255,255,0.07)';
-  const n=document.getElementById('scoreNum'); n.textContent='—'; n.style.color='#fff';
-  document.getElementById('resName').textContent='—';
-  const badge=document.getElementById('recBadge');
-  badge.textContent='Awaiting data'; badge.style.background='rgba(255,255,255,0.05)'; badge.style.color='rgba(255,255,255,0.2)';
-  document.getElementById('recDesc').textContent='Enter financial metrics to generate a Buffett-style recommendation.';
-  ['gnVal','givVal','mosVal'].forEach(id=>{ const e=document.getElementById(id); if(e){e.textContent='—';e.style.color='#fff';} });
-  document.getElementById('gnSub').textContent='√(22.5 × EPS × BVPS)';
-  document.getElementById('givSub').textContent='EPS × (8.5 + 2g) × 4.4 / Y';
-  document.getElementById('mosSub').textContent='Enter price + EPS + book value to compute';
-  document.getElementById('mosBar').style.width='0%';
-  document.getElementById('strengthsList').innerHTML='<span class="sc-empty">Fill in metrics to see analysis</span>';
-  document.getElementById('concernsList').innerHTML='<span class="sc-empty">Fill in metrics to see analysis</span>';
-  ['roe','fcf','pe','epsg','de','margin','peg','revg','pb','cr','moat'].forEach(k=>setBK(k,null,1));
-  ['pe','pb','fcf','peg','roe','margin','epsg','revg','de','cr'].forEach(k=>setMBar(k,null,1));
-  document.getElementById('quoteText').textContent='"Price is what you pay. Value is what you get."';
-  document.getElementById('peg-auto').textContent='';
+function toggleMoat(i, checked) {
+  state.moatChecks[i] = checked;
+  const label = document.getElementById('moat-label-' + i);
+  if (label) label.className = 'moat-item ' + (checked ? 'checked' : '');
+  if (state.currentData) renderScore(state.currentData, state.moatChecks);
 }
+
+function recalcFromCurrentData() {
+  if (state.currentData) renderScore(state.currentData, state.moatChecks);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LEADERBOARD
+// ─────────────────────────────────────────────────────────────────────────────
+function renderLeaderboard(rows) {
+  const sorted = [...rows].sort((a, b) => b.score - a.score);
+  const tbl = document.getElementById('lbTable');
+  const body = document.getElementById('lbBody');
+  document.getElementById('lbEmpty').style.display = 'none';
+  tbl.style.display = 'table';
+
+  body.innerHTML = sorted.map((row, idx) => {
+    const rec = getRec(row.score);
+    const scoreCls = row.score >= 65 ? 'good' : row.score >= 50 ? 'warn' : 'bad';
+    const scoreBg = row.score >= 65 ? 'rgba(16,185,129,0.15)' : row.score >= 50 ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)';
+    const scoreColor = row.score >= 65 ? VAR_GOOD : row.score >= 50 ? VAR_WARN : VAR_BAD;
+    const recBg = rec.bg;
+    const active = state.activeTicker === row.ticker ? 'active' : '';
+    const mos = row.mos != null ? row.mos.toFixed(0) + '%' : '—';
+    const mosCls = row.mos != null ? (row.mos >= 25 ? 'good' : row.mos >= 0 ? 'warn' : 'bad') : 'muted';
+    return `<tr class="lb-row ${active}" id="lb-row-${row.ticker}" onclick="loadFromLb('${row.ticker}')">
+      <td><span class="lb-rank">${idx+1}</span></td>
+      <td>
+        <div class="lb-ticker">${esc(row.ticker)}</div>
+        <div class="lb-co">${esc(row.name || '')}</div>
+      </td>
+      <td><span class="lb-score-badge" style="background:${scoreBg};color:${scoreColor}">${row.score}</span></td>
+      <td><span class="lb-rec-pill" style="background:${recBg};color:${rec.color}">${rec.text}</span></td>
+      <td><span class="lb-num ${row.pe != null ? '' : 'muted'}">${row.pe != null ? row.pe.toFixed(1) : '—'}</span></td>
+      <td><span class="lb-num ${row.roe != null ? '' : 'muted'}">${row.roe != null ? row.roe.toFixed(1) : '—'}</span></td>
+      <td><span class="lb-num ${row.de != null ? '' : 'muted'}">${row.de != null ? row.de.toFixed(2) : '—'}</span></td>
+      <td><span class="lb-num ${mosCls}">${mos}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function updateLbActiveRow(ticker) {
+  document.querySelectorAll('.lb-row').forEach(r => r.classList.remove('active'));
+  const row = document.getElementById('lb-row-' + ticker);
+  if (row) row.classList.add('active');
+}
+
+function loadFromLb(ticker) {
+  document.getElementById('searchInput').value = ticker;
+  fetchTicker(ticker);
+}
+
+async function scanWatchlist() {
+  if (state.scanning) return;
+  const list = !state.apiKey ? DEMO_DATA.map(d => d.ticker) : WATCHLIST;
+  state.scanning = true;
+  const btn = document.getElementById('scanBtn');
+  btn.disabled = true;
+
+  const prog = document.getElementById('scanProgress');
+  const progLabel = document.getElementById('scanLabel');
+  const progFrac = document.getElementById('scanFrac');
+  const progFill = document.getElementById('scanFill');
+  prog.style.display = 'block';
+
+  document.getElementById('lbSkeleton').style.display = 'block';
+  document.getElementById('lbTable').style.display = 'none';
+  document.getElementById('lbEmpty').style.display = 'none';
+
+  const results = [];
+  for (let i = 0; i < list.length; i++) {
+    const ticker = list[i];
+    progLabel.textContent = `Scanning ${ticker}...`;
+    progFrac.textContent = `${i + 1} / ${list.length}`;
+    progFill.style.width = ((i / list.length) * 100) + '%';
+
+    try {
+      let d;
+      if (!state.apiKey) {
+        d = DEMO_DATA.find(x => x.ticker === ticker);
+        if (!d) { continue; }
+        d = Object.assign({}, d);
+      } else {
+        d = await fetchStockData(ticker);
+        if (d._bvps !== undefined) d.bvps = d._bvps;
+        await delay(150);
+      }
+      const { total } = computeScore(d, [false,false,false,false,false,false]);
+      const gn = grahamNumber(d.eps, d.bvps);
+      const mos = marginOfSafety(gn, d.price);
+      results.push({ ticker: d.ticker, name: d.name, score: total, pe: d.pe, roe: d.roe, de: d.de, mos });
+      document.getElementById('lbSkeleton').style.display = 'none';
+      renderLeaderboard(results);
+    } catch(e) {
+      // skip on error, continue
+    }
+  }
+
+  progFill.style.width = '100%';
+  progLabel.textContent = 'Scan complete';
+  progFrac.textContent = `${results.length} / ${list.length}`;
+  state.leaderboard = results;
+  state.scanning = false;
+  btn.disabled = false;
+  btn.textContent = '↺ Re-scan';
+  setTimeout(() => { prog.style.display = 'none'; }, 2000);
+}
+
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// API KEY / DEMO
+// ─────────────────────────────────────────────────────────────────────────────
+function saveApiKey() {
+  const val = document.getElementById('apiKeyInput').value.trim();
+  if (!val) return;
+  state.apiKey = val;
+  localStorage.setItem('bfApiKey', val);
+  updateApiUI();
+  document.getElementById('apiBanner').style.display = 'none';
+}
+
+function toggleApiPanel() {
+  const banner = document.getElementById('apiBanner');
+  banner.style.display = banner.style.display === 'none' ? 'flex' : 'none';
+}
+
+function updateApiUI() {
+  const chip = document.getElementById('apiChip');
+  const chipText = document.getElementById('apiChipText');
+  const banner = document.getElementById('apiBanner');
+  if (state.apiKey) {
+    chip.className = 'api-chip connected';
+    chipText.textContent = 'API CONNECTED';
+    // Show small demo button in banner
+    banner.querySelector('.btn-demo-load').style.display = 'inline-block';
+    banner.style.display = 'none';
+  } else {
+    chip.className = 'api-chip demo';
+    chipText.textContent = 'DEMO MODE';
+    banner.style.display = 'flex';
+  }
+}
+
+function loadDemoAll() {
+  // Load the first demo stock immediately
+  state.currentData = null;
+  state.moatChecks = [false,false,false,false,false,false];
+  const d = Object.assign({}, DEMO_DATA[0]);
+  state.currentData = d;
+  state.activeTicker = d.ticker;
+  document.getElementById('searchInput').value = d.ticker;
+  renderAnalysis(d);
+  // And show demo leaderboard
+  const results = DEMO_DATA.map(dd => {
+    const { total } = computeScore(dd, [false,false,false,false,false,false]);
+    const gn = grahamNumber(dd.eps, dd.bvps);
+    const mos = marginOfSafety(gn, dd.price);
+    return { ticker: dd.ticker, name: dd.name, score: total, pe: dd.pe, roe: dd.roe, de: dd.de, mos };
+  });
+  state.leaderboard = results;
+  renderLeaderboard(results);
+  updateLbActiveRow(d.ticker);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CLOCK
+// ─────────────────────────────────────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  const opts = { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZoneName: 'short' };
+  document.getElementById('datetime').textContent = now.toLocaleString('en-US', opts);
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────────────────────────────────────
+(function init() {
+  updateApiUI();
+  // If key already in localStorage, populate input
+  if (state.apiKey) {
+    document.getElementById('apiKeyInput').value = state.apiKey;
+  }
+  // Auto-load demo so the page isn't empty
+  loadDemoAll();
+})();
 </script>
 </body>
 </html>
