@@ -1,0 +1,1217 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Your Path to Financial Freedom</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Geist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f5f2eb;
+      --paper: #fdfaf3;
+      --ink: #1a2a2c;
+      --ink-soft: #4a5a5c;
+      --ink-mute: #8a9a9a;
+      --line: #d8d2c4;
+      --forest: #1f3a3d;
+      --sage: #3d6b5a;
+      --moss: #7a9b76;
+      --sand: #c4b89a;
+      --gold: #e8c87a;
+      --dawn: #e8a585;
+      --p-bg: var(--bg);
+      --p-ink: var(--ink);
+      --p-primary: var(--forest);
+      --p-accent: var(--dawn);
+
+      --display: "Newsreader", "Georgia", serif;
+      --ui: "Geist", "Inter", system-ui, sans-serif;
+      --mono: "JetBrains Mono", ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; height: 100%; }
+    body {
+      background: var(--p-bg);
+      color: var(--p-ink);
+      font-family: var(--ui);
+      font-size: 14px;
+      -webkit-font-smoothing: antialiased;
+      overflow: hidden;
+    }
+    #root { height: 100vh; display: flex; flex-direction: column; }
+
+    .app { display: flex; flex-direction: column; height: 100%; }
+
+    .topbar {
+      flex: 0 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 28px 14px;
+      border-bottom: 1px solid var(--line);
+      background: var(--p-bg);
+    }
+    .brand { display: flex; align-items: center; gap: 14px; }
+    .brand-mark {
+      width: 36px; height: 36px;
+      background:
+        radial-gradient(circle at 50% 62%, var(--gold) 0 32%, transparent 33%),
+        linear-gradient(180deg, #2a3a52 0%, var(--dawn) 60%, var(--gold) 100%);
+      border-radius: 50%;
+      border: 1px solid var(--ink);
+      box-shadow: 0 1px 0 rgba(255,255,255,0.5) inset, 0 2px 6px rgba(26,42,44,0.12);
+    }
+    .brand-text { display: flex; flex-direction: column; line-height: 1; }
+    .brand-eyebrow {
+      font-family: var(--mono); font-size: 10px;
+      text-transform: uppercase; letter-spacing: 0.18em;
+      color: var(--ink-mute);
+    }
+    .brand-title {
+      font-family: var(--display);
+      font-size: 22px;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+      margin-top: 4px;
+    }
+    .caption {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink-mute);
+      letter-spacing: 0.04em;
+    }
+    .topbar-right { display: flex; align-items: center; gap: 16px; }
+    .topbar-link {
+      font-family: var(--mono);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--ink-mute);
+      text-decoration: none;
+      border: 1px solid var(--line);
+      padding: 6px 10px;
+      border-radius: 4px;
+      transition: all 0.12s;
+    }
+    .topbar-link:hover { color: var(--ink); border-color: var(--ink-soft); }
+
+    .stage {
+      flex: 1 1 auto;
+      display: grid;
+      grid-template-columns: 260px 1fr 320px;
+      min-height: 0;
+    }
+    .left-rail, .right-rail {
+      overflow-y: auto;
+      padding: 22px 22px;
+    }
+    .left-rail { border-right: 1px solid var(--line); }
+    .right-rail { border-left: 1px solid var(--line); }
+    .scene-wrap {
+      display: flex; flex-direction: column;
+      min-width: 0; min-height: 0;
+      background: var(--p-bg);
+    }
+    .scene-inner {
+      flex: 1 1 auto;
+      position: relative;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .scene-inner > svg { position: absolute; inset: 0; }
+
+    .scene-overlay-tl, .scene-overlay-br {
+      position: absolute;
+      padding: 14px 18px;
+      color: #f5f2eb;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+      z-index: 2;
+    }
+    .scene-overlay-tl { top: 18px; left: 22px; }
+    .scene-overlay-br { bottom: 18px; right: 22px; text-align: right; }
+    .overlay-eyebrow {
+      font-family: var(--mono);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      opacity: 0.85;
+    }
+    .overlay-big {
+      font-family: var(--display);
+      font-size: 44px;
+      font-weight: 500;
+      line-height: 1;
+      margin-top: 6px;
+      letter-spacing: -0.02em;
+    }
+    .overlay-big.mono { font-family: var(--mono); font-size: 30px; font-weight: 500; }
+
+    .rail-header { margin-bottom: 22px; }
+    .rail-eyebrow {
+      font-family: var(--mono); font-size: 10px;
+      text-transform: uppercase; letter-spacing: 0.18em;
+      color: var(--ink-mute);
+    }
+    .rail-title {
+      font-family: var(--display);
+      font-size: 26px;
+      font-weight: 500;
+      margin-top: 4px;
+      letter-spacing: -0.01em;
+    }
+    .input-row { margin-bottom: 18px; }
+    .input-label {
+      display: flex; justify-content: space-between; align-items: baseline;
+      font-size: 12px;
+      color: var(--ink-soft);
+      margin-bottom: 8px;
+    }
+    .input-value {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--ink);
+      font-weight: 500;
+    }
+
+    .target-input .input-value {
+      font-size: 15px;
+      color: var(--p-primary);
+      font-weight: 600;
+    }
+    .quick-picks {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 10px;
+    }
+    .qp {
+      font-family: var(--mono);
+      font-size: 10px;
+      padding: 4px 7px;
+      background: transparent;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      color: var(--ink-soft);
+      cursor: pointer;
+      letter-spacing: 0.02em;
+      transition: all 0.12s;
+    }
+    .qp:hover { border-color: var(--ink-soft); color: var(--ink); }
+    .qp.active {
+      background: var(--p-primary);
+      color: var(--p-bg);
+      border-color: var(--p-primary);
+    }
+
+    .rail-divider {
+      height: 1px;
+      background: var(--line);
+      margin: 24px 0 22px;
+    }
+    input[type="range"] {
+      -webkit-appearance: none; appearance: none;
+      width: 100%;
+      height: 4px;
+      background: var(--line);
+      border-radius: 2px;
+      outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 14px; height: 14px;
+      background: var(--p-primary);
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid var(--p-bg);
+      box-shadow: 0 1px 3px rgba(26,42,44,0.3);
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 14px; height: 14px;
+      background: var(--p-primary);
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid var(--p-bg);
+    }
+
+    .stats-panel { display: flex; flex-direction: column; gap: 14px; }
+    .stats-eyebrow {
+      font-family: var(--mono); font-size: 10px;
+      text-transform: uppercase; letter-spacing: 0.18em;
+      color: var(--ink-mute);
+    }
+    .stats-big { display: flex; flex-direction: column; }
+    .stats-num {
+      font-family: var(--display);
+      font-size: 44px;
+      font-weight: 500;
+      line-height: 1;
+      letter-spacing: -0.02em;
+      color: var(--p-primary);
+    }
+    .stats-age {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--ink-mute);
+      margin-top: 8px;
+      letter-spacing: 0.04em;
+    }
+    .stats-target {
+      font-family: var(--ui);
+      font-size: 12px;
+      color: var(--ink-soft);
+      padding-top: 6px;
+      border-top: 1px solid var(--line);
+    }
+    .stats-target strong { font-family: var(--mono); color: var(--ink); font-weight: 600; }
+
+    .sparkline { width: 100%; height: 110px; display: block; margin-top: 4px; }
+
+    .milestone-list {
+      display: flex; flex-direction: column;
+      margin-top: 10px;
+      border-top: 1px solid var(--line);
+      padding-top: 12px;
+    }
+    .milestone-row {
+      display: grid;
+      grid-template-columns: 14px 1fr auto;
+      grid-template-areas:
+        "dot label target"
+        "dot when when";
+      gap: 2px 8px;
+      padding: 8px 0;
+      align-items: center;
+      border-bottom: 1px dashed var(--line);
+    }
+    .milestone-row:last-child { border-bottom: none; }
+    .ms-dot {
+      grid-area: dot;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--line);
+      border: 1px solid var(--ink-mute);
+      align-self: start;
+      margin-top: 4px;
+    }
+    .milestone-row.reached .ms-dot {
+      background: var(--gold);
+      border-color: var(--forest);
+      box-shadow: 0 0 0 3px rgba(232,200,122,0.3);
+    }
+    .ms-label {
+      grid-area: label;
+      font-size: 12px;
+      color: var(--ink);
+      font-weight: 500;
+    }
+    .ms-target {
+      grid-area: target;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink-soft);
+    }
+    .ms-when {
+      grid-area: when;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--ink-mute);
+      letter-spacing: 0.04em;
+    }
+    .milestone-row.reached .ms-when {
+      color: var(--sage);
+      font-style: italic;
+    }
+
+    .timeline {
+      flex: 0 0 auto;
+      display: flex; align-items: center;
+      gap: 16px;
+      padding: 14px 22px 18px;
+      border-top: 1px solid var(--line);
+      background: var(--p-bg);
+    }
+    .t-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 9px 16px;
+      font-family: var(--ui);
+      font-size: 12px;
+      font-weight: 500;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 1px solid var(--ink);
+      letter-spacing: 0.02em;
+    }
+    .t-btn.primary {
+      background: var(--ink);
+      color: var(--p-bg);
+    }
+    .t-btn.primary:hover { background: var(--forest); }
+    .t-btn.ghost {
+      background: transparent;
+      color: var(--ink);
+      border-color: var(--line);
+    }
+    .t-btn.ghost:hover { border-color: var(--ink-soft); }
+    .t-scrub-wrap {
+      flex: 1 1 auto;
+      position: relative;
+      padding-bottom: 14px;
+    }
+    .t-scrub { width: 100%; }
+    .t-ticks { position: absolute; left: 0; right: 0; bottom: 0; height: 14px; }
+    .t-tick {
+      position: absolute;
+      transform: translateX(-50%);
+      font-family: var(--mono);
+      font-size: 9px;
+      color: var(--ink-mute);
+      letter-spacing: 0.04em;
+    }
+    .t-tick::before {
+      content: "";
+      display: block;
+      width: 1px; height: 4px;
+      background: var(--line);
+      margin: 0 auto 2px;
+    }
+    .t-readout {
+      flex: 0 0 auto;
+      text-align: right;
+      min-width: 80px;
+    }
+    .t-readout-label {
+      font-family: var(--mono);
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--ink-mute);
+    }
+    .t-readout-value {
+      font-family: var(--mono);
+      font-size: 14px;
+      color: var(--ink);
+      font-weight: 600;
+      margin-top: 2px;
+    }
+
+    @media (max-width: 1100px) {
+      .stage { grid-template-columns: 220px 1fr 280px; }
+      .overlay-big { font-size: 36px; }
+      .overlay-big.mono { font-size: 24px; }
+    }
+    @media (max-width: 880px) {
+      .stage { grid-template-columns: 1fr; grid-template-rows: auto 1fr auto; }
+      .left-rail, .right-rail { border: none; border-bottom: 1px solid var(--line); max-height: 200px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+
+  <script>
+    // ── Finance: compound growth + milestone math ──────────────────────────
+    function monthsToTarget(P, C, annualReturn, target) {
+      if (target <= P) return 0;
+      const i = annualReturn / 12;
+      if (i <= 0) {
+        if (C <= 0) return Infinity;
+        return (target - P) / C;
+      }
+      const denom = P + C / i;
+      const numer = target + C / i;
+      if (denom <= 0 || numer <= 0) return Infinity;
+      const ratio = numer / denom;
+      if (ratio <= 1) return 0;
+      return Math.log(ratio) / Math.log(1 + i);
+    }
+
+    function balanceAt(P, C, annualReturn, months) {
+      if (months <= 0) return P;
+      const i = annualReturn / 12;
+      if (i === 0) return P + C * months;
+      return P * Math.pow(1 + i, months) + C * (Math.pow(1 + i, months) - 1) / i;
+    }
+
+    function fmtMoney(n) {
+      if (!isFinite(n)) return "—";
+      const abs = Math.abs(n);
+      if (abs >= 1_000_000) return "$" + (n / 1_000_000).toFixed(n >= 10_000_000 ? 1 : 2) + "M";
+      if (abs >= 1_000) return "$" + Math.round(n / 1_000).toLocaleString() + "k";
+      return "$" + Math.round(n).toLocaleString();
+    }
+
+    function fmtYears(months) {
+      if (!isFinite(months)) return "—";
+      if (months <= 0) return "today";
+      const years = Math.floor(months / 12);
+      const rem = Math.round(months - years * 12);
+      if (years === 0) return rem + " mo";
+      if (rem === 0) return years + " yr";
+      return years + " yr " + rem + " mo";
+    }
+
+    function computeMilestones(inputs) {
+      const annualSpend = inputs.monthlySpend * 12;
+      const emergencyFund = inputs.monthlySpend * 6;
+      const fiNumber = inputs.targetNetWorth != null ? inputs.targetNetWorth : annualSpend * 25;
+      const fatFi = fiNumber * 2;
+      const leanFi = fiNumber * 0.7;
+      const yearsToRetire = Math.max(1, inputs.retireAge - inputs.age);
+      const coastFiTarget = fiNumber / Math.pow(1 + inputs.returnRate, yearsToRetire);
+
+      const list = [
+        { id: "emergency", label: "Emergency Fund", sub: "6 months of expenses", target: emergencyFund },
+        { id: "hundred", label: "First $100,000", sub: "the hardest hundred", target: 100_000 },
+        { id: "coast", label: "Coast FI", sub: "stop saving, still arrive", target: coastFiTarget },
+        { id: "lean", label: "Lean FI", sub: "70% of your goal", target: leanFi },
+        { id: "fi", label: "Financial Independence", sub: "your target net worth", target: fiNumber },
+        { id: "fat", label: "Fat FI", sub: "2× your target", target: fatFi },
+      ];
+
+      return list
+        .map(m => ({
+          ...m,
+          months: monthsToTarget(inputs.savings, inputs.monthly, inputs.returnRate, m.target),
+        }))
+        .sort((a, b) => a.months - b.months);
+    }
+
+    window.Finance = { monthsToTarget, balanceAt, fmtMoney, fmtYears, computeMilestones };
+  </script>
+
+  <script type="text/babel">
+    // ── Scene: cinematic horizon visualization ─────────────────────────────
+    const SCENE_W = 1600;
+    const SCENE_H = 900;
+    const HORIZON_Y = 560;
+
+    function pathPoint(u) {
+      const P0 = [440,  860];
+      const P1 = [600,  790];
+      const P2 = [760,  640];
+      const P3 = [900,  HORIZON_Y - 6];
+      const omu = 1 - u;
+      const x =
+        omu * omu * omu * P0[0] +
+        3 * omu * omu * u * P1[0] +
+        3 * omu * u * u * P2[0] +
+        u * u * u * P3[0];
+      const y =
+        omu * omu * omu * P0[1] +
+        3 * omu * omu * u * P1[1] +
+        3 * omu * u * u * P2[1] +
+        u * u * u * P3[1];
+      return [x, y];
+    }
+
+    function pathD() {
+      return "M 440 860 C 600 790, 760 640, 900 " + (HORIZON_Y - 6);
+    }
+
+    function pathScale(u) {
+      return 1.0 - 0.85 * u;
+    }
+
+    function useTime() {
+      const [t, setT] = React.useState(0);
+      React.useEffect(() => {
+        let raf;
+        const start = performance.now();
+        const tick = (now) => {
+          setT((now - start) / 1000);
+          raf = requestAnimationFrame(tick);
+        };
+        raf = requestAnimationFrame(tick);
+        return () => cancelAnimationFrame(raf);
+      }, []);
+      return t;
+    }
+
+    function Stars({ progress }) {
+      const opacity = Math.max(0, 1 - progress * 1.4);
+      const stars = React.useMemo(() => {
+        const arr = [];
+        let seed = 1;
+        const rand = () => {
+          seed = (seed * 9301 + 49297) % 233280;
+          return seed / 233280;
+        };
+        for (let i = 0; i < 90; i++) {
+          arr.push({
+            x: rand() * SCENE_W,
+            y: rand() * (HORIZON_Y - 80),
+            r: 0.5 + rand() * 1.6,
+            tw: rand() * 6,
+          });
+        }
+        return arr;
+      }, []);
+      const t = useTime();
+      if (opacity < 0.02) return null;
+      return (
+        <g opacity={opacity}>
+          {stars.map((s, i) => {
+            const flicker = 0.5 + 0.5 * Math.sin(t * 1.3 + s.tw * 4);
+            return <circle key={i} cx={s.x} cy={s.y} r={s.r} fill="#f5f2eb" opacity={0.3 + 0.7 * flicker} />;
+          })}
+        </g>
+      );
+    }
+
+    function Sky({ progress }) {
+      return (
+        <g>
+          <defs>
+            <linearGradient id="sky-night" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor="#0d1b2a" />
+              <stop offset="0.55" stopColor="#1f3a3d" />
+              <stop offset="0.85" stopColor="#3d4f55" />
+              <stop offset="1" stopColor="#7a8a86" />
+            </linearGradient>
+            <linearGradient id="sky-dawn" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor="#2a3a52" />
+              <stop offset="0.45" stopColor="#8a6f7a" />
+              <stop offset="0.78" stopColor="#e8a585" />
+              <stop offset="1" stopColor="#f4d9b0" />
+            </linearGradient>
+            <linearGradient id="sky-day" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor="#6a8a9a" />
+              <stop offset="0.55" stopColor="#c4b89a" />
+              <stop offset="0.85" stopColor="#e8c87a" />
+              <stop offset="1" stopColor="#f5f2eb" />
+            </linearGradient>
+          </defs>
+          <rect x="0" y="0" width={SCENE_W} height={HORIZON_Y + 8} fill="url(#sky-night)" />
+          <rect x="0" y="0" width={SCENE_W} height={HORIZON_Y + 8} fill="url(#sky-dawn)" opacity={Math.min(1, progress * 2.2)} />
+          <rect x="0" y="0" width={SCENE_W} height={HORIZON_Y + 8} fill="url(#sky-day)" opacity={Math.max(0, progress - 0.55) / 0.45} />
+        </g>
+      );
+    }
+
+    function easeOutQuint(x) {
+      return 1 - Math.pow(1 - x, 5);
+    }
+
+    function Sun({ progress }) {
+      const t = useTime();
+      const baseY = HORIZON_Y + 120;
+      const peakY = HORIZON_Y - 180;
+      const y = baseY + (peakY - baseY) * easeOutQuint(progress);
+      const cx = 900;
+      const breath = 1 + 0.015 * Math.sin(t * 0.8);
+      const r = 78 * breath;
+      return (
+        <g>
+          <defs>
+            <radialGradient id="sun-glow" cx="0.5" cy="0.5" r="0.5">
+              <stop offset="0" stopColor="#fff4d4" stopOpacity="0.55" />
+              <stop offset="0.4" stopColor="#e8c87a" stopOpacity="0.25" />
+              <stop offset="1" stopColor="#e8c87a" stopOpacity="0" />
+            </radialGradient>
+            <radialGradient id="sun-core" cx="0.5" cy="0.5" r="0.5">
+              <stop offset="0" stopColor="#fff8e0" />
+              <stop offset="0.6" stopColor="#f4d98a" />
+              <stop offset="1" stopColor="#e8a585" />
+            </radialGradient>
+          </defs>
+          <circle cx={cx} cy={y} r={r * 4.2} fill="url(#sun-glow)" />
+          <circle cx={cx} cy={y} r={r * 2.2} fill="url(#sun-glow)" opacity={0.7} />
+          <circle cx={cx} cy={y} r={r} fill="url(#sun-core)" />
+        </g>
+      );
+    }
+
+    function hex(h) {
+      const m = h.replace("#", "");
+      return [parseInt(m.slice(0, 2), 16), parseInt(m.slice(2, 4), 16), parseInt(m.slice(4, 6), 16)];
+    }
+    function mix(a, b, t) {
+      const pa = hex(a), pb = hex(b);
+      const r = Math.round(pa[0] + (pb[0] - pa[0]) * t);
+      const g = Math.round(pa[1] + (pb[1] - pa[1]) * t);
+      const bb = Math.round(pa[2] + (pb[2] - pa[2]) * t);
+      return `rgb(${r},${g},${bb})`;
+    }
+
+    function MountainRange({ progress }) {
+      const farFill = mix("#1f3a3d", "#7a9b76", progress);
+      const nearFill = mix("#152527", "#3d6b5a", progress);
+      return (
+        <g>
+          <path
+            d={`M 0 ${HORIZON_Y} L 0 ${HORIZON_Y - 40} Q 120 ${HORIZON_Y - 80} 220 ${HORIZON_Y - 50} T 460 ${HORIZON_Y - 70} T 740 ${HORIZON_Y - 100} T 1040 ${HORIZON_Y - 60} T 1340 ${HORIZON_Y - 90} T 1600 ${HORIZON_Y - 30} L 1600 ${HORIZON_Y} Z`}
+            fill={farFill}
+            opacity="0.55"
+          />
+          <path
+            d={`M 0 ${HORIZON_Y} L 0 ${HORIZON_Y - 18} Q 160 ${HORIZON_Y - 40} 300 ${HORIZON_Y - 28} T 620 ${HORIZON_Y - 56} T 980 ${HORIZON_Y - 34} T 1280 ${HORIZON_Y - 62} T 1600 ${HORIZON_Y - 20} L 1600 ${HORIZON_Y} Z`}
+            fill={nearFill}
+            opacity="0.85"
+          />
+        </g>
+      );
+    }
+
+    function Ground({ progress }) {
+      const top = mix("#1a2a2c", "#3d6b5a", progress);
+      const bot = mix("#0d1416", "#1f3a3d", progress);
+      return (
+        <g>
+          <defs>
+            <linearGradient id="ground-grad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor={top} />
+              <stop offset="1" stopColor={bot} />
+            </linearGradient>
+          </defs>
+          <rect x="0" y={HORIZON_Y} width={SCENE_W} height={SCENE_H - HORIZON_Y} fill="url(#ground-grad)" />
+        </g>
+      );
+    }
+
+    function Clouds() {
+      const t = useTime();
+      const clouds = [
+        { y: 120, r: 60, speed: 8, opacity: 0.18 },
+        { y: 200, r: 90, speed: 14, opacity: 0.13 },
+        { y: 280, r: 70, speed: 20, opacity: 0.16 },
+        { y: 360, r: 50, speed: 26, opacity: 0.1 },
+      ];
+      return (
+        <g>
+          {clouds.map((c, i) => {
+            const x = ((t * c.speed + i * 400) % (SCENE_W + 400)) - 200;
+            return (
+              <ellipse key={i} cx={x} cy={c.y} rx={c.r * 2.2} ry={c.r * 0.5} fill="#f5f2eb" opacity={c.opacity} />
+            );
+          })}
+        </g>
+      );
+    }
+
+    function Path({ progress }) {
+      return (
+        <g>
+          <defs>
+            <linearGradient id="path-stroke" x1="0" y1="1" x2="1" y2="0">
+              <stop offset="0" stopColor="#c4b89a" />
+              <stop offset="1" stopColor="#e8c87a" />
+            </linearGradient>
+          </defs>
+          <path d={pathD()} fill="none" stroke="#0d1416" strokeOpacity="0.4" strokeWidth="22" strokeLinecap="round" />
+          <path d={pathD()} fill="none" stroke="url(#path-stroke)" strokeWidth="14" strokeLinecap="round" strokeOpacity="0.55" />
+          <path
+            d={pathD()}
+            fill="none"
+            stroke="#f4d98a"
+            strokeWidth="14"
+            strokeLinecap="round"
+            pathLength="1"
+            strokeDasharray={`${progress} 2`}
+            opacity="0.9"
+          />
+        </g>
+      );
+    }
+
+    function TodayMarker() {
+      const [x, y] = pathPoint(0);
+      return (
+        <g transform={`translate(${x - 30} ${y})`}>
+          <ellipse cx="0" cy="6" rx="22" ry="6" fill="#0d1416" opacity="0.5" />
+          <path d="M -20 4 Q -22 -10, -8 -16 Q 8 -22, 18 -12 Q 24 0, 20 6 Z" fill="#3d4a4c" stroke="#1a2a2c" strokeWidth="1.5" />
+          <path d="M -16 -2 Q -10 -12, 0 -14 Q 8 -10, 12 -4" fill="none" stroke="#5a6a6c" strokeWidth="1" opacity="0.6" />
+          <text x="0" y="-22" textAnchor="middle" fontFamily="Newsreader, serif" fontStyle="italic" fontSize="18" fill="#f5f2eb">Today</text>
+        </g>
+      );
+    }
+
+    function Milestones({ items, fiMonths }) {
+      return (
+        <g>
+          {items.map((m) => {
+            if (!isFinite(m.months) || fiMonths <= 0) return null;
+            const u = Math.min(0.97, Math.max(0.02, m.months / Math.max(fiMonths, 1) * 0.95));
+            const [x, y] = pathPoint(u);
+            const s = pathScale(u);
+            const reached = m._reached;
+            return (
+              <g key={m.id} transform={`translate(${x} ${y}) scale(${s})`}>
+                <line x1="0" y1="0" x2="0" y2="-46" stroke="#1a2a2c" strokeWidth="3" strokeOpacity="0.7" />
+                <circle cx="0" cy="-50" r="9" fill={reached ? "#f4d98a" : "#c4b89a"} stroke="#1a2a2c" strokeWidth="2" />
+                {reached && <circle cx="0" cy="-50" r="3.5" fill="#1f3a3d" />}
+                {reached && <circle cx="0" cy="-50" r="22" fill="#f4d98a" opacity="0.25" />}
+              </g>
+            );
+          })}
+        </g>
+      );
+    }
+
+    function Walker({ progress }) {
+      const t = useTime();
+      if (progress >= 1) return null;
+      const [x, y] = pathPoint(Math.max(0.005, progress));
+      const s = pathScale(progress);
+      const bob = Math.sin(t * 5) * 1.5;
+      return (
+        <g transform={`translate(${x} ${y + bob}) scale(${s * 1.4})`}>
+          <ellipse cx="0" cy="2" rx="14" ry="3" fill="#0d1416" opacity="0.55" />
+          <line x1="-4" y1="-2" x2="-4" y2="-22" stroke="#1a2a2c" strokeWidth="3.5" strokeLinecap="round" />
+          <line x1="4"  y1="-2" x2="4"  y2="-22" stroke="#1a2a2c" strokeWidth="3.5" strokeLinecap="round" />
+          <rect x="-7" y="-44" width="14" height="22" rx="4" fill="#1f3a3d" />
+          <circle cx="0" cy="-50" r="6.5" fill="#e8c87a" stroke="#1a2a2c" strokeWidth="1" />
+          <rect x="-8.5" y="-40" width="3" height="14" rx="1" fill="#1a2a2c" />
+        </g>
+      );
+    }
+
+    function FreedomFlag({ fiReached }) {
+      const [x, y] = pathPoint(0.97);
+      return (
+        <g transform={`translate(${x} ${y})`}>
+          <line x1="0" y1="0" x2="0" y2="-36" stroke="#1a2a2c" strokeWidth="2" />
+          <path d="M 0 -36 L 14 -32 L 0 -28 Z" fill={fiReached ? "#e8a585" : "#7a9b76"} />
+        </g>
+      );
+    }
+
+    function ProgressLabel({ progress, balance, milestoneJustHit, currentMonths }) {
+      if (progress >= 1 || currentMonths < 1) return null;
+      const [x, y] = pathPoint(Math.max(0.005, progress));
+      const s = pathScale(progress);
+      const width = 130;
+      return (
+        <g transform={`translate(${x} ${y - 70 * s})`}>
+          <g transform={`scale(${0.7 + s * 0.5})`}>
+            <rect x={-width / 2} y={-22} width={width} height={28} rx={4} fill="#f5f2eb" stroke="#1a2a2c" strokeWidth="1" />
+            <text x="0" y="-3" textAnchor="middle" fontFamily="JetBrains Mono, monospace" fontSize="15" fill="#1a2a2c" fontWeight="600">
+              {Finance.fmtMoney(balance)}
+            </text>
+            {milestoneJustHit && (
+              <text x="0" y="22" textAnchor="middle" fontFamily="Newsreader, serif" fontStyle="italic" fontSize="14" fill="#e8a585">
+                {milestoneJustHit}
+              </text>
+            )}
+          </g>
+        </g>
+      );
+    }
+
+    function Scene({ progress, inputs, milestones, fiMonths, balanceNow, milestoneJustHit, currentMonths }) {
+      const decorated = milestones.map(m => ({ ...m, _reached: balanceNow >= m.target - 0.5 }));
+      const fiReached = balanceNow >= (inputs.targetNetWorth) - 0.5;
+      return (
+        <svg viewBox={`0 0 ${SCENE_W} ${SCENE_H}`} style={{ width: "100%", height: "100%", display: "block" }} preserveAspectRatio="xMidYMid slice">
+          <Sky progress={progress} />
+          <Stars progress={progress} />
+          <Sun progress={progress} />
+          <Clouds />
+          <MountainRange progress={progress} />
+          <rect x="0" y={HORIZON_Y - 2} width={SCENE_W} height="4" fill="#e8c87a" opacity={0.15 + 0.4 * progress} />
+          <Ground progress={progress} />
+          <Path progress={progress} />
+          <TodayMarker />
+          <Milestones items={decorated} fiMonths={fiMonths} />
+          <FreedomFlag fiReached={fiReached} />
+          <Walker progress={progress} />
+          <ProgressLabel progress={progress} balance={balanceNow} milestoneJustHit={milestoneJustHit} currentMonths={currentMonths} />
+        </svg>
+      );
+    }
+
+    window.Scene = Scene;
+  </script>
+
+  <script type="text/babel">
+    // ── Controls: input rail, stats, timeline ──────────────────────────────
+    function TargetInput({ value, onChange }) {
+      const MIN = 50_000, MAX = 20_000_000;
+      const toSlider = (v) => 100 * (Math.log(v) - Math.log(MIN)) / (Math.log(MAX) - Math.log(MIN));
+      const fromSlider = (s) => Math.exp(Math.log(MIN) + (s / 100) * (Math.log(MAX) - Math.log(MIN)));
+      const snap = (v) => {
+        if (v >= 1_000_000) return Math.round(v / 100_000) * 100_000;
+        if (v >= 100_000) return Math.round(v / 10_000) * 10_000;
+        return Math.round(v / 5_000) * 5_000;
+      };
+      return (
+        <div className="input-row target-input">
+          <div className="input-label">
+            <span>Target net worth</span>
+            <span className="input-value">{Finance.fmtMoney(value)}</span>
+          </div>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            step="0.1"
+            value={toSlider(value)}
+            onChange={(e) => onChange(snap(fromSlider(parseFloat(e.target.value))))}
+          />
+          <div className="quick-picks">
+            {[250_000, 1_000_000, 2_500_000, 5_000_000, 10_000_000].map((v) => (
+              <button key={v} type="button" className={"qp " + (value === v ? "active" : "")} onClick={() => onChange(v)}>
+                {Finance.fmtMoney(v)}
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    function NumberInput({ label, unit, value, onChange, min, max, step, format }) {
+      return (
+        <div className="input-row">
+          <div className="input-label">
+            <span>{label}</span>
+            <span className="input-value">{format ? format(value) : value}{unit}</span>
+          </div>
+          <input
+            type="range"
+            min={min}
+            max={max}
+            step={step}
+            value={value}
+            onChange={(e) => onChange(parseFloat(e.target.value))}
+          />
+        </div>
+      );
+    }
+
+    function InputRail({ inputs, setInputs }) {
+      const set = (k) => (v) => setInputs({ ...inputs, [k]: v });
+      return (
+        <div className="input-rail">
+          <div className="rail-header">
+            <div className="rail-eyebrow">Your goal</div>
+            <div className="rail-title">Freedom</div>
+          </div>
+          <TargetInput value={inputs.targetNetWorth} onChange={set("targetNetWorth")} />
+          <NumberInput
+            label="Goal retirement age"
+            value={inputs.retireAge}
+            onChange={set("retireAge")}
+            min={Math.max(25, inputs.age + 1)}
+            max={80}
+            step={1}
+            unit=" yrs"
+          />
+
+          <div className="rail-divider" />
+
+          <div className="rail-header">
+            <div className="rail-eyebrow">Your numbers</div>
+            <div className="rail-title">Today</div>
+          </div>
+          <NumberInput
+            label="Current age"
+            value={inputs.age}
+            onChange={set("age")}
+            min={18}
+            max={70}
+            step={1}
+            unit=" yrs"
+          />
+          <NumberInput
+            label="Current savings"
+            value={inputs.savings}
+            onChange={set("savings")}
+            min={0}
+            max={1_000_000}
+            step={1000}
+            format={Finance.fmtMoney}
+          />
+          <NumberInput
+            label="Monthly contribution"
+            value={inputs.monthly}
+            onChange={set("monthly")}
+            min={0}
+            max={10_000}
+            step={50}
+            format={Finance.fmtMoney}
+          />
+          <NumberInput
+            label="Monthly spending"
+            value={inputs.monthlySpend}
+            onChange={set("monthlySpend")}
+            min={1000}
+            max={20_000}
+            step={100}
+            format={Finance.fmtMoney}
+          />
+          <NumberInput
+            label="Annual return"
+            value={inputs.returnRate * 100}
+            onChange={(v) => set("returnRate")(v / 100)}
+            min={0}
+            max={12}
+            step={0.1}
+            format={(v) => v.toFixed(1) + "%"}
+          />
+        </div>
+      );
+    }
+
+    function Sparkline({ inputs, fiMonths, currentMonths }) {
+      const horizon = Math.min(Math.max(fiMonths, 24), 12 * 50);
+      const w = 320, h = 110, pad = 6;
+      const N = 80;
+      const points = [];
+      let maxV = 0;
+      for (let i = 0; i <= N; i++) {
+        const m = (i / N) * horizon;
+        const v = Finance.balanceAt(inputs.savings, inputs.monthly, inputs.returnRate, m);
+        points.push([m, v]);
+        if (v > maxV) maxV = v;
+      }
+      const fiNumber = inputs.targetNetWorth;
+      maxV = Math.max(maxV, fiNumber);
+      const xAt = (m) => pad + (m / horizon) * (w - pad * 2);
+      const yAt = (v) => h - pad - (v / maxV) * (h - pad * 2);
+      const d = points.map(([m, v], i) => (i === 0 ? "M " : "L ") + xAt(m).toFixed(1) + " " + yAt(v).toFixed(1)).join(" ");
+      const fillD = d + ` L ${xAt(horizon).toFixed(1)} ${(h - pad).toFixed(1)} L ${pad} ${(h - pad).toFixed(1)} Z`;
+      const fiX = xAt(Math.min(fiMonths, horizon));
+      const curX = xAt(Math.min(currentMonths, horizon));
+      const curV = Finance.balanceAt(inputs.savings, inputs.monthly, inputs.returnRate, Math.min(currentMonths, horizon));
+      return (
+        <svg viewBox={`0 0 ${w} ${h}`} className="sparkline">
+          <defs>
+            <linearGradient id="spark-fill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor="#e8c87a" stopOpacity="0.5" />
+              <stop offset="1" stopColor="#e8c87a" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <line x1={pad} y1={yAt(fiNumber)} x2={w - pad} y2={yAt(fiNumber)} stroke="#3d6b5a" strokeWidth="1" strokeDasharray="2 4" opacity="0.7" />
+          <text x={w - pad} y={yAt(fiNumber) - 4} textAnchor="end" fontFamily="JetBrains Mono, monospace" fontSize="9" fill="#3d6b5a">FI · {Finance.fmtMoney(fiNumber)}</text>
+          <path d={fillD} fill="url(#spark-fill)" />
+          <path d={d} fill="none" stroke="#1f3a3d" strokeWidth="1.6" />
+          {isFinite(fiMonths) && fiMonths <= horizon && (
+            <g>
+              <line x1={fiX} y1={pad} x2={fiX} y2={h - pad} stroke="#e8a585" strokeWidth="1" opacity="0.7" />
+              <circle cx={fiX} cy={yAt(fiNumber)} r="3" fill="#e8a585" />
+            </g>
+          )}
+          <circle cx={curX} cy={yAt(curV)} r="3.5" fill="#1a2a2c" />
+          <circle cx={curX} cy={yAt(curV)} r="6" fill="#1a2a2c" opacity="0.15" />
+        </svg>
+      );
+    }
+
+    function StatsPanel({ inputs, fiMonths, currentMonths, balanceNow, milestones }) {
+      const fiNumber = inputs.targetNetWorth;
+      const yearsLeft = isFinite(fiMonths) ? Math.max(0, fiMonths - currentMonths) : Infinity;
+      const ageAtFi = inputs.age + (isFinite(fiMonths) ? fiMonths / 12 : 0);
+      return (
+        <div className="stats-panel">
+          <div className="stats-eyebrow">Financial independence in</div>
+          <div className="stats-big">
+            <span className="stats-num">{Finance.fmtYears(yearsLeft)}</span>
+            {isFinite(fiMonths) && <span className="stats-age">at age {ageAtFi.toFixed(0)}</span>}
+          </div>
+          <div className="stats-target">target · <strong>{Finance.fmtMoney(fiNumber)}</strong></div>
+          <Sparkline inputs={inputs} fiMonths={fiMonths} currentMonths={currentMonths} />
+          <div className="milestone-list">
+            {milestones.map((m) => {
+              const reached = balanceNow >= m.target - 0.5;
+              const monthsAway = Math.max(0, m.months - currentMonths);
+              return (
+                <div key={m.id} className={"milestone-row " + (reached ? "reached" : "")}>
+                  <span className="ms-dot" />
+                  <span className="ms-label">{m.label}</span>
+                  <span className="ms-target">{Finance.fmtMoney(m.target)}</span>
+                  <span className="ms-when">{reached ? "reached" : Finance.fmtYears(monthsAway)}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    function Timeline({ currentMonths, setCurrentMonths, fiMonths, playing, setPlaying, onReset }) {
+      const horizon = Math.max(isFinite(fiMonths) ? fiMonths * 1.05 : 12 * 40, 12);
+      return (
+        <div className="timeline">
+          <button className="t-btn primary" onClick={() => setPlaying(!playing)} aria-label={playing ? "Pause" : "Play"}>
+            {playing ? (
+              <svg width="14" height="14" viewBox="0 0 14 14"><rect x="2" y="1" width="3" height="12" fill="currentColor"/><rect x="9" y="1" width="3" height="12" fill="currentColor"/></svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 14 14"><path d="M 2 1 L 12 7 L 2 13 Z" fill="currentColor"/></svg>
+            )}
+            <span>{playing ? "Pause" : "Play journey"}</span>
+          </button>
+          <button className="t-btn ghost" onClick={onReset}>Reset</button>
+          <div className="t-scrub-wrap">
+            <input
+              type="range"
+              min="0"
+              max={horizon}
+              step="0.1"
+              value={Math.min(currentMonths, horizon)}
+              onChange={(e) => { setPlaying(false); setCurrentMonths(parseFloat(e.target.value)); }}
+              className="t-scrub"
+            />
+            <div className="t-ticks">
+              {[0, 0.25, 0.5, 0.75, 1].map((p) => (
+                <div key={p} className="t-tick" style={{ left: `${p * 100}%` }}>
+                  <span>{(p * horizon / 12).toFixed(0)}y</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="t-readout">
+            <div className="t-readout-label">elapsed</div>
+            <div className="t-readout-value">{Finance.fmtYears(currentMonths)}</div>
+          </div>
+        </div>
+      );
+    }
+
+    window.Controls = { InputRail, StatsPanel, Timeline };
+  </script>
+
+  <script type="text/babel">
+    // ── App ────────────────────────────────────────────────────────────────
+    const { InputRail, StatsPanel, Timeline } = window.Controls;
+
+    const DEFAULTS = {
+      age: 30,
+      savings: 25000,
+      monthly: 1500,
+      monthlySpend: 4000,
+      returnRate: 0.07,
+      retireAge: 55,
+      targetNetWorth: 1_200_000,
+    };
+
+    function App() {
+      const [inputs, setInputs] = React.useState(DEFAULTS);
+
+      const milestones = React.useMemo(() => Finance.computeMilestones(inputs), [JSON.stringify(inputs)]);
+      const fiMonths = React.useMemo(
+        () => Finance.monthsToTarget(inputs.savings, inputs.monthly, inputs.returnRate, inputs.targetNetWorth),
+        [JSON.stringify(inputs)]
+      );
+
+      const [currentMonths, setCurrentMonths] = React.useState(0);
+      const [playing, setPlaying] = React.useState(false);
+
+      const lastFiRef = React.useRef(fiMonths);
+      React.useEffect(() => {
+        if (lastFiRef.current && isFinite(lastFiRef.current) && isFinite(fiMonths)) {
+          const ratio = currentMonths / lastFiRef.current;
+          setCurrentMonths(Math.min(fiMonths, ratio * fiMonths));
+        }
+        lastFiRef.current = fiMonths;
+      }, [fiMonths]);
+
+      React.useEffect(() => {
+        if (!playing) return;
+        let raf;
+        let last = performance.now();
+        const horizon = isFinite(fiMonths) ? fiMonths * 1.05 : 12 * 40;
+        const speed = horizon / 12;
+        const tick = (now) => {
+          const dt = (now - last) / 1000;
+          last = now;
+          setCurrentMonths((m) => {
+            const next = m + dt * speed;
+            if (next >= horizon) {
+              setPlaying(false);
+              return horizon;
+            }
+            return next;
+          });
+          raf = requestAnimationFrame(tick);
+        };
+        raf = requestAnimationFrame(tick);
+        return () => cancelAnimationFrame(raf);
+      }, [playing, fiMonths]);
+
+      const progress = isFinite(fiMonths)
+        ? Math.min(1, currentMonths / Math.max(fiMonths, 0.1))
+        : Math.min(1, currentMonths / (12 * 40));
+
+      const balanceNow = Finance.balanceAt(inputs.savings, inputs.monthly, inputs.returnRate, currentMonths);
+
+      const milestoneJustHit = React.useMemo(() => {
+        if (currentMonths < 1) return null;
+        for (const m of milestones) {
+          if (m.target <= inputs.savings) continue;
+          if (Math.abs(m.months - currentMonths) < 3 && balanceNow >= m.target * 0.97) return m.label;
+        }
+        return null;
+      }, [milestones, currentMonths, balanceNow, inputs.savings]);
+
+      return (
+        <div className="app">
+          <header className="topbar">
+            <div className="brand">
+              <div className="brand-mark" />
+              <div className="brand-text">
+                <div className="brand-eyebrow">A visualization</div>
+                <div className="brand-title">Your Path to Financial Freedom</div>
+              </div>
+            </div>
+            <div className="topbar-right">
+              <div className="caption">drag any number · press play to walk the path</div>
+              <a className="topbar-link" href="home.html">← Tools</a>
+            </div>
+          </header>
+
+          <main className="stage">
+            <aside className="left-rail">
+              <InputRail inputs={inputs} setInputs={setInputs} />
+            </aside>
+
+            <section className="scene-wrap">
+              <div className="scene-inner">
+                <window.Scene
+                  progress={progress}
+                  inputs={inputs}
+                  milestones={milestones}
+                  fiMonths={fiMonths}
+                  balanceNow={balanceNow}
+                  milestoneJustHit={milestoneJustHit}
+                  currentMonths={currentMonths}
+                />
+                <div className="scene-overlay-tl">
+                  <div className="overlay-eyebrow">at year</div>
+                  <div className="overlay-big">{Math.floor(currentMonths / 12)}</div>
+                </div>
+                <div className="scene-overlay-br">
+                  <div className="overlay-eyebrow">net worth</div>
+                  <div className="overlay-big mono">{Finance.fmtMoney(balanceNow)}</div>
+                </div>
+              </div>
+              <Timeline
+                currentMonths={currentMonths}
+                setCurrentMonths={setCurrentMonths}
+                fiMonths={fiMonths}
+                playing={playing}
+                setPlaying={setPlaying}
+                onReset={() => { setPlaying(false); setCurrentMonths(0); }}
+              />
+            </section>
+
+            <aside className="right-rail">
+              <StatsPanel
+                inputs={inputs}
+                fiMonths={fiMonths}
+                currentMonths={currentMonths}
+                balanceNow={balanceNow}
+                milestones={milestones}
+              />
+            </aside>
+          </main>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
