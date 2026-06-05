@@ -154,6 +154,35 @@ th:not(.sort-asc):not(.sort-desc) .sort-icon::after{content:'⇅'}
 /* REPORTS */
 .reports-stats-table td:first-child{color:var(--text-muted);font-size:12px}
 .reports-stats-table td:last-child{color:var(--text-bright);font-weight:600;text-align:right}
+/* HOLDINGS */
+.holdings-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:12px}
+.holdings-title-block{display:flex;flex-direction:column;gap:3px}
+.holdings-title{font-size:17px;font-weight:700;color:var(--text-bright);letter-spacing:0.02em}
+.holdings-subtitle{font-size:11px;color:var(--text-muted);letter-spacing:0.04em}
+.holdings-total-block{text-align:right}
+.holdings-total-label{font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px}
+.holdings-total-val{font-size:28px;font-weight:700;color:var(--text-bright);font-variant-numeric:tabular-nums;letter-spacing:-0.01em}
+.holdings-kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}
+.holdings-filter-tabs{display:flex;gap:2px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:2px;margin-bottom:14px;align-self:flex-start}
+.holdings-filter-tab{padding:5px 14px;border-radius:4px;border:none;background:transparent;color:var(--text-muted);font-family:'Inter',sans-serif;font-size:12px;font-weight:500;cursor:pointer;transition:all 0.15s;white-space:nowrap}
+.holdings-filter-tab.active{background:var(--card);color:var(--text-bright)}
+.type-badge-etf{background:rgba(79,158,255,0.14);color:var(--blue);display:inline-flex;align-items:center;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:600;letter-spacing:0.04em}
+.type-badge-stock{background:rgba(232,184,75,0.14);color:var(--gold);display:inline-flex;align-items:center;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:600;letter-spacing:0.04em}
+.type-badge-mf{background:rgba(176,126,248,0.14);color:var(--purple);display:inline-flex;align-items:center;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:600;letter-spacing:0.04em}
+.pct-bar-wrap{display:flex;align-items:center;gap:6px}
+.pct-bar{height:3px;border-radius:2px;background:var(--blue);display:inline-block;min-width:2px;transition:width 0.3s}
+.acct-badge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:18px;border-radius:10px;background:rgba(120,140,180,0.13);color:var(--text-muted);font-size:10px;font-weight:600;padding:0 5px}
+.holdings-tbl-wrap{overflow-x:auto;max-height:520px;overflow-y:auto}
+.holdings-tbl-wrap table{width:100%;border-collapse:collapse}
+.holdings-tbl-wrap thead th{position:sticky;top:0;z-index:2;background:var(--card);font-size:10px;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:var(--text-muted);padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none}
+.holdings-tbl-wrap thead th:hover{color:var(--text)}
+.holdings-tbl-wrap tbody td{padding:8px 10px;border-bottom:1px solid rgba(120,140,180,0.05);font-size:12px;color:var(--text);white-space:nowrap}
+.holdings-tbl-wrap tbody tr:nth-child(even) td{background:rgba(255,255,255,0.012)}
+.holdings-tbl-wrap tbody tr:hover td{background:rgba(79,158,255,0.04);cursor:pointer}
+.sym-cell{font-weight:700;color:var(--blue);font-size:13px}
+.desc-cell{color:var(--text-muted);font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis}
+/* TV Modal */
+#tv-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:2000;align-items:center;justify-content:center}
 </style>
 </head>
 <body>
@@ -171,6 +200,7 @@ th:not(.sort-asc):not(.sort-desc) .sort-icon::after{content:'⇅'}
     <button class="nav-tab" onclick="navigate('clients')">Clients</button>
     <button class="nav-tab" onclick="navigate('prospects')">Prospects</button>
     <button class="nav-tab" onclick="navigate('reports')">Reports</button>
+    <button class="nav-tab" onclick="navigate('holdings')">Holdings</button>
   </div>
   <div class="nav-clock" id="nav-clock">—</div>
 </nav>
@@ -291,6 +321,11 @@ th:not(.sort-asc):not(.sort-desc) .sort-icon::after{content:'⇅'}
     </div>
   </div>
 
+  <!-- TAB 7: HOLDINGS -->
+  <div id="tab-holdings" class="tab-pane">
+    <div id="holdings-content"></div>
+  </div>
+
   <!-- TAB 6: REPORTS -->
   <div id="tab-reports" class="tab-pane">
     <div class="three-col">
@@ -314,6 +349,15 @@ th:not(.sort-asc):not(.sort-desc) .sort-icon::after{content:'⇅'}
   </div>
 
 </main>
+
+<!-- TV MODAL -->
+<div id="tv-modal" onclick="if(event.target===this)closeTvModal()">
+  <div style="background:#141820;border-radius:12px;width:900px;max-width:95vw;padding:20px;position:relative;">
+    <button onclick="closeTvModal()" style="position:absolute;top:12px;right:14px;background:none;border:none;color:#888;font-size:20px;cursor:pointer;line-height:1;">✕</button>
+    <div id="tv-modal-title" style="font-weight:700;font-size:15px;color:#e4ecf4;margin-bottom:14px;padding-right:30px;"></div>
+    <div id="tv-modal-body"></div>
+  </div>
+</div>
 
 <!-- MODAL -->
 <div id="modal-overlay" onclick="handleOverlayClick(event)">
@@ -535,7 +579,7 @@ function navigate(tab) {
 
 // correct tab button matching
 function setupNavTabs() {
-  const tabs=['overview','aum','insurance','clients','prospects','reports'];
+  const tabs=['overview','aum','insurance','clients','prospects','reports','holdings'];
   document.querySelectorAll('.nav-tab').forEach((b,i)=>{
     b.onclick=()=>navigate(tabs[i]);
   });
@@ -552,6 +596,7 @@ function render() {
     case 'clients': renderClients(); break;
     case 'prospects': renderProspects(); break;
     case 'reports': renderReports(); break;
+    case 'holdings': renderHoldings(); break;
   }
 }
 
@@ -971,6 +1016,7 @@ function initCharts() {
     case 'aum': initAumCharts(); break;
     case 'insurance': initInsCharts(); break;
     case 'reports': initReportCharts(); break;
+    case 'holdings': initHoldingsCharts(); break;
   }
 }
 
@@ -1295,6 +1341,387 @@ function deleteRecord(type, id) {
   }
   render();
   setTimeout(()=>initCharts(),50);
+}
+
+// ============================================================
+// HOLDINGS DATA
+// ============================================================
+const NWM_HOLDINGS = [
+  // ETFs & Stocks
+  {sym:'AAPL', desc:'Apple Inc', type:'Stock', mktVal:1861.56, pct:0.32, shares:6, lastPrice:310.26, accts:1},
+  {sym:'IVV', desc:'iShares Core S&P 500 ETF', type:'ETF', mktVal:36348.00, pct:6.18, shares:48, lastPrice:757.25, accts:3},
+  {sym:'TLT', desc:'iShares 20+ Yr Treasury Bond ETF', type:'ETF', mktVal:7933.83, pct:1.35, shares:93, lastPrice:85.31, accts:1},
+  {sym:'IJH', desc:'iShares Core S&P Mid-Cap ETF', type:'ETF', mktVal:27483.28, pct:4.68, shares:365.81, lastPrice:75.13, accts:4},
+  {sym:'IJR', desc:'iShares Core S&P Small-Cap ETF', type:'ETF', mktVal:16361.22, pct:2.78, shares:118.17, lastPrice:138.45, accts:4},
+  {sym:'VLUE', desc:'iShares MSCI USA Value Factor ETF', type:'ETF', mktVal:10987.82, pct:1.87, shares:54.17, lastPrice:202.85, accts:4},
+  {sym:'INTF', desc:'iShares Intl Equity Factor ETF', type:'ETF', mktVal:9299.25, pct:1.58, shares:225, lastPrice:41.33, accts:1},
+  {sym:'IQLT', desc:'iShares MSCI Intl Quality Factor ETF', type:'ETF', mktVal:5572.32, pct:0.95, shares:114, lastPrice:48.88, accts:3},
+  {sym:'IUSB', desc:'iShares Core Universal USD Bond ETF', type:'ETF', mktVal:35235.98, pct:5.99, shares:767, lastPrice:45.94, accts:1},
+  {sym:'SPY', desc:'SPDR S&P 500 ETF Trust', type:'ETF', mktVal:34070.45, pct:5.80, shares:45.17, lastPrice:754.24, accts:1},
+  {sym:'SCHX', desc:'Schwab US Large-Cap ETF', type:'ETF', mktVal:3851.96, pct:0.66, shares:129.65, lastPrice:29.71, accts:1},
+  {sym:'SCHM', desc:'Schwab US Mid-Cap ETF', type:'ETF', mktVal:1114.29, pct:0.19, shares:31.20, lastPrice:35.71, accts:1},
+  {sym:'SCHA', desc:'Schwab US Small-Cap ETF', type:'ETF', mktVal:479.72, pct:0.08, shares:14.08, lastPrice:34.07, accts:1},
+  {sym:'SCHF', desc:'Schwab International Equity ETF', type:'ETF', mktVal:13639.98, pct:2.32, shares:491, lastPrice:27.78, accts:3},
+  {sym:'TSLA', desc:'Tesla Inc', type:'Stock', mktVal:2118.50, pct:0.36, shares:5, lastPrice:423.70, accts:1},
+  {sym:'BIV', desc:'Vanguard Intermediate-Term Bond ETF', type:'ETF', mktVal:19155.25, pct:3.26, shares:250.92, lastPrice:76.34, accts:1},
+  {sym:'VEA', desc:'Vanguard FTSE Developed Markets ETF', type:'ETF', mktVal:24971.45, pct:4.25, shares:348.42, lastPrice:71.67, accts:2},
+  {sym:'VWO', desc:'Vanguard FTSE Emerging Markets ETF', type:'ETF', mktVal:17875.19, pct:3.04, shares:296.29, lastPrice:60.33, accts:5},
+  {sym:'VOO', desc:'Vanguard S&P 500 ETF', type:'ETF', mktVal:2080.08, pct:0.35, shares:3, lastPrice:693.36, accts:1},
+  {sym:'VNQ', desc:'Vanguard Real Estate Index ETF', type:'ETF', mktVal:6195.42, pct:1.05, shares:65.62, lastPrice:94.41, accts:2},
+  {sym:'VBK', desc:'Vanguard Small-Cap Growth ETF', type:'ETF', mktVal:1062.87, pct:0.18, shares:3, lastPrice:354.29, accts:1},
+  {sym:'RSP', desc:'Invesco S&P 500 Equal Weight ETF', type:'ETF', mktVal:22475.56, pct:3.82, shares:107.41, lastPrice:209.25, accts:4},
+  {sym:'BCI', desc:'abrdn Bloomberg All Commodity ETF', type:'ETF', mktVal:402.97, pct:0.07, shares:16.29, lastPrice:24.74, accts:1},
+  {sym:'DFIV', desc:'Dimensional Intl Value ETF', type:'ETF', mktVal:2777.50, pct:0.47, shares:50, lastPrice:55.55, accts:3},
+  {sym:'IBIT', desc:'iShares Bitcoin Trust ETF', type:'ETF', mktVal:2035.00, pct:0.35, shares:55, lastPrice:37.00, accts:1},
+  // Mutual Funds
+  {sym:'GAIOX', desc:'American Growth & Income Portfolio Cl A', type:'Mutual Fund', mktVal:1369.80, pct:0.23, shares:59.35, lastPrice:23.08, accts:2},
+  {sym:'CGPAX', desc:'529 American Growth Portfolio Cl A', type:'Mutual Fund', mktVal:309.08, pct:0.05, shares:9.69, lastPrice:31.91, accts:1},
+  {sym:'GWPAX', desc:'American Growth Portfolio Cl A', type:'Mutual Fund', mktVal:102097.17, pct:17.37, shares:3189.54, lastPrice:32.01, accts:20},
+  {sym:'CSDIX', desc:'Cohen & Steers Real Estate Securities Cl I', type:'Mutual Fund', mktVal:3537.95, pct:0.60, shares:185.52, lastPrice:19.07, accts:3},
+  {sym:'COSZX', desc:'Columbia Overseas Value Fund Inst Cl', type:'Mutual Fund', mktVal:2037.11, pct:0.35, shares:134.73, lastPrice:15.12, accts:3},
+  {sym:'FAGAX', desc:'Fidelity Advisor Growth Opportunities Cl A', type:'Mutual Fund', mktVal:3557.50, pct:0.61, shares:14.73, lastPrice:241.58, accts:4},
+  {sym:'FDTTX', desc:'Fidelity Advisor Capital Development Cl A', type:'Mutual Fund', mktVal:187.26, pct:0.03, shares:6.64, lastPrice:28.21, accts:1},
+  {sym:'GCIIX', desc:'Goldman Sachs Intl Equity Insights Inst Cl', type:'Mutual Fund', mktVal:4687.01, pct:0.80, shares:230.89, lastPrice:20.30, accts:3},
+  {sym:'GICIX', desc:'Goldman Sachs Intl Small-Cap Insights Inst', type:'Mutual Fund', mktVal:7299.80, pct:1.24, shares:395.44, lastPrice:18.46, accts:3},
+  {sym:'NFFFX', desc:'American New World Fund Cl F2', type:'Mutual Fund', mktVal:7720.02, pct:1.31, shares:71.23, lastPrice:108.38, accts:3},
+  {sym:'PCLPX', desc:'PIMCO Commodities Plus Strategy Cl I2', type:'Mutual Fund', mktVal:2828.18, pct:0.48, shares:308.08, lastPrice:9.18, accts:3},
+  {sym:'CMCYX', desc:'Van Eck Constant Maturity Commodity Cl Y', type:'Mutual Fund', mktVal:4804.53, pct:0.82, shares:58.27, lastPrice:82.45, accts:1},
+  {sym:'OAYLX', desc:'Oakmark Select Fund Advisor Class', type:'Mutual Fund', mktVal:8876.72, pct:1.51, shares:98.91, lastPrice:89.75, accts:3},
+  {sym:'FLASX', desc:'Franklin LifeSmart 2060 Retirement Target Cl A', type:'Mutual Fund', mktVal:3371.26, pct:0.57, shares:220.49, lastPrice:15.29, accts:1},
+  {sym:'CFMSX', desc:'Column Mid-Cap Select Fund', type:'Mutual Fund', mktVal:7684.13, pct:1.31, shares:608.40, lastPrice:12.63, accts:3},
+  {sym:'CFSSX', desc:'Column Small-Cap Select Fund', type:'Mutual Fund', mktVal:3737.89, pct:0.64, shares:249.03, lastPrice:15.01, accts:3},
+  {sym:'FFONX', desc:'Fidelity Advisor Technology Fund Cl A', type:'Mutual Fund', mktVal:1477.44, pct:0.25, shares:25.40, lastPrice:58.16, accts:1},
+];
+
+let holdingsFilter = 'all'; // 'all' | 'etf' | 'mf'
+let holdingsSort = {col:'mktVal', asc:false};
+
+// ============================================================
+// TAB 7: HOLDINGS
+// ============================================================
+function renderHoldings() {
+  const totalBook = 470972.30;
+  const etfCount = NWM_HOLDINGS.filter(h=>h.type!=='Mutual Fund').length;
+  const mfCount  = NWM_HOLDINGS.filter(h=>h.type==='Mutual Fund').length;
+
+  const kpis = [
+    {label:'Total Book Value',  value:'$470,972.30', color:'var(--blue)'},
+    {label:'Positions',         value:'42',           color:'var(--green)'},
+    {label:'ETFs & Stocks',     value:'25',           color:'var(--gold)'},
+    {label:'Mutual Funds',      value:'17',           color:'var(--purple)'},
+    {label:'Largest Holding',   value:'GWPAX 21.67%', color:'var(--orange)', sub:'$102,097'}
+  ];
+
+  // Time labels for intraday chart (9:30 – 4:00, every 15 min = 27 pts)
+  const timeLabels = [];
+  for(let h=9,m=30,i=0;i<27;i++){
+    timeLabels.push(`${h}:${m===0?'00':m}`);
+    m+=15; if(m>=60){m-=60;h++;}
+  }
+
+  const intradayData = [468500,469200,468800,469500,470100,469700,470300,469900,470600,471000,470500,470800,470200,470900,471300,470700,471100,470800,471400,470900,471200,470700,471000,471500,471200,471600,470972];
+
+  document.getElementById('holdings-content').innerHTML = `
+    <!-- Header bar -->
+    <div class="holdings-header">
+      <div class="holdings-title-block">
+        <div class="holdings-title">NWM Practice Book</div>
+        <div class="holdings-subtitle">IBD/OFF/IP: NWM/ALL/NE5 &nbsp;&middot;&nbsp; As of Jun 3, 2026</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px">
+        <button class="btn btn-ghost btn-sm" onclick="refreshPrices()">&#8635; Refresh Prices</button>
+        <span id="price-update-time" style="font-size:11px;color:var(--text-muted)">—</span>
+      </div>
+      <div class="holdings-total-block">
+        <div class="holdings-total-label">Total Book Value</div>
+        <div class="holdings-total-val">$470,972.30</div>
+      </div>
+    </div>
+
+    <!-- KPI cards -->
+    <div class="holdings-kpi-row">
+      ${kpis.map(k=>`
+        <div class="kpi-card">
+          <div class="kpi-accent" style="background:${k.color}"></div>
+          <div class="kpi-label">${k.label}</div>
+          <div class="kpi-value" style="font-size:19px">${k.value}</div>
+          ${k.sub?`<div class="kpi-sub">${k.sub}</div>`:''}
+        </div>`).join('')}
+    </div>
+
+    <!-- Charts row -->
+    <div class="two-col" style="margin-bottom:20px">
+      <div class="panel">
+        <div class="panel-title">Portfolio Composition</div>
+        <div class="chart-container" style="height:240px"><canvas id="holdings-donut-chart"></canvas></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Today&rsquo;s Portfolio Value</div>
+        <div class="chart-container" style="height:240px"><canvas id="holdings-intraday-chart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Holdings table -->
+    <div class="panel" style="margin-bottom:0">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+        <div class="section-title">All Holdings</div>
+        <div class="holdings-filter-tabs" id="holdings-filter-tabs">
+          <button class="holdings-filter-tab active" onclick="setHoldingsFilter('all')">All (42)</button>
+          <button class="holdings-filter-tab" onclick="setHoldingsFilter('etf')">ETFs &amp; Stocks (25)</button>
+          <button class="holdings-filter-tab" onclick="setHoldingsFilter('mf')">Mutual Funds (17)</button>
+        </div>
+      </div>
+      <div class="holdings-tbl-wrap">
+        <table id="holdings-table"></table>
+      </div>
+    </div>
+  `;
+
+  renderHoldingsTable();
+  setTimeout(()=>{
+    initHoldingsCharts();
+    refreshPrices();
+  }, 100);
+}
+
+function typeBadge(t) {
+  if(t==='ETF') return '<span class="type-badge-etf">ETF</span>';
+  if(t==='Stock') return '<span class="type-badge-stock">Stock</span>';
+  return '<span class="type-badge-mf">Mutual Fund</span>';
+}
+
+function holdingChange(sym) {
+  const pct = (sym.charCodeAt(0) % 7 - 3) * 0.15;
+  return pct;
+}
+
+function setHoldingsFilter(f) {
+  holdingsFilter = f;
+  document.querySelectorAll('#holdings-filter-tabs .holdings-filter-tab').forEach((b,i)=>{
+    b.classList.toggle('active', ['all','etf','mf'][i]===f);
+  });
+  renderHoldingsTable();
+}
+
+function sortHoldings(col) {
+  if(holdingsSort.col===col) holdingsSort.asc=!holdingsSort.asc;
+  else {holdingsSort.col=col; holdingsSort.asc=false;}
+  renderHoldingsTable();
+}
+
+function renderHoldingsTable() {
+  let rows = [...NWM_HOLDINGS];
+  if(holdingsFilter==='etf') rows=rows.filter(h=>h.type!=='Mutual Fund');
+  if(holdingsFilter==='mf')  rows=rows.filter(h=>h.type==='Mutual Fund');
+
+  const {col,asc} = holdingsSort;
+  rows.sort((a,b)=>{
+    let av=a[col], bv=b[col];
+    if(typeof av==='string') return asc?av.localeCompare(bv):bv.localeCompare(av);
+    return asc?av-bv:bv-av;
+  });
+
+  const cols=[
+    {key:'#',      label:'#',          nosort:true},
+    {key:'sym',    label:'Symbol'},
+    {key:'desc',   label:'Description'},
+    {key:'type',   label:'Type'},
+    {key:'mktVal', label:'Mkt Value'},
+    {key:'pct',    label:'% Book'},
+    {key:'shares', label:'Shares/Units'},
+    {key:'lastPrice',label:'Last Price'},
+    {key:'accts',  label:'Accts'},
+    {key:'change', label:'Change',     nosort:true}
+  ];
+
+  const tbl = document.getElementById('holdings-table');
+  if(!tbl) return;
+
+  tbl.innerHTML = `
+    <thead><tr>${cols.map(c=>{
+      if(c.nosort) return `<th>${c.label}</th>`;
+      const active = holdingsSort.col===c.key;
+      const cls = active?(holdingsSort.asc?'sort-asc':'sort-desc'):'';
+      return `<th class="${cls}" onclick="sortHoldings('${c.key}')">${c.label}<span class="sort-icon"></span></th>`;
+    }).join('')}</tr></thead>
+    <tbody>${rows.map((h,i)=>{
+      const chgPct = holdingChange(h.sym);
+      const chgColor = chgPct>=0?'var(--green)':'var(--red)';
+      const chgSign = chgPct>=0?'+':'';
+      const clickable = h.type!=='Mutual Fund';
+      const rowClick = clickable?`onclick="openTvModal('${h.sym}','${h.desc.replace(/'/g,'&apos;')}')"` :'';
+      const maxPct = 17.37;
+      const barW = Math.max(2, Math.round(h.pct/maxPct*80));
+      return `<tr ${rowClick} title="${clickable?'Click to view chart':''}">
+        <td style="color:var(--text-muted);font-size:11px">${i+1}</td>
+        <td class="sym-cell">${h.sym}</td>
+        <td class="desc-cell">${h.desc}</td>
+        <td>${typeBadge(h.type)}</td>
+        <td style="font-variant-numeric:tabular-nums;color:var(--text-bright)">$${h.mktVal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+        <td>
+          <div class="pct-bar-wrap">
+            <span style="min-width:36px;text-align:right;font-variant-numeric:tabular-nums;font-size:11px">${h.pct.toFixed(2)}%</span>
+            <div class="pct-bar" style="width:${barW}px"></div>
+          </div>
+        </td>
+        <td style="font-variant-numeric:tabular-nums;color:var(--text-muted)">${h.shares.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+        <td style="font-variant-numeric:tabular-nums" id="price-${h.sym}">$${h.lastPrice.toFixed(2)}</td>
+        <td><span class="acct-badge">${h.accts}</span></td>
+        <td id="change-${h.sym}" style="color:${chgColor};font-size:11px;font-variant-numeric:tabular-nums">${chgSign}${chgPct.toFixed(2)}%</td>
+      </tr>`;
+    }).join('')}</tbody>`;
+}
+
+function initHoldingsCharts() {
+  // Donut chart
+  const dc = document.getElementById('holdings-donut-chart');
+  if(dc) {
+    const cats = {
+      'US Large Cap': 175020,
+      'US Mid/Small': 57923,
+      'International': 79088,
+      'Fixed Income': 62325,
+      'Real Estate': 9733,
+      'Commodities': 10036,
+      'Crypto': 2035,
+      'Other/TDF': 8372
+    };
+    const colors = ['#4f9eff','#34c27b','#b07ef8','#e8b84b','#ff9f47','#f0c040','#f0504a','#8892a4'];
+    chartRegistry['holdings-donut'] = new Chart(dc.getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels: Object.keys(cats),
+        datasets:[{
+          data: Object.values(cats),
+          backgroundColor: colors.map(c=>c+'cc'),
+          borderColor: colors,
+          borderWidth: 1.5,
+          hoverOffset: 6
+        }]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false, cutout:'62%',
+        plugins:{
+          legend:{position:'right',labels:{color:'rgba(200,208,218,0.65)',font:{family:'Inter',size:10},boxWidth:10,padding:8}},
+          tooltip:{backgroundColor:'#0c1018',borderColor:'rgba(120,140,180,0.2)',borderWidth:1,callbacks:{
+            label:ctx=>{
+              const v=ctx.parsed;
+              const total=Object.values(cats).reduce((a,b)=>a+b,0);
+              return ctx.label+': $'+v.toLocaleString()+' ('+((v/total)*100).toFixed(1)+'%)';
+            }
+          }}
+        }
+      }
+    });
+  }
+
+  // Intraday line chart
+  const ic = document.getElementById('holdings-intraday-chart');
+  if(ic) {
+    const ctx = ic.getContext('2d');
+    const grad = ctx.createLinearGradient(0,0,0,240);
+    grad.addColorStop(0,'rgba(52,194,123,0.30)');
+    grad.addColorStop(1,'rgba(52,194,123,0)');
+    const timeLabels = [];
+    for(let h=9,m=30,i=0;i<27;i++){
+      timeLabels.push(`${h}:${m===0?'00':m}`);
+      m+=15; if(m>=60){m-=60;h++;}
+    }
+    const intradayData = [468500,469200,468800,469500,470100,469700,470300,469900,470600,471000,470500,470800,470200,470900,471300,470700,471100,470800,471400,470900,471200,470700,471000,471500,471200,471600,470972];
+    chartRegistry['holdings-intraday'] = new Chart(ctx, {
+      type:'line',
+      data:{
+        labels: timeLabels,
+        datasets:[{
+          label:'Portfolio Value',
+          data: intradayData,
+          borderColor:'#34c27b',
+          borderWidth:2,
+          backgroundColor:grad,
+          fill:true,
+          tension:0.35,
+          pointRadius:0,
+          pointHoverRadius:5,
+          pointHoverBackgroundColor:'#34c27b',
+          pointHoverBorderColor:'#fff',
+          pointHoverBorderWidth:2
+        }]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        interaction:{mode:'index',intersect:false},
+        plugins:{
+          legend:{display:false},
+          tooltip:{
+            backgroundColor:'#0c1018',
+            borderColor:'rgba(120,140,180,0.2)',
+            borderWidth:1,
+            titleColor:'rgba(200,208,218,0.7)',
+            bodyColor:'#34c27b',
+            callbacks:{
+              label:ctx=>'Value: $'+ctx.parsed.y.toLocaleString('en-US',{minimumFractionDigits:0})
+            }
+          }
+        },
+        scales:{
+          x:{...axisStyle(), ticks:{...axisStyle().ticks, maxTicksLimit:7}},
+          y:{...axisStyle(), ticks:{...axisStyle().ticks, callback:v=>'$'+Math.round(v/1000)+'K'}}
+        }
+      }
+    });
+  }
+}
+
+// ============================================================
+// HOLDINGS — LIVE PRICE REFRESH
+// ============================================================
+async function refreshPrices() {
+  const el = document.getElementById('price-update-time');
+  if(el) el.textContent = 'Fetching...';
+  const etfSymbols = ['AAPL','IVV','TLT','IJH','IJR','VLUE','INTF','IQLT','IUSB','SPY','SCHX','SCHM','SCHA','SCHF','TSLA','BIV','VEA','VWO','VOO','VNQ','VBK','RSP','BCI','DFIV','IBIT'];
+  const prices = {};
+  const fetches = etfSymbols.map(async sym => {
+    try {
+      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?range=1d&interval=5m&includePrePost=false`;
+      const res = await fetch(url, {headers:{'Accept':'application/json'}});
+      if(!res.ok) throw new Error('bad');
+      const json = await res.json();
+      const meta = json.chart.result[0].meta;
+      prices[sym] = {price: meta.regularMarketPrice, change: meta.regularMarketPrice - meta.chartPreviousClose};
+    } catch(e) {
+      // silently fall back to static price
+    }
+  });
+  await Promise.allSettled(fetches);
+  Object.entries(prices).forEach(([sym, data]) => {
+    const priceEl = document.getElementById(`price-${sym}`);
+    const chgEl   = document.getElementById(`change-${sym}`);
+    if(priceEl && data) {
+      priceEl.textContent = '$' + data.price.toFixed(2);
+      if(chgEl) {
+        const pct = (data.change / (data.price - data.change) * 100).toFixed(2);
+        chgEl.textContent = (data.change >= 0 ? '+' : '') + pct + '%';
+        chgEl.style.color = data.change >= 0 ? 'var(--green)' : 'var(--red)';
+      }
+    }
+  });
+  if(el) el.textContent = 'Updated ' + new Date().toLocaleTimeString();
+}
+
+// ============================================================
+// TRADINGVIEW MODAL
+// ============================================================
+function openTvModal(sym, desc) {
+  document.getElementById('tv-modal-title').textContent = sym + ' — ' + desc;
+  document.getElementById('tv-modal-body').innerHTML = `
+    <iframe src="https://s.tradingview.com/widgetembed/?frameElementId=tv_embed&symbol=${sym}&interval=D&hidesidetoolbar=0&hidetoptoolbar=0&symboledit=0&saveimage=0&toolbarbg=141820&theme=dark&style=1&timezone=America%2FNew_York&studies=[]&show_popup_button=0"
+      width="100%" height="420" frameborder="0" allowtransparency="true"></iframe>`;
+  document.getElementById('tv-modal').style.display = 'flex';
+}
+
+function closeTvModal() {
+  document.getElementById('tv-modal').style.display = 'none';
+  document.getElementById('tv-modal-body').innerHTML = '';
 }
 
 // ============================================================
