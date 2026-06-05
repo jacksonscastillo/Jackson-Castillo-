@@ -323,6 +323,7 @@ textarea.form-control{resize:vertical;min-height:70px;font-family:var(--sans)}
   <div class="nav-row">
     <div class="nav-tabs">
       <button class="nav-tab active" data-tab="overview">Overview</button>
+      <button class="nav-tab" data-tab="holdings">Book Holdings</button>
       <button class="nav-tab" data-tab="aum">Assets Under Management</button>
       <button class="nav-tab" data-tab="insurance">Risk &amp; Insurance</button>
       <button class="nav-tab" data-tab="clients">Client Roster</button>
@@ -409,6 +410,42 @@ textarea.form-control{resize:vertical;min-height:70px;font-family:var(--sans)}
     <div class="footnote">
       <span>Prepared by J Capital · Confidential — Internal Use Only</span>
       <span>Figures as of <span id="footnote-date">—</span></span>
+    </div>
+  </div>
+
+  <!-- TAB: BOOK HOLDINGS -->
+  <div id="tab-holdings" class="tab-pane">
+    <div class="section-mast">
+      <div>
+        <div class="eyebrow">Investment Operations</div>
+        <h1>Book Holdings</h1>
+        <div class="sub">Aggregate positions across the practice book, by security.</div>
+      </div>
+      <div class="filter-bar">
+        <span class="nav-ref" id="hold-asof">—</span>
+      </div>
+    </div>
+    <div class="kpi-row cols-4" id="hold-kpis"></div>
+    <div class="util-bar">
+      <div class="filter-bar">
+        <input class="filter-input" id="hold-search" placeholder="Search symbol or description…" oninput="renderHoldingsTable()">
+        <select class="filter-select" id="hold-class-filter" onchange="renderHoldingsTable()">
+          <option value="">All Asset Classes</option>
+          <option>Equity</option>
+          <option>Mutual Fund</option>
+          <option>Cash</option>
+        </select>
+      </div>
+    </div>
+    <div class="two-col" style="grid-template-columns:1.65fr 1fr;align-items:start">
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">Positions Register</div><div class="panel-meta" id="hold-count">—</div></div>
+        <div class="panel-body flush"><div class="tbl-wrap"><table id="hold-table"></table></div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">Allocation by Asset Class</div><div class="panel-meta">% OF BOOK</div></div>
+        <div class="panel-body chart"><div class="chart-container" style="height:300px"><canvas id="chart-hold-class"></canvas></div></div>
+      </div>
     </div>
   </div>
 
@@ -613,13 +650,14 @@ const SEED_PROSPECTS = [
 // ============================================================
 // STATE
 // ============================================================
-let db = {clients:[], accounts:[], policies:[], prospects:[]};
+let db = {clients:[], accounts:[], policies:[], prospects:[], holdings:[]};
 let state = {
   tab:'overview',
   prospectView:'kanban',
   aumSort:{col:'value',asc:false},
   insSort:{col:'annualPremium',asc:false},
-  prospectSort:{col:'expectedAUM',asc:false}
+  prospectSort:{col:'expectedAUM',asc:false},
+  holdSort:{col:'market_value',asc:false}
 };
 let chartRegistry = {};
 
@@ -710,11 +748,12 @@ async function checkAuth(){
 // DATA LAYER — Supabase
 // ============================================================
 async function loadDB(){
-  const [c,a,p,pr]=await Promise.all([
+  const [c,a,p,pr,h]=await Promise.all([
     sb.from('clients').select('*').order('created_at'),
     sb.from('accounts').select('*').order('created_at'),
     sb.from('policies').select('*').order('created_at'),
-    sb.from('prospects').select('*').order('created_at')
+    sb.from('prospects').select('*').order('created_at'),
+    sb.from('holdings').select('*')
   ]);
   const err=c.error||a.error||p.error||pr.error;
   if(err){
@@ -726,7 +765,8 @@ async function loadDB(){
     clients:c.data||[],
     accounts:a.data||[],
     policies:p.data||[],
-    prospects:pr.data||[]
+    prospects:pr.data||[],
+    holdings:(h&&h.data)||[]
   };
   if(!db.clients.length && !db.accounts.length && !db.policies.length && !db.prospects.length){
     await seedFirstLogin();
@@ -870,6 +910,7 @@ function render(){
   updateDate();
   switch(state.tab){
     case 'overview': renderOverview(); break;
+    case 'holdings': renderHoldings(); break;
     case 'aum': renderAUM(); break;
     case 'insurance': renderInsurance(); break;
     case 'clients': renderClients(); break;
@@ -926,6 +967,81 @@ function renderOverview(){
       </div>
       <div class="review-tag">${u.tag}</div>
     </div>`).join(''):'<div class="empty">No scheduled items.</div>';
+}
+
+// ============================================================
+// BOOK HOLDINGS
+// ============================================================
+function totalBookValue(){ return db.holdings.reduce((s,h)=>s+(parseFloat(h.market_value)||0),0) }
+
+function renderHoldings(){
+  const total=totalBookValue();
+  const numSec=db.holdings.length;
+  const accts=db.holdings.reduce((m,h)=>Math.max(m,parseInt(h.num_accounts)||0),0);
+  const top=[...db.holdings].sort((a,b)=>(parseFloat(b.market_value)||0)-(parseFloat(a.market_value)||0))[0];
+  const classes=[...new Set(db.holdings.map(h=>h.asset_class).filter(Boolean))];
+  document.getElementById('hold-kpis').innerHTML=[
+    {label:'Total Book Value',value:fmt$(total),sub:numSec+' positions held',featured:true},
+    {label:'Asset Classes',value:classes.length||'—',sub:classes.join(' · ')||'No data loaded'},
+    {label:'Accounts (max held)',value:accts||'—',sub:'Broadest single-security reach'},
+    {label:'Largest Position',value:top?top.symbol||'—':'—',sub:top?fmt$(parseFloat(top.market_value)||0)+' · '+(parseFloat(top.pct_portfolio)||0).toFixed(2)+'%':''}
+  ].map(k=>`<div class="kpi-cell${k.featured?' featured':''}"><div class="kpi-label">${k.label}</div><div class="kpi-value">${k.value}</div><div class="kpi-sub">${k.sub}</div></div>`).join('');
+  const asof=db.holdings[0]&&db.holdings[0].as_of_date;
+  document.getElementById('hold-asof').textContent=asof?('AS OF '+fmtDate(asof).toUpperCase()):'NO DATA LOADED';
+  renderHoldingsTable();
+}
+
+function renderHoldingsTable(){
+  const search=(document.getElementById('hold-search')||{}).value||'';
+  const cls=(document.getElementById('hold-class-filter')||{}).value||'';
+  let rows=db.holdings.filter(h=>{
+    if(cls && h.asset_class!==cls) return false;
+    if(search){
+      const s=search.toLowerCase();
+      if(!(h.symbol||'').toLowerCase().includes(s) && !(h.description||'').toLowerCase().includes(s)) return false;
+    }
+    return true;
+  });
+  const {col,asc}=state.holdSort;
+  rows.sort((a,b)=>{
+    const av=a[col], bv=b[col];
+    if(typeof av==='string'||typeof bv==='string') return asc?(av||'').localeCompare(bv||''):(bv||'').localeCompare(av||'');
+    return asc?(parseFloat(av)||0)-(parseFloat(bv)||0):(parseFloat(bv)||0)-(parseFloat(av)||0);
+  });
+  document.getElementById('hold-count').textContent=rows.length+' POSITIONS';
+  const cols=[
+    {key:'symbol',label:'Symbol'},
+    {key:'description',label:'Security'},
+    {key:'asset_class',label:'Class'},
+    {key:'market_value',label:'Market Value',cls:'num'},
+    {key:'pct_portfolio',label:'% Port.',cls:'num'},
+    {key:'num_accounts',label:'Accts',cls:'num'},
+    {key:'quantity',label:'Quantity',cls:'num'},
+    {key:'last_price',label:'Last $',cls:'num'},
+    {key:'ratings',label:'Rating'},
+    {key:'price_date',label:'Priced'}
+  ];
+  document.getElementById('hold-table').innerHTML=`<thead><tr>${cols.map(c=>{
+    const clsAttr=c.cls?(' class="'+c.cls+(state.holdSort.col===c.key?(' '+(state.holdSort.asc?'sort-asc':'sort-desc')):'')+'"'):(state.holdSort.col===c.key?` class="${state.holdSort.asc?'sort-asc':'sort-desc'}"`:'');
+    return `<th${clsAttr} onclick="sortHold('${c.key}')">${c.label}<span class="sort-icon"></span></th>`;
+  }).join('')}</tr></thead><tbody>${rows.length?rows.map(h=>`<tr>
+    <td class="client-name" style="font-family:var(--mono);font-size:12px">${h.symbol||'—'}</td>
+    <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(h.description||'').replace(/"/g,'&quot;')}">${h.description||'—'}</td>
+    <td><span class="chip ${h.asset_class==='Equity'?'chip-gold':h.asset_class==='Mutual Fund'?'chip-steel':'chip-muted'}">${h.asset_class||'—'}</span></td>
+    <td class="num">${fmtFull$(parseFloat(h.market_value)||0)}</td>
+    <td class="num">${(parseFloat(h.pct_portfolio)||0).toFixed(2)}%</td>
+    <td class="num">${parseInt(h.num_accounts)||0}</td>
+    <td class="num">${(parseFloat(h.quantity)||0).toLocaleString(undefined,{maximumFractionDigits:4})}</td>
+    <td class="num">$${(parseFloat(h.last_price)||0).toFixed(2)}</td>
+    <td>${h.ratings||'—'}</td>
+    <td>${fmtDateShort(h.price_date)}</td>
+  </tr>`).join(''):'<tr><td colspan="10"><div class="empty">No holdings loaded. Run the holdings import SQL in your Supabase SQL Editor.</div></td></tr>'}</tbody>`;
+}
+
+function sortHold(col){
+  if(state.holdSort.col===col) state.holdSort.asc=!state.holdSort.asc;
+  else { state.holdSort.col=col; state.holdSort.asc=false; }
+  renderHoldingsTable();
 }
 
 // ============================================================
@@ -1293,9 +1409,24 @@ function renderReports(){
 function initCharts(){
   switch(state.tab){
     case 'overview': initOverviewCharts(); break;
+    case 'holdings': initHoldingsCharts(); break;
     case 'aum': initAumCharts(); break;
     case 'insurance': initInsCharts(); break;
     case 'reports': initReportCharts(); break;
+  }
+}
+
+function initHoldingsCharts(){
+  const classes=[...new Set(db.holdings.map(h=>h.asset_class).filter(Boolean))];
+  const totals=classes.map(c=>db.holdings.filter(h=>h.asset_class===c).reduce((s,h)=>s+(parseFloat(h.market_value)||0),0));
+  const palette=['#1a3a6e','#7a9ec8','#5fa37a','#b88a3a','#a82b1c'];
+  const c=document.getElementById('chart-hold-class');
+  if(c && classes.length){
+    chartRegistry['hold-class']=new Chart(c.getContext('2d'),{
+      type:'doughnut',
+      data:{labels:classes,datasets:[{data:totals,backgroundColor:palette.slice(0,classes.length),borderColor:'#ffffff',borderWidth:2,hoverOffset:6}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{position:'bottom',labels:{color:'#2a3753',font:{family:'Inter',size:11,weight:'600'},boxWidth:8,boxHeight:8,padding:12,usePointStyle:true,pointStyle:'rect'}},tooltip:{...TOOLTIP_STYLE,callbacks:{label:ctx=>ctx.label+'  '+fmt$(ctx.parsed)}}}}
+    });
   }
 }
 function axisStyle(){
