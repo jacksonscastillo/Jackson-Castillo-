@@ -2,6 +2,34 @@
 
 A sophisticated fund analysis tool that evaluates and recommends mutual funds based on risk-adjusted metrics, expense ratios, and consistent performance.
 
+---
+
+## DeMark Sequential — Robinhood Agentic Desk (`demark-trading.html`)
+
+A zero-build, single-file tool that runs the **TD (DeMark) Sequential** indicator on
+daily OHLC bars and proposes orders for **Robinhood Agentic Trading** (the MCP-based
+feature that lets an AI agent trade a pre-funded agent wallet). Open the file directly
+in a browser — no server or build step.
+
+**Workflow (human-in-the-loop):**
+
+1. **Fetch** — Your agent (Claude + Robinhood MCP) pulls ~120 daily OHLC bars for a
+   symbol and pastes the JSON into the tool. Use the *Copy agent prompt* button to get
+   a ready-made instruction. Accepts `{t,o,h,l,c,v}` or `{date,open,high,low,close}` keys.
+2. **Compute** — The browser runs TD Sequential locally: buy/sell **Setups** (9) with
+   perfection, **Countdowns** (13) with the countdown-bar-8 close qualifier, **TDST**
+   support/resistance, and TD **risk stops**. Nothing leaves the page.
+3. **Propose** — Each actionable signal becomes a `demark.order_intent.v1` object
+   (side, limit price, risk-sized quantity, stop, 2R target, rationale,
+   `requiresHumanApproval:true`).
+4. **Approve & execute** — You review the intents; the agent submits the approved ones
+   via Robinhood's MCP order tools. Stocks only in beta.
+
+Click **Load demo data** to see all four signal types render on a synthetic series.
+
+> Educational tool, not financial advice. Backtest before risking capital, and fund the
+> agent wallet only with money you can afford to trade.
+
 ## Features
 
 - **Account Type Selection**: Toggle between Taxable Brokerage and Roth IRA accounts
