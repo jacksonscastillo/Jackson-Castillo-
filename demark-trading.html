@@ -362,23 +362,30 @@ function computeDeMark(bars){
   return {ann, signals, liveBuyCD, liveSellCD};
 }
 
-// TD risk stop: extreme of the window ± the true range of the extreme bar
+// TD risk stop: extreme of the window ± the true range of the extreme bar.
+// riskPerShare is the sentinel `null` when no valid same-side stop exists
+// (degenerate range, or a stop that landed on the wrong side of entry). (P0-4)
 function riskLevels(dir, bars, a, b){
   const seg = bars.slice(a,b+1);
+  const entry = bars[b].c;
   if(dir==='buy'){
     let k=0; for(let j=1;j<seg.length;j++) if(seg[j].l<seg[k].l) k=j;
-    const tr = seg[k].h - seg[k].l;
+    const tr = Math.max(0, seg[k].h - seg[k].l);          // clamp: never negative
     const stop = +(seg[k].l - tr).toFixed(2);
-    const entry = bars[b].c;
-    const target = +(entry + (entry-stop)*2).toFixed(2); // 2R
-    return {stop, target, riskPerShare:+(entry-stop).toFixed(2)};
+    const target = +(entry + (entry-stop)*2).toFixed(2);  // 2R
+    const rps = +(entry-stop).toFixed(2);
+    // buy stop must sit below entry with positive risk, else no valid stop.
+    if(!(stop < entry) || !(rps > 0)) return {stop, target, riskPerShare:null};
+    return {stop, target, riskPerShare:rps};
   } else {
     let k=0; for(let j=1;j<seg.length;j++) if(seg[j].h>seg[k].h) k=j;
-    const tr = seg[k].h - seg[k].l;
+    const tr = Math.max(0, seg[k].h - seg[k].l);          // clamp: never negative
     const stop = +(seg[k].h + tr).toFixed(2);
-    const entry = bars[b].c;
     const target = +(entry - (stop-entry)*2).toFixed(2);
-    return {stop, target, riskPerShare:+(stop-entry).toFixed(2)};
+    const rps = +(stop-entry).toFixed(2);
+    // sell stop must sit above entry with positive risk, else no valid stop.
+    if(!(stop > entry) || !(rps > 0)) return {stop, target, riskPerShare:null};
+    return {stop, target, riskPerShare:rps};
   }
 }
 
@@ -393,6 +400,28 @@ function mkSignal(type, idx, bar, perfected, risk){
 const state = { bars:[], result:null, intents:[] };
 
 function num(id){ return parseFloat(document.getElementById(id).value)||0; }
+
+// Parse a bar date string to an epoch ms, accepting ISO (YYYY-MM-DD) AND
+// US MM/DD/YYYY (e.g. Nasdaq exports). Returns NaN when unparseable so callers
+// can fall back to leaving order alone. Used by both the JSON and CSV paths so
+// newest-first auto-reverse works regardless of date format. (P0-5)
+function parseBarDate(s){
+  s = String(s==null?'':s).trim();
+  const us = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);   // MM/DD/YYYY
+  if(us){ return Date.UTC(+us[3], +us[1]-1, +us[2]); }
+  return Date.parse(s);
+}
+
+// Reject economically impossible OHLC. A valid bar has all prices > 0 and a
+// consistent range: high is the max, low is the min. Throws naming the 1-based
+// row so the user can find the bad data. (P0-4 / P2-4)
+function validateOHLC(o,h,l,c,label){
+  if(![o,h,l,c].every(x=>isFinite(x) && x>0))
+    throw new Error(label+': o/h/l/c must all be positive numbers.');
+  if(h<l || h<c || h<o || l>c || l>o)
+    throw new Error(label+': impossible OHLC (need high ≥ open/close ≥ low). '+
+      'Got o='+o+' h='+h+' l='+l+' c='+c+'.');
+}
 
 /* ---- Ingest / normalize bars JSON ---- */
 function parseBars(raw){
@@ -409,10 +438,18 @@ function parseBars(raw){
     const l = +(r.l ?? r.low ?? r.low_price);
     const c = +(r.c ?? r.close ?? r.close_price);
     const v = +(r.v ?? r.volume ?? 0);
-    if([o,h,l,c].some(x=>!isFinite(x))) throw new Error('Bar '+(i+1)+' missing o/h/l/c.');
+    validateOHLC(o,h,l,c,'Bar '+(i+1));                    // P0-4: reject insane OHLC
     return {t:String(t).slice(0,10), o,h,l,c,v};
   });
   if(bars.length<20) throw new Error('Need at least 20 bars (got '+bars.length+').');
+  // P0-5: bars must be chronological. Sort ascending when every date parses;
+  // otherwise fall back to the simple newest-first reverse used by parseCSV.
+  const ds = bars.map(b=>parseBarDate(b.t));
+  if(ds.every(isFinite)){
+    bars.sort((a,b)=>parseBarDate(a.t)-parseBarDate(b.t));
+  } else if(isFinite(ds[0]) && isFinite(ds[ds.length-1]) && ds[0]>ds[ds.length-1]){
+    bars.reverse();
+  }
   return {symbol: obj.symbol || document.getElementById('symbol').value, bars};
 }
 
@@ -431,15 +468,20 @@ function parseCSV(raw){
   const bars = lines.slice(1).map((ln,i)=>{
     const f = ln.split(delim);
     const o=cl(f[ci.o]), h=cl(f[ci.h]), l=cl(f[ci.l]), c=cl(f[ci.c]);
-    if([o,h,l,c].some(x=>!isFinite(x))) throw new Error('CSV row '+(i+1)+' has non-numeric o/h/l/c.');
+    validateOHLC(o,h,l,c,'CSV row '+(i+1));                // P0-4/P2-4: reject insane OHLC
     return { t: ci.t>=0 ? String(f[ci.t]).trim().replace(/^["']|["']$/g,'').slice(0,10) : ('#'+(i+1)),
              o,h,l,c, v: ci.v>=0 ? (cl(f[ci.v])||0) : 0 };
   });
   if(bars.length<20) throw new Error('Need at least 20 bars (got '+bars.length+').');
-  // many exports are newest-first — sort ascending if dates are parseable
+  // many exports are newest-first — sort ascending if dates are parseable.
+  // Use parseBarDate so MM/DD/YYYY (Nasdaq) reverses too, not just ISO. (P0-5)
   if(ci.t>=0){
-    const d0=Date.parse(bars[0].t), dN=Date.parse(bars[bars.length-1].t);
-    if(isFinite(d0)&&isFinite(dN)&&d0>dN) bars.reverse();
+    const ds = bars.map(b=>parseBarDate(b.t));
+    if(ds.every(isFinite)){
+      bars.sort((a,b)=>parseBarDate(a.t)-parseBarDate(b.t));
+    } else if(isFinite(ds[0]) && isFinite(ds[ds.length-1]) && ds[0]>ds[ds.length-1]){
+      bars.reverse();
+    }
   }
   return { symbol: document.getElementById('symbol').value, bars };
 }
@@ -525,19 +567,32 @@ function renderSignals(signals){
 }
 
 /* ============================================================ Order intents ============================================================ */
-function buildIntents(symbol, signals){
+// Build order intents from signals. The desk is LONG/FLAT only:
+//   • buys  → normal long entries, risk-sized.
+//   • sells → position-aware EXITS (close the existing long); never short. (P0-1)
+// bars is needed to (a) place limits at the LATEST close and (b) age-gate stale
+// signals. It is optional so legacy callers / tests can omit it.
+function buildIntents(symbol, signals, bars){
   const wallet = num('wallet'), riskPct = num('risk')/100;
+  // P0-2: degenerate inputs produce no intents (caller shows a graceful note).
+  if(!(wallet>0) || !(riskPct>0)) return [];
   const riskDollars = wallet*riskPct;
+
+  const lastIdx = (bars && bars.length) ? bars.length-1 : null;
+  const latestClose = lastIdx!=null ? bars[lastIdx].c : null;
+
   // most recent actionable signal per side, only setups-that-are-perfected or countdowns
-  const actionable = signals.filter(s=> s.type.includes('COUNTDOWN') || s.perfected);
+  let actionable = signals.filter(s=> s.type.includes('COUNTDOWN') || s.perfected);
+  // P1-5: staleness guard — only emit signals within the last 5 bars.
+  if(lastIdx!=null) actionable = actionable.filter(s=> s.idx >= lastIdx-4);
   const recent = actionable.slice(-4);
-  return recent.map(sg=>{
-    const rps = Math.max(0.01, sg.risk.riskPerShare);
-    let qty = Math.floor(riskDollars / rps);
-    const maxAfford = Math.floor(wallet / sg.price);
-    if(qty>maxAfford) qty = maxAfford;
-    if(qty<0) qty=0;
-    return {
+
+  const intents = recent.map(sg=>{
+    const ageBars = lastIdx!=null ? (lastIdx - sg.idx) : null;
+    // Order is placed NOW, so the limit references the latest close, not the
+    // (possibly stale) signal-bar close. signalClose preserves the original. (P1-5)
+    const limitPrice = +(latestClose!=null ? latestClose : sg.price).toFixed(2);
+    const base = {
       schema:"demark.order_intent.v1",
       generatedAt:new Date().toISOString(),
       broker:"robinhood-agentic",
@@ -545,23 +600,66 @@ function buildIntents(symbol, signals){
       symbol,
       side: sg.side,
       type:"limit",
-      limitPrice: +sg.price.toFixed(2),
-      quantity: qty,
+      limitPrice,
       timeInForce:"gtc",
       signal:{ indicator:"TD Sequential", event:sg.label, date:sg.date,
                perfected: sg.type.includes('SETUP') ? sg.perfected : true },
+      signalClose:+sg.price.toFixed(2),
+      ageBars,
       risk:{ stop:sg.risk.stop, target:sg.risk.target,
-             riskPerShare:+rps.toFixed(2), riskBudget:+riskDollars.toFixed(2) },
-      rationale:`${sg.label} on ${symbol} (${sg.date}) at $${sg.price.toFixed(2)}. `+
-                `${sg.side==='buy'?'Long':'Short/exit'} sized to ${(riskPct*100).toFixed(2)}% wallet risk; `+
-                `stop $${sg.risk.stop.toFixed(2)}, 2R target $${sg.risk.target.toFixed(2)}.`,
+             riskPerShare: sg.risk.riskPerShare, riskBudget:+riskDollars.toFixed(2) },
       requiresHumanApproval:true
     };
+    if(sg.side==='sell'){
+      // P0-1: sells are EXITS, never new shorts. Don't fabricate a share count —
+      // the agent sells only currently-held shares and skips if flat.
+      return Object.assign(base, {
+        quantity: null,
+        reduceOnly: true,
+        closeLong: true,
+        action: "close_long",
+        rationale:`${sg.label} on ${symbol} (${sg.date}). EXIT signal: SELL only the `+
+                  `shares of ${symbol} you currently hold to close the long. If the `+
+                  `position is flat, SKIP this intent — never open a short. `+
+                  `Limit $${limitPrice.toFixed(2)} (latest close), ${ageBars} bar(s) old.`
+      });
+    }
+    // Buy → normal long entry, risk-sized off the latest close.
+    const rps = sg.risk.riskPerShare;
+    let qty = Math.floor(riskDollars / rps);
+    const maxAfford = Math.floor(wallet / limitPrice);
+    if(qty>maxAfford) qty = maxAfford;
+    if(qty<0) qty=0;
+    return Object.assign(base, {
+      quantity: qty,
+      rationale:`${sg.label} on ${symbol} (${sg.date}). OPEN/ADD long, sized to `+
+                `${(riskPct*100).toFixed(2)}% wallet risk; stop $${sg.risk.stop.toFixed(2)}, `+
+                `2R target $${sg.risk.target.toFixed(2)}. Limit $${limitPrice.toFixed(2)} `+
+                `(latest close), ${ageBars} bar(s) old.`
+    });
+  });
+
+  // P0-2: keep only intents that are actually executable —
+  //   • a valid same-side stop (riskPerShare finite & > 0); drop null sentinels.
+  //   • buys must have finite quantity > 0; sells (exits) carry quantity:null.
+  return intents.filter(it=>{
+    const rps = it.risk.riskPerShare;
+    if(!(isFinite(rps) && rps>0)) return false;
+    if(it.side==='buy') return isFinite(it.quantity) && it.quantity>0;
+    return true; // sell exits intentionally have quantity:null
   });
 }
 
 function renderIntents(){
-  const out = state.intents.length ? state.intents : {note:"No actionable signals — load data or wait for a setup/countdown to complete."};
+  // P0-2: no intents can mean degenerate inputs (wallet/risk ≤ 0), a stale or
+  // unperfected signal set, or no valid risk stop — show a graceful note.
+  let note;
+  if(!state.intents.length){
+    note = (num('wallet')>0 && num('risk')>0)
+      ? {note:"No actionable intents — no recent perfected setup / completed countdown with a valid risk stop in the last 5 bars."}
+      : {note:"Set a positive wallet and risk % to generate order intents."};
+  }
+  const out = state.intents.length ? state.intents : note;
   document.getElementById('intentOut').textContent = JSON.stringify(out, null, 2);
 }
 
@@ -572,8 +670,13 @@ function renderIntents(){
    ============================================================ */
 function backtest(bars, signals, opts){
   const triggers = signals.filter(s => s.type.includes('COUNTDOWN') || (opts.useSetups && s.perfected));
+  // P0-3: remove look-ahead. A setup perfected via DEFERRED perfection isn't
+  // confirmed until its perfIdx, so a backtest must enter THEN, not on the
+  // bar-9 idx (which is in the future relative to perfection knowledge).
+  // Countdowns are confirmed on their own bar, so they use s.idx unchanged.
+  const effIdx = s => (s.type.includes('SETUP') && s.perfIdx != null) ? s.perfIdx : s.idx;
   const byIdx = {};
-  triggers.forEach(s => { (byIdx[s.idx]=byIdx[s.idx]||[]).push(s); });
+  triggers.forEach(s => { const e=effIdx(s); (byIdx[e]=byIdx[e]||[]).push(s); });
 
   // Slippage in basis points: buy fills are worse (higher), sell fills worse
   // (lower). Robinhood stock commission is $0, so we only model slippage.
@@ -807,7 +910,7 @@ function run(parsed){
   state.bars = parsed.bars;
   const r = computeDeMark(parsed.bars);
   state.result = r;
-  state.intents = buildIntents(parsed.symbol, r.signals);
+  state.intents = buildIntents(parsed.symbol, r.signals, parsed.bars);
   renderStats(parsed.symbol, parsed.bars, r);
   renderChart(parsed.bars, r.ann);
   renderSignals(r.signals);
@@ -824,7 +927,7 @@ document.getElementById('loadBtn').addEventListener('click', ()=>{
 ['wallet','risk','symbol'].forEach(id=>{
   document.getElementById(id).addEventListener('change', ()=>{
     if(state.result){
-      state.intents = buildIntents(document.getElementById('symbol').value, state.result.signals);
+      state.intents = buildIntents(document.getElementById('symbol').value, state.result.signals, state.bars);
       renderIntents();
       renderBacktest(state.bars, state.result.signals);
     }
@@ -857,9 +960,12 @@ document.getElementById('promptBtn').addEventListener('click', ()=>{
 document.getElementById('execBtn').addEventListener('click', ()=>{
   if(!state.intents.length){ alert('No actionable intents yet — load data with a perfected setup or completed countdown.'); return; }
   const sym = document.getElementById('symbol').value;
-  const p = `You are connected to Robinhood Agentic Trading via MCP (${MCP_URL}), acting only on my dedicated agent wallet.\n\n`+
+  const p = `You are connected to Robinhood Agentic Trading via MCP (${MCP_URL}), acting only on my dedicated agent wallet. This desk trades STOCKS LONG/FLAT ONLY — never open or hold a short.\n\n`+
     `I have REVIEWED and APPROVED the DeMark Sequential order intents below. Place each one EXACTLY as specified with the Robinhood MCP place_order tool. Do not resize, add, reorder, or invent orders, and never exceed the wallet's buying power.\n\n`+
-    `For each intent: use symbol=${sym}, the given side, type=limit, limitPrice, quantity, and timeInForce. Where the MCP supports a protective stop, also set it to risk.stop. After each placement, report the order id and status. If an order would be rejected or exceed buying power, skip it and tell me why — do not substitute a different order.\n\n`+
+    `Interpret side strictly:\n`+
+    `• side="buy" → OPEN or ADD to a long. Use symbol=${sym}, type=limit, the given limitPrice, quantity, and timeInForce. Where the MCP supports a protective stop, also set it to risk.stop.\n`+
+    `• side="sell" (reduceOnly/closeLong, action="close_long", quantity=null) → CLOSE the EXISTING long only. Sell only the shares of ${sym} currently held (up to the held quantity). If the position is FLAT, SKIP the intent — do NOT open a short, and do NOT fabricate a quantity.\n\n`+
+    `After each placement, report the order id and status. If an order would be rejected or exceed buying power, skip it and tell me why — do not substitute a different order.\n\n`+
     `APPROVED_INTENTS =\n`+ JSON.stringify(state.intents, null, 2);
   navigator.clipboard.writeText(p).then(()=>flash('execBtn','Copied ✓','Copy execution prompt →'));
 });

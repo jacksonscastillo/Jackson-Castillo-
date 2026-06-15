@@ -8,7 +8,9 @@ import assert from "node:assert/strict";
 import { loadEngine } from "./_engine.mjs";
 
 // Stub: every getElementById returns an element whose .value is 'TEST'.
-const eng = loadEngine(["parseBars", "parseCSV"], {
+// parseBars/parseCSV now depend on the parseBarDate + validateOHLC helpers, so
+// those are sliced in too (the helpers live as top-level functions in the page).
+const eng = loadEngine(["parseBarDate", "validateOHLC", "parseBars", "parseCSV"], {
   document: { getElementById: () => ({ value: "TEST" }) },
 });
 const { parseBars } = eng;
@@ -57,6 +59,56 @@ test("parseBars: fewer than 20 bars throws", () => {
   const arr = [];
   for (let i = 0; i < 5; i++) arr.push({ t: `2026-01-0${i + 1}`, o: 1, h: 2, l: 0.5, c: 1.5, v: 1 });
   assert.throws(() => parseBars(JSON.stringify(arr)), /at least 20 bars/);
+});
+
+/* ----- hardening: chronological order + insane OHLC (P0-5 / P0-4 / P2-4) ----- */
+
+test("parseBars: JSON given newest-first is ascending after parse (P0-5)", () => {
+  const arr = [];
+  for (let i = 0; i < 20; i++) {
+    arr.push({ t: `2026-01-${String(i + 1).padStart(2, "0")}`, o: 100 + i, h: 101 + i, l: 99 + i, c: 100.5 + i, v: 1000 + i });
+  }
+  // Feed newest-first; parser must sort ascending by parsed date.
+  const r = parseBars(JSON.stringify(arr.slice().reverse()));
+  assert.equal(r.bars.length, 20);
+  const ascending = r.bars.every((b, i) => i === 0 || b.t >= r.bars[i - 1].t);
+  assert.ok(ascending, "newest-first JSON must be ascending by date after parseBars");
+  assert.equal(r.bars[0].t, "2026-01-01");
+  assert.equal(r.bars[19].t, "2026-01-20");
+});
+
+test("parseBars: row with high < low throws naming the row (P0-4)", () => {
+  const arr = [];
+  for (let i = 0; i < 20; i++) arr.push({ t: `2026-01-${String(i + 1).padStart(2, "0")}`, o: 100, h: 101, l: 99, c: 100, v: 1 });
+  arr[7] = { t: "2026-01-08", o: 100, h: 95, l: 99, c: 100, v: 1 }; // h < l
+  assert.throws(() => parseBars(JSON.stringify(arr)), /Bar 8/);
+  assert.throws(() => parseBars(JSON.stringify(arr)), /impossible OHLC/);
+});
+
+test("parseBars: row with close <= 0 throws (P0-4)", () => {
+  const arr = [];
+  for (let i = 0; i < 20; i++) arr.push({ t: `2026-01-${String(i + 1).padStart(2, "0")}`, o: 100, h: 101, l: 99, c: 100, v: 1 });
+  arr[3] = { t: "2026-01-04", o: 100, h: 101, l: 99, c: 0, v: 1 }; // close not > 0
+  assert.throws(() => parseBars(JSON.stringify(arr)), /Bar 4/);
+  assert.throws(() => parseBars(JSON.stringify(arr)), /positive/);
+});
+
+test("parseCSV: MM/DD/YYYY (Nasdaq) newest-first reverses to ascending (P0-5)", () => {
+  const header = "Date,Close/Last,Volume,Open,High,Low";
+  const rows = [];
+  // Use the Nasdaq US date format; build ascending then reverse to newest-first.
+  for (let i = 0; i < 22; i++) {
+    const d = `01/${String(i + 1).padStart(2, "0")}/2026`;
+    rows.push(`${d},"$${100 + i}","${1000 + i}","$${99.5 + i}","$${101 + i}","$${98 + i}"`);
+  }
+  const csv = header + "\n" + rows.slice().reverse().join("\n");
+  const r = parseBars(csv);
+  assert.equal(r.bars.length, 22);
+  // After parse, ordered ascending by the MM/DD/YYYY date.
+  assert.equal(r.bars[0].t, "01/01/2026");
+  assert.equal(r.bars[r.bars.length - 1].t, "01/22/2026");
+  // Close at the oldest bar (01/01) should be the i=0 value (100).
+  assert.equal(r.bars[0].c, 100);
 });
 
 /* ---------------------------------------------------------------- CSV */
