@@ -33,6 +33,15 @@ count, max drawdown, exposure, an equity curve, and a trade log. Toggle between
 
 Click **Load demo data** to see all four signal types and a full backtest on a synthetic series.
 
+**Data input:** paste JSON (`{t,o,h,l,c,v}` or `date/open/high/low/close` keys) *or* a CSV
+export (Yahoo/Nasdaq style — newest-first and `$`/comma formatting are handled).
+
+**Connecting to your account:** see **[CONNECT-ROBINHOOD.md](CONNECT-ROBINHOOD.md)** for the
+full setup — MCP endpoint `https://agent.robinhood.com/mcp/trading`, `claude mcp add`
+command, agent-wallet funding, spending limits/manual approval, and the
+fetch → compute → approve → execute loop. The in-app *Connect to your Robinhood account*
+panel mirrors it, and *Copy execution prompt* hands your approved intents straight to the agent.
+
 > Educational tool, not financial advice. Backtest before risking capital, and fund the
 > agent wallet only with money you can afford to trade.
 

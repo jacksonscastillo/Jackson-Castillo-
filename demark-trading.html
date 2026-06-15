@@ -134,7 +134,7 @@ details .body ol{margin:8px 0 8px 20px} details .body li{margin:5px 0}
         </label>
         <button class="btn btn-gold" id="loadBtn">Compute signals</button>
         <button class="btn btn-ghost" id="sampleBtn">Load demo data</button>
-        <div class="hint">Need the price history? Ask your agent: <i>"Pull 120 daily bars for AAPL from Robinhood MCP and paste the JSON."</i> Accepts <code>t,o,h,l,c,v</code> or <code>date,open,high,low,close</code> keys.</div>
+        <div class="hint">Need the price history? Use <i>Copy fetch prompt</i> below, or paste a <b>CSV</b> (Yahoo/Nasdaq export) — header with <code>date,open,high,low,close</code>. JSON accepts <code>t,o,h,l,c,v</code> or <code>open_price…</code> keys too.</div>
       </div>
 
       <div class="card" style="margin-top:18px">
@@ -180,8 +180,9 @@ details .body ol{margin:8px 0 8px 20px} details .body li{margin:5px 0}
   <div class="card">
     <div class="warn"><b>Human-in-the-loop.</b> These intents are proposals, not executed orders. Review every field, then have your agent place them via Robinhood Agentic Trading. The agent can only spend the pre-funded balance in your dedicated agent wallet.</div>
     <div style="display:flex;gap:10px;margin:14px 0 12px;flex-wrap:wrap">
-      <button class="btn btn-gold" id="copyBtn" style="width:auto;padding:9px 18px">Copy intents JSON</button>
-      <button class="btn btn-ghost" id="promptBtn" style="width:auto;padding:9px 18px">Copy agent prompt</button>
+      <button class="btn btn-gold" id="execBtn" style="width:auto;padding:9px 18px">Copy execution prompt →</button>
+      <button class="btn btn-ghost" id="copyBtn" style="width:auto;padding:9px 18px">Copy intents JSON</button>
+      <button class="btn btn-ghost" id="promptBtn" style="width:auto;padding:9px 18px">Copy fetch prompt</button>
     </div>
     <pre class="intent" id="intentOut">{ }</pre>
   </div>
@@ -202,6 +203,24 @@ details .body ol{margin:8px 0 8px 20px} details .body li{margin:5px 0}
     <div class="scrollx"><div id="btCurve"></div></div>
     <div id="btTrades"></div>
   </div>
+
+  <details open>
+    <summary>Connect this to your Robinhood account</summary>
+    <div class="body">
+      Robinhood <b>Agentic Trading</b> (beta) exposes your account to an MCP-capable agent. This tool never touches your account — it produces signals and intents; your agent places the orders after you approve.
+      <ol>
+        <li><b>Open this tool</b> — it's a single static file. Double-click <code>demark-trading.html</code>, or host it (e.g. GitHub Pages) and open the URL on any device.</li>
+        <li><b>Connect your agent to Robinhood's MCP server</b> at <code>https://agent.robinhood.com/mcp/trading</code>:
+          <div style="margin:6px 0 2px">Claude Code: <code>claude mcp add robinhood-trading --transport http https://agent.robinhood.com/mcp/trading</code></div>
+          <div>Claude Desktop: Settings → Connectors → Add custom connector → paste the URL.</div>
+        </li>
+        <li><b>Authenticate &amp; fund</b> — Robinhood's OAuth prompt creates a separate <b>agent sub-account</b> and lets you move a dedicated budget into its sandboxed wallet. Your agent never sees your password and can only spend what's in that wallet.</li>
+        <li><b>Set guardrails</b> — choose a spending limit and turn on <b>manual approval</b> so you confirm each order. Every trade also appears in your Robinhood Activity; disconnect anytime in the app.</li>
+        <li><b>Run the loop</b> — paste <i>Copy fetch prompt</i> to your agent to get bars → load them here → review → paste <i>Copy execution prompt</i> (it embeds your approved intents) back to the agent to place the orders.</li>
+      </ol>
+      <div class="warn">Stocks only in the current beta (options/crypto/futures “coming soon”). Verify the MCP URL on Robinhood's own Agentic Trading support page before connecting — only connect servers you trust.</div>
+    </div>
+  </details>
 
   <details>
     <summary>How the agentic workflow fits together</summary>
@@ -253,8 +272,9 @@ function computeDeMark(bars){
       const perfected = lo<=ref;
       tdstSup = Math.min(...l.slice(i-8,i+1));     // support line under a buy setup
       ann[i].setupFlag = {dir:'buy', perfected};
-      signals.push(mkSignal('BUY_SETUP', i, bars[i], perfected,
-        riskLevels('buy', bars, i-8, i)));
+      const sig = mkSignal('BUY_SETUP', i, bars[i], perfected, riskLevels('buy', bars, i-8, i));
+      sig.perfRef = ref;                           // for deferred perfection
+      signals.push(sig);
       bs=0;                                        // require a fresh flip to recount
     }
     if(ss===9){                                   // sell setup complete
@@ -262,8 +282,9 @@ function computeDeMark(bars){
       const perfected = hi>=ref;
       tdstRes = Math.max(...h.slice(i-8,i+1));      // resistance line over a sell setup
       ann[i].setupFlag = {dir:'sell', perfected};
-      signals.push(mkSignal('SELL_SETUP', i, bars[i], perfected,
-        riskLevels('sell', bars, i-8, i)));
+      const sig = mkSignal('SELL_SETUP', i, bars[i], perfected, riskLevels('sell', bars, i-8, i));
+      sig.perfRef = ref;
+      signals.push(sig);
       ss=0;
     }
     ann[i].tdstRes = tdstRes;
@@ -313,6 +334,24 @@ function computeDeMark(bars){
     }
   }
 
+  /* ---- Pass 3: deferred setup perfection ----
+     If a setup isn't perfected on bar 9, perfection occurs on the first later
+     bar whose low (buy) / high (sell) breaches the bar-6/7 reference, provided
+     it happens before an opposing setup completes. */
+  for(const sg of signals){
+    if(!sg.type.includes('SETUP') || sg.perfected || sg.perfRef==null) continue;
+    const opp = signals.find(o=>o.idx>sg.idx && o.type.includes('SETUP') && o.side!==sg.side);
+    const limit = opp ? opp.idx : n-1;
+    for(let j=sg.idx+1;j<=limit;j++){
+      if(sg.side==='buy' ? l[j]<=sg.perfRef : h[j]>=sg.perfRef){
+        sg.perfected = true; sg.perfIdx = j;
+        if(ann[sg.idx].setupFlag) ann[sg.idx].setupFlag.perfected = true;
+        if(ann[j]) ann[j].perfMark = sg.side;       // chart marker on the perfecting bar
+        break;
+      }
+    }
+  }
+
   const liveBuyCD  = buyCD  ? buyCD.count  : 0;
   const liveSellCD = sellCD ? sellCD.count : 0;
   return {ann, signals, liveBuyCD, liveSellCD};
@@ -352,6 +391,8 @@ function num(id){ return parseFloat(document.getElementById(id).value)||0; }
 
 /* ---- Ingest / normalize bars JSON ---- */
 function parseBars(raw){
+  raw = raw.trim();
+  if(raw[0]!=='{' && raw[0]!=='[') return parseCSV(raw);   // CSV path
   let obj;
   try{ obj = JSON.parse(raw); }catch(e){ throw new Error('Invalid JSON: '+e.message); }
   let arr = Array.isArray(obj) ? obj : obj.bars;
@@ -368,6 +409,34 @@ function parseBars(raw){
   });
   if(bars.length<20) throw new Error('Need at least 20 bars (got '+bars.length+').');
   return {symbol: obj.symbol || document.getElementById('symbol').value, bars};
+}
+
+// Accept CSV pasted from Yahoo/Nasdaq/etc. Header-driven; tolerant of $, commas,
+// quotes, alt delimiters, and newest-first ordering.
+function parseCSV(raw){
+  const lines = raw.split(/\r?\n/).filter(l=>l.trim());
+  if(lines.length<2) throw new Error('CSV needs a header row plus data rows.');
+  const delim = lines[0].includes('\t') ? '\t' : (lines[0].includes(';') ? ';' : ',');
+  const header = lines[0].split(delim).map(h=>h.trim().toLowerCase().replace(/^["']|["']$/g,''));
+  const col = (...names)=>{ for(const n of names){ const i=header.indexOf(n); if(i>=0) return i; } return -1; };
+  const ci = { t:col('t','date','timestamp','time'), o:col('o','open'), h:col('h','high'),
+               l:col('l','low'), c:col('c','close','close/last','adj close','adjclose'), v:col('v','volume') };
+  if(ci.o<0||ci.h<0||ci.l<0||ci.c<0) throw new Error('CSV header must include open, high, low, close columns.');
+  const cl = s => +String(s==null?'':s).replace(/[$,"\s]/g,'');
+  const bars = lines.slice(1).map((ln,i)=>{
+    const f = ln.split(delim);
+    const o=cl(f[ci.o]), h=cl(f[ci.h]), l=cl(f[ci.l]), c=cl(f[ci.c]);
+    if([o,h,l,c].some(x=>!isFinite(x))) throw new Error('CSV row '+(i+1)+' has non-numeric o/h/l/c.');
+    return { t: ci.t>=0 ? String(f[ci.t]).trim().replace(/^["']|["']$/g,'').slice(0,10) : ('#'+(i+1)),
+             o,h,l,c, v: ci.v>=0 ? (cl(f[ci.v])||0) : 0 };
+  });
+  if(bars.length<20) throw new Error('Need at least 20 bars (got '+bars.length+').');
+  // many exports are newest-first — sort ascending if dates are parseable
+  if(ci.t>=0){
+    const d0=Date.parse(bars[0].t), dN=Date.parse(bars[bars.length-1].t);
+    if(isFinite(d0)&&isFinite(dN)&&d0>dN) bars.reverse();
+  }
+  return { symbol: document.getElementById('symbol').value, bars };
 }
 
 /* ============================================================ Chart ============================================================ */
@@ -422,6 +491,9 @@ function renderChart(bars, ann){
       const fin = a.sellSetup===9;
       s+=`<text x="${xc}" y="${yH-5}" fill="${fin?'#e8d48b':'#8a9bb5'}" font-size="${fin?11:8.5}" font-weight="${fin?'600':'400'}" text-anchor="middle">${a.sellSetup}${fin&&a.setupFlag&&a.setupFlag.perfected?'✓':''}</text>`;
     }
+    // deferred-perfection marker (small dot where a late setup perfected)
+    if(a.perfMark==='buy') s+=`<circle cx="${xc}" cy="${yL+15}" r="2" fill="#e8d48b"/>`;
+    if(a.perfMark==='sell') s+=`<circle cx="${xc}" cy="${yH-13}" r="2" fill="#e8d48b"/>`;
     // countdown 13 markers
     if(a.buyCD===13){ s+=`<text x="${xc}" y="${yL+22}" fill="#3ecf8e" font-size="10" font-weight="600" text-anchor="middle">13</text>`;
       s+=`<polygon points="${xc-4},${yL+26} ${xc+4},${yL+26} ${xc},${yL+32}" fill="#3ecf8e"/>`; }
@@ -686,14 +758,28 @@ document.getElementById('copyBtn').addEventListener('click', ()=>{
   navigator.clipboard.writeText(document.getElementById('intentOut').textContent)
     .then(()=>flash('copyBtn','Copied ✓','Copy intents JSON'));
 });
+const MCP_URL = 'https://agent.robinhood.com/mcp/trading';
+
 document.getElementById('promptBtn').addEventListener('click', ()=>{
   const sym = document.getElementById('symbol').value;
-  const p = `You are connected to Robinhood Agentic Trading via MCP.\n`+
-    `1. Fetch the last 120 daily OHLC bars for ${sym} and return them as JSON: {"symbol":"${sym}","timeframe":"1day","bars":[{"t","o","h","l","c","v"}, ...]}.\n`+
-    `2. I will load them into my DeMark Sequential tool, review the generated order_intent.v1 objects, and approve the ones to trade.\n`+
-    `3. For each APPROVED intent, place the order on my agent wallet exactly as specified (symbol, side, limit price, quantity, time-in-force). Do not resize or invent orders. Confirm fills back to me.`;
-  navigator.clipboard.writeText(p).then(()=>flash('promptBtn','Copied ✓','Copy agent prompt'));
+  const p = `You are connected to Robinhood Agentic Trading via MCP (${MCP_URL}).\n`+
+    `1. Fetch the last 120 daily OHLC bars for ${sym} and return ONLY this JSON (no prose):\n`+
+    `   {"symbol":"${sym}","timeframe":"1day","bars":[{"t":"YYYY-MM-DD","o":0,"h":0,"l":0,"c":0,"v":0}, ...]}\n`+
+    `2. I will paste it into my DeMark Sequential tool, review the generated order_intent.v1 objects, and approve the ones to trade.\n`+
+    `Do not place any orders yet — wait for my approved intents.`;
+  navigator.clipboard.writeText(p).then(()=>flash('promptBtn','Copied ✓','Copy fetch prompt'));
 });
+
+document.getElementById('execBtn').addEventListener('click', ()=>{
+  if(!state.intents.length){ alert('No actionable intents yet — load data with a perfected setup or completed countdown.'); return; }
+  const sym = document.getElementById('symbol').value;
+  const p = `You are connected to Robinhood Agentic Trading via MCP (${MCP_URL}), acting only on my dedicated agent wallet.\n\n`+
+    `I have REVIEWED and APPROVED the DeMark Sequential order intents below. Place each one EXACTLY as specified with the Robinhood MCP place_order tool. Do not resize, add, reorder, or invent orders, and never exceed the wallet's buying power.\n\n`+
+    `For each intent: use symbol=${sym}, the given side, type=limit, limitPrice, quantity, and timeInForce. Where the MCP supports a protective stop, also set it to risk.stop. After each placement, report the order id and status. If an order would be rejected or exceed buying power, skip it and tell me why — do not substitute a different order.\n\n`+
+    `APPROVED_INTENTS =\n`+ JSON.stringify(state.intents, null, 2);
+  navigator.clipboard.writeText(p).then(()=>flash('execBtn','Copied ✓','Copy execution prompt →'));
+});
+
 function flash(id,on,off){ const b=document.getElementById(id); b.textContent=on; setTimeout(()=>b.textContent=off,1400); }
 
 /* ---- Demo data: seeded random walk that yields setups/countdowns ---- */
