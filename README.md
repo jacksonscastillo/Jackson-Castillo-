@@ -45,6 +45,18 @@ panel mirrors it, and *Copy execution prompt* hands your approved intents straig
 > Educational tool, not financial advice. Backtest before risking capital, and fund the
 > agent wallet only with money you can afford to trade.
 
+**Tests:** the DeMark engine is covered by a zero-dependency suite under `tests/` using
+Node's built-in `node:test` runner (no `npm install` needed). The tests read
+`demark-trading.html`, slice out the pure engine functions, and assert Setup-9 / Countdown-13
+rules, deferred perfection, risk-stop direction, backtest invariants, and the JSON/CSV
+parsers. Run them with Node 22+:
+
+```sh
+npm test        # or: node --test
+```
+
+CI runs the same suite on every push and pull request (`.github/workflows/test.yml`).
+
 ## Features
 
 - **Account Type Selection**: Toggle between Taxable Brokerage and Roth IRA accounts
