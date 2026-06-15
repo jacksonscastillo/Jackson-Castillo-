@@ -1,0 +1,10 @@
+{
+  "name": "demark-trading-tests",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Zero-dependency test suite for the DeMark Sequential engine in demark-trading.html",
+  "scripts": {
+    "test": "node --test"
+  }
+}
