@@ -1,0 +1,810 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>DeMark Sequential — Robinhood Agentic Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Serif+Display&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#0a1628; --navy-mid:#132240; --navy-light:#1a2d50;
+  --gold:#c9a84c; --gold-light:#e8d48b; --gold-dim:rgba(201,168,76,0.15);
+  --white:#f0ece4; --gray:#8a9bb5;
+  --green:#3ecf8e; --red:#ef4444; --blue:#5b8def;
+  --line:rgba(201,168,76,0.15); --line-soft:rgba(138,155,181,0.12);
+  --mono:'DM Mono','SF Mono',Menlo,monospace;
+  --sans:'Inter','SF Pro',-apple-system,sans-serif;
+  --serif:'DM Serif Display',Georgia,serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--navy);color:var(--white);font-family:var(--sans);font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1240px;margin:0 auto;padding:0 22px 80px}
+
+/* Header */
+header{padding:24px 22px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(10,22,40,0.92);backdrop-filter:blur(8px);z-index:50}
+.hdr-in{max-width:1240px;margin:0 auto;display:flex;align-items:flex-end;justify-content:space-between;gap:18px;flex-wrap:wrap}
+.brand-label{display:flex;align-items:center;gap:9px;margin-bottom:5px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--gold);box-shadow:0 0 10px rgba(201,168,76,.6)}
+.brand-label span{color:var(--gold);font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase}
+h1{font-family:var(--serif);font-size:25px;font-weight:400;line-height:1.1}
+.hdr-meta{color:var(--gray);font-size:11px;font-family:var(--mono);letter-spacing:.04em;text-align:right}
+.hdr-meta b{color:var(--gold-light);font-weight:500}
+
+.grid{display:grid;grid-template-columns:330px 1fr;gap:22px;margin-top:22px}
+@media(max-width:900px){.grid{grid-template-columns:1fr}}
+
+.card{background:linear-gradient(160deg,var(--navy-mid),var(--navy));border:1px solid var(--line-soft);border-radius:12px;padding:18px}
+.card h2{font-family:var(--serif);font-size:16px;font-weight:400;margin-bottom:2px}
+.card .sub{color:var(--gray);font-size:11px;margin-bottom:14px}
+
+label.fld{display:block;margin-bottom:13px}
+label.fld .lab{display:block;color:var(--gray);font-size:10px;font-weight:600;letter-spacing:1.3px;text-transform:uppercase;margin-bottom:5px}
+input,textarea,select{width:100%;background:var(--navy);border:1px solid var(--line-soft);border-radius:8px;color:var(--white);font-family:var(--mono);font-size:13px;padding:9px 11px;outline:none}
+input:focus,textarea:focus,select:focus{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold-dim)}
+textarea{resize:vertical;min-height:96px;line-height:1.45;font-size:11.5px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;width:100%;padding:10px 14px;border-radius:8px;font-weight:600;font-size:12px;letter-spacing:.04em;border:1px solid var(--line)}
+.btn-gold{background:var(--gold);color:var(--navy);border-color:var(--gold)}
+.btn-ghost{background:transparent;color:var(--gold-light)}
+.btn+.btn{margin-top:9px}
+.hint{color:var(--gray);font-size:10.5px;margin-top:8px;line-height:1.55}
+
+/* status strip */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin-bottom:18px}
+@media(max-width:620px){.stats{grid-template-columns:repeat(2,1fr)}}
+.stat{background:var(--navy-mid);border:1px solid var(--line-soft);border-radius:10px;padding:12px 13px}
+.stat .k{color:var(--gray);font-size:9.5px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase}
+.stat .v{font-family:var(--mono);font-size:19px;font-weight:500;margin-top:3px}
+.stat .v.sm{font-size:14px}
+.green{color:var(--green)} .red{color:var(--red)} .goldc{color:var(--gold-light)} .grayc{color:var(--gray)} .bluec{color:var(--blue)}
+
+.chart-card{padding:14px 14px 6px}
+.chart-head{display:flex;align-items:center;justify-content:space-between;padding:4px 6px 12px}
+.chart-head .ttl{font-family:var(--mono);font-size:13px;color:var(--gold-light);letter-spacing:.06em}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:10px;color:var(--gray)}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+svg{display:block;width:100%;height:auto}
+.scrollx{overflow-x:auto}
+
+/* tables */
+.tbl{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px}
+.tbl th{text-align:left;color:var(--gray);font-weight:500;font-size:9.5px;letter-spacing:1.2px;text-transform:uppercase;padding:8px 10px;border-bottom:1px solid var(--line-soft)}
+.tbl td{padding:9px 10px;border-bottom:1px solid var(--line-soft)}
+.tbl tr:hover td{background:rgba(201,168,76,.04)}
+.pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:600;letter-spacing:.05em}
+.pill.buy{background:rgba(62,207,142,.14);color:var(--green)}
+.pill.sell{background:rgba(239,68,68,.14);color:var(--red)}
+.pill.cd{background:rgba(201,168,76,.16);color:var(--gold-light)}
+.pill.muted{background:rgba(138,155,181,.12);color:var(--gray)}
+
+pre.intent{background:#06101f;border:1px solid var(--line-soft);border-radius:10px;padding:14px;font-family:var(--mono);font-size:11.5px;line-height:1.5;color:var(--gold-light);overflow-x:auto;white-space:pre;max-height:420px;overflow-y:auto}
+.sec-title{display:flex;align-items:baseline;justify-content:space-between;margin:28px 2px 12px}
+.sec-title h2{font-family:var(--serif);font-size:18px;font-weight:400}
+.sec-title .note{color:var(--gray);font-size:11px}
+
+details{background:var(--navy-mid);border:1px solid var(--line-soft);border-radius:10px;padding:4px 16px;margin-top:14px}
+details summary{cursor:pointer;padding:12px 0;font-weight:600;color:var(--gold-light);font-size:13px;list-style:none}
+details summary::-webkit-details-marker{display:none}
+details summary::before{content:"▸ ";color:var(--gold)}
+details[open] summary::before{content:"▾ "}
+details .body{padding:4px 0 16px;color:var(--gray);font-size:12.5px;line-height:1.7}
+details .body code{font-family:var(--mono);color:var(--gold-light);background:rgba(201,168,76,.08);padding:1px 5px;border-radius:4px;font-size:11.5px}
+details .body ol{margin:8px 0 8px 20px} details .body li{margin:5px 0}
+.warn{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.28);border-radius:8px;padding:11px 13px;color:#f4b4b0;font-size:11.5px;line-height:1.55;margin-top:10px}
+.empty{color:var(--gray);font-style:italic;padding:18px 6px;font-size:12.5px}
+</style>
+</head>
+<body>
+<header>
+  <div class="hdr-in">
+    <div>
+      <div class="brand-label"><span class="dot"></span><span>DeMark Sequential · Agentic Desk</span></div>
+      <h1>TD Sequential Signal Engine</h1>
+    </div>
+    <div class="hdr-meta">
+      ROBINHOOD <b>AGENTIC TRADING</b> · MCP<br/>
+      <span id="metaSym">—</span> · DAILY · <span id="metaBars">0 bars</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="grid">
+    <!-- Controls -->
+    <div>
+      <div class="card">
+        <h2>Inputs</h2>
+        <div class="sub">Bars are fetched by your agent via the Robinhood MCP, then loaded here.</div>
+
+        <div class="row2">
+          <label class="fld"><span class="lab">Symbol</span><input id="symbol" value="AAPL" /></label>
+          <label class="fld"><span class="lab">Timeframe</span><input id="tf" value="1day" disabled /></label>
+        </div>
+        <div class="row2">
+          <label class="fld"><span class="lab">Wallet balance ($)</span><input id="wallet" value="5000" inputmode="decimal" /></label>
+          <label class="fld"><span class="lab">Risk / trade (%)</span><input id="risk" value="1.0" inputmode="decimal" /></label>
+        </div>
+
+        <label class="fld">
+          <span class="lab">OHLC bars (JSON from Robinhood MCP)</span>
+          <textarea id="barsInput" placeholder='{"symbol":"AAPL","timeframe":"1day","bars":[{"t":"2026-01-02","o":185.1,"h":187.4,"l":184.2,"c":186.9,"v":51200000}, ...]}'></textarea>
+        </label>
+        <button class="btn btn-gold" id="loadBtn">Compute signals</button>
+        <button class="btn btn-ghost" id="sampleBtn">Load demo data</button>
+        <div class="hint">Need the price history? Use <i>Copy fetch prompt</i> below, or paste a <b>CSV</b> (Yahoo/Nasdaq export) — header with <code>date,open,high,low,close</code>. JSON accepts <code>t,o,h,l,c,v</code> or <code>open_price…</code> keys too.</div>
+      </div>
+
+      <div class="card" style="margin-top:18px">
+        <h2>Signal map</h2>
+        <div class="sub">What the engine flags</div>
+        <div style="font-size:12px;line-height:1.95;color:var(--gray)">
+          <div><span class="pill buy">BUY SETUP 9</span> potential downside exhaustion</div>
+          <div style="margin-top:8px"><span class="pill cd">BUY CD 13</span> confirmed buy / accumulate</div>
+          <div style="margin-top:8px"><span class="pill sell">SELL SETUP 9</span> potential upside exhaustion</div>
+          <div style="margin-top:8px"><span class="pill cd">SELL CD 13</span> confirmed sell / distribute</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Output -->
+    <div>
+      <div class="stats">
+        <div class="stat"><div class="k">Last close</div><div class="v" id="sLast">—</div></div>
+        <div class="stat"><div class="k">Active setup</div><div class="v sm" id="sSetup">—</div></div>
+        <div class="stat"><div class="k">Countdown</div><div class="v sm" id="sCD">—</div></div>
+        <div class="stat"><div class="k">Latest signal</div><div class="v sm" id="sSignal">—</div></div>
+      </div>
+
+      <div class="card chart-card">
+        <div class="chart-head">
+          <div class="ttl" id="chartTtl">Load data to render</div>
+          <div class="legend">
+            <span><i style="background:var(--green)"></i>up</span>
+            <span><i style="background:var(--red)"></i>down</span>
+            <span><i style="background:var(--gold)"></i>setup 9 / cd 13</span>
+            <span><i style="background:var(--blue)"></i>TDST</span>
+          </div>
+        </div>
+        <div class="scrollx"><div id="chart"></div></div>
+      </div>
+
+      <div class="sec-title"><h2>Signals</h2><div class="note">perfected setups & completed countdowns</div></div>
+      <div class="card" style="padding:6px 4px"><div id="sigTable"></div></div>
+    </div>
+  </div>
+
+  <div class="sec-title"><h2>Order intents</h2><div class="note">hand to your agent → Robinhood MCP · human approves each one</div></div>
+  <div class="card">
+    <div class="warn"><b>Human-in-the-loop.</b> These intents are proposals, not executed orders. Review every field, then have your agent place them via Robinhood Agentic Trading. The agent can only spend the pre-funded balance in your dedicated agent wallet.</div>
+    <div style="display:flex;gap:10px;margin:14px 0 12px;flex-wrap:wrap">
+      <button class="btn btn-gold" id="execBtn" style="width:auto;padding:9px 18px">Copy execution prompt →</button>
+      <button class="btn btn-ghost" id="copyBtn" style="width:auto;padding:9px 18px">Copy intents JSON</button>
+      <button class="btn btn-ghost" id="promptBtn" style="width:auto;padding:9px 18px">Copy fetch prompt</button>
+    </div>
+    <pre class="intent" id="intentOut">{ }</pre>
+  </div>
+
+  <div class="sec-title"><h2>Strategy backtest</h2><div class="note">long / flat over the loaded window · educational</div></div>
+  <div class="card">
+    <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap">
+      <label class="fld" style="margin:0;min-width:240px">
+        <span class="lab">Entry / exit trigger</span>
+        <select id="btTrigger">
+          <option value="cd">Countdown 13 only</option>
+          <option value="all">Setup 9 (perfected) + Countdown 13</option>
+        </select>
+      </label>
+      <div class="hint" style="margin:0;flex:1;min-width:220px">Goes long on buy triggers; exits on sell triggers, the TD stop, or the 2R target. Starting capital = wallet balance. Long/flat, stocks only — mirrors the agentic beta.</div>
+    </div>
+    <div id="btStats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:11px;margin:16px 0 6px"></div>
+    <div class="scrollx"><div id="btCurve"></div></div>
+    <div id="btTrades"></div>
+  </div>
+
+  <details open>
+    <summary>Connect this to your Robinhood account</summary>
+    <div class="body">
+      Robinhood <b>Agentic Trading</b> (beta) exposes your account to an MCP-capable agent. This tool never touches your account — it produces signals and intents; your agent places the orders after you approve.
+      <ol>
+        <li><b>Open this tool</b> — it's a single static file. Double-click <code>demark-trading.html</code>, or host it (e.g. GitHub Pages) and open the URL on any device.</li>
+        <li><b>Connect your agent to Robinhood's MCP server</b> at <code>https://agent.robinhood.com/mcp/trading</code>:
+          <div style="margin:6px 0 2px">Claude Code: <code>claude mcp add robinhood-trading --transport http https://agent.robinhood.com/mcp/trading</code></div>
+          <div>Claude Desktop: Settings → Connectors → Add custom connector → paste the URL.</div>
+        </li>
+        <li><b>Authenticate &amp; fund</b> — Robinhood's OAuth prompt creates a separate <b>agent sub-account</b> and lets you move a dedicated budget into its sandboxed wallet. Your agent never sees your password and can only spend what's in that wallet.</li>
+        <li><b>Set guardrails</b> — choose a spending limit and turn on <b>manual approval</b> so you confirm each order. Every trade also appears in your Robinhood Activity; disconnect anytime in the app.</li>
+        <li><b>Run the loop</b> — paste <i>Copy fetch prompt</i> to your agent to get bars → load them here → review → paste <i>Copy execution prompt</i> (it embeds your approved intents) back to the agent to place the orders.</li>
+      </ol>
+      <div class="warn">Stocks only in the current beta (options/crypto/futures “coming soon”). Verify the MCP URL on Robinhood's own Agentic Trading support page before connecting — only connect servers you trust.</div>
+    </div>
+  </details>
+
+  <details>
+    <summary>How the agentic workflow fits together</summary>
+    <div class="body">
+      <ol>
+        <li><b>Fetch</b> — Your agent (Claude + Robinhood MCP) pulls daily OHLC history for the symbol and pastes the JSON into <code>OHLC bars</code>.</li>
+        <li><b>Compute</b> — This tool runs TD Sequential locally in your browser: buy/sell <b>Setups</b> (9), <b>Countdowns</b> (13) with the bar-8 close qualifier, <b>TDST</b> support/resistance, and TD <b>risk stops</b>. No keys or data leave the page.</li>
+        <li><b>Propose</b> — Each actionable signal becomes an <code>demark.order_intent.v1</code> object: side, limit price, sized quantity (from wallet × risk ÷ risk-per-share), stop, target, and rationale.</li>
+        <li><b>Approve & execute</b> — You review, then the agent submits the approved intents through Robinhood's MCP order tools. Stocks only in beta.</li>
+      </ol>
+      <b style="color:var(--gold-light)">Intent schema</b>
+      <div style="margin-top:6px">Each intent carries <code>requiresHumanApproval:true</code> and a <code>risk</code> block so the agent never sizes a position itself. Limit price defaults to the signal bar's close — adjust before sending.</div>
+      <div class="warn" style="margin-top:14px">Educational tool, not financial advice. DeMark Sequential is a discretionary indicator; backtest before risking capital and keep the agent wallet funded only with money you can afford to trade.</div>
+    </div>
+  </details>
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   DeMark / TD Sequential engine
+   - Buy/Sell Setup (9) with price-flip via natural reset
+   - Setup perfection (bars 8/9 vs 6/7)
+   - TDST support/resistance from completed setups
+   - Buy/Sell Countdown (13) with the countdown-bar-8 qualifier
+   - Cancellation on opposing setup completion
+   - TD risk stop per signal
+   ============================================================ */
+function computeDeMark(bars){
+  const n = bars.length;
+  const c = bars.map(b=>b.c), h = bars.map(b=>b.h), l = bars.map(b=>b.l);
+  const ann = bars.map(()=>({buySetup:0,sellSetup:0,buyCD:0,sellCD:0,
+                             setupFlag:null, cdFlag:null, perfected:false,
+                             tdstRes:null, tdstSup:null}));
+  const signals = [];
+
+  /* ---- Pass 1: Setups ---- */
+  let bs=0, ss=0;
+  let tdstRes=null, tdstSup=null;        // running active TDST levels
+  for(let i=0;i<n;i++){
+    if(i>=4 && c[i] < c[i-4]) bs++; else bs=0;
+    if(i>=4 && c[i] > c[i-4]) ss++; else ss=0;
+    ann[i].buySetup  = bs>0 && bs<=9 ? bs : 0;
+    ann[i].sellSetup = ss>0 && ss<=9 ? ss : 0;
+
+    if(bs===9){                                   // buy setup complete (bars i-8..i)
+      const lo=Math.min(l[i-1],l[i]), ref=Math.min(l[i-3],l[i-2]);
+      const perfected = lo<=ref;
+      tdstSup = Math.min(...l.slice(i-8,i+1));     // support line under a buy setup
+      ann[i].setupFlag = {dir:'buy', perfected};
+      const sig = mkSignal('BUY_SETUP', i, bars[i], perfected, riskLevels('buy', bars, i-8, i));
+      sig.perfRef = ref;                           // for deferred perfection
+      signals.push(sig);
+      bs=0;                                        // require a fresh flip to recount
+    }
+    if(ss===9){                                   // sell setup complete
+      const hi=Math.max(h[i-1],h[i]), ref=Math.max(h[i-3],h[i-2]);
+      const perfected = hi>=ref;
+      tdstRes = Math.max(...h.slice(i-8,i+1));      // resistance line over a sell setup
+      ann[i].setupFlag = {dir:'sell', perfected};
+      const sig = mkSignal('SELL_SETUP', i, bars[i], perfected, riskLevels('sell', bars, i-8, i));
+      sig.perfRef = ref;
+      signals.push(sig);
+      ss=0;
+    }
+    ann[i].tdstRes = tdstRes;
+    ann[i].tdstSup = tdstSup;
+  }
+
+  /* ---- Pass 2: Countdowns ---- */
+  let buyCD=null;   // {count, close8}
+  let sellCD=null;
+  for(let i=0;i<n;i++){
+    const f = ann[i].setupFlag;
+    // Start a countdown only if none is active in that direction; an opposing
+    // setup cancels the in-progress countdown. Same-direction setups do NOT
+    // reset the count (it persists toward 13).
+    if(f && f.dir==='buy'){ if(!buyCD) buyCD={count:0,close8:null}; sellCD=null; }
+    if(f && f.dir==='sell'){ if(!sellCD) sellCD={count:0,close8:null}; buyCD=null; }
+
+    // Buy countdown: close <= low two bars ago
+    if(buyCD && i>=2 && c[i] <= l[i-2]){
+      if(buyCD.count<12){
+        buyCD.count++;
+        if(buyCD.count===8) buyCD.close8 = c[i];
+        ann[i].buyCD = buyCD.count;
+      } else { // tentative 13 — needs low <= close of countdown bar 8
+        if(buyCD.close8!=null && l[i] <= buyCD.close8){
+          buyCD.count=13; ann[i].buyCD=13; ann[i].cdFlag={dir:'buy'};
+          signals.push(mkSignal('BUY_COUNTDOWN', i, bars[i], true,
+            riskLevels('buy', bars, Math.max(0,i-12), i)));
+          buyCD=null;
+        }
+      }
+    }
+    // Sell countdown: close >= high two bars ago
+    if(sellCD && i>=2 && c[i] >= h[i-2]){
+      if(sellCD.count<12){
+        sellCD.count++;
+        if(sellCD.count===8) sellCD.close8 = c[i];
+        ann[i].sellCD = sellCD.count;
+      } else {
+        if(sellCD.close8!=null && h[i] >= sellCD.close8){
+          sellCD.count=13; ann[i].sellCD=13; ann[i].cdFlag={dir:'sell'};
+          signals.push(mkSignal('SELL_COUNTDOWN', i, bars[i], true,
+            riskLevels('sell', bars, Math.max(0,i-12), i)));
+          sellCD=null;
+        }
+      }
+    }
+  }
+
+  /* ---- Pass 3: deferred setup perfection ----
+     If a setup isn't perfected on bar 9, perfection occurs on the first later
+     bar whose low (buy) / high (sell) breaches the bar-6/7 reference, provided
+     it happens before an opposing setup completes. */
+  for(const sg of signals){
+    if(!sg.type.includes('SETUP') || sg.perfected || sg.perfRef==null) continue;
+    const opp = signals.find(o=>o.idx>sg.idx && o.type.includes('SETUP') && o.side!==sg.side);
+    const limit = opp ? opp.idx : n-1;
+    for(let j=sg.idx+1;j<=limit;j++){
+      if(sg.side==='buy' ? l[j]<=sg.perfRef : h[j]>=sg.perfRef){
+        sg.perfected = true; sg.perfIdx = j;
+        if(ann[sg.idx].setupFlag) ann[sg.idx].setupFlag.perfected = true;
+        if(ann[j]) ann[j].perfMark = sg.side;       // chart marker on the perfecting bar
+        break;
+      }
+    }
+  }
+
+  const liveBuyCD  = buyCD  ? buyCD.count  : 0;
+  const liveSellCD = sellCD ? sellCD.count : 0;
+  return {ann, signals, liveBuyCD, liveSellCD};
+}
+
+// TD risk stop: extreme of the window ± the true range of the extreme bar
+function riskLevels(dir, bars, a, b){
+  const seg = bars.slice(a,b+1);
+  if(dir==='buy'){
+    let k=0; for(let j=1;j<seg.length;j++) if(seg[j].l<seg[k].l) k=j;
+    const tr = seg[k].h - seg[k].l;
+    const stop = +(seg[k].l - tr).toFixed(2);
+    const entry = bars[b].c;
+    const target = +(entry + (entry-stop)*2).toFixed(2); // 2R
+    return {stop, target, riskPerShare:+(entry-stop).toFixed(2)};
+  } else {
+    let k=0; for(let j=1;j<seg.length;j++) if(seg[j].h>seg[k].h) k=j;
+    const tr = seg[k].h - seg[k].l;
+    const stop = +(seg[k].h + tr).toFixed(2);
+    const entry = bars[b].c;
+    const target = +(entry - (stop-entry)*2).toFixed(2);
+    return {stop, target, riskPerShare:+(stop-entry).toFixed(2)};
+  }
+}
+
+function mkSignal(type, idx, bar, perfected, risk){
+  const side = type.startsWith('BUY') ? 'buy' : 'sell';
+  const labelMap = {BUY_SETUP:'Buy Setup 9', SELL_SETUP:'Sell Setup 9',
+                    BUY_COUNTDOWN:'Buy Countdown 13', SELL_COUNTDOWN:'Sell Countdown 13'};
+  return {type, side, label:labelMap[type], idx, date:bar.t, price:bar.c, perfected, risk};
+}
+
+/* ============================================================ State ============================================================ */
+const state = { bars:[], result:null, intents:[] };
+
+function num(id){ return parseFloat(document.getElementById(id).value)||0; }
+
+/* ---- Ingest / normalize bars JSON ---- */
+function parseBars(raw){
+  raw = raw.trim();
+  if(raw[0]!=='{' && raw[0]!=='[') return parseCSV(raw);   // CSV path
+  let obj;
+  try{ obj = JSON.parse(raw); }catch(e){ throw new Error('Invalid JSON: '+e.message); }
+  let arr = Array.isArray(obj) ? obj : obj.bars;
+  if(!Array.isArray(arr)) throw new Error('Expected an array of bars or {bars:[...]}.');
+  const bars = arr.map((r,i)=>{
+    const t = r.t ?? r.date ?? r.timestamp ?? r.begins_at ?? ('#'+(i+1));
+    const o = +(r.o ?? r.open ?? r.open_price);
+    const h = +(r.h ?? r.high ?? r.high_price);
+    const l = +(r.l ?? r.low ?? r.low_price);
+    const c = +(r.c ?? r.close ?? r.close_price);
+    const v = +(r.v ?? r.volume ?? 0);
+    if([o,h,l,c].some(x=>!isFinite(x))) throw new Error('Bar '+(i+1)+' missing o/h/l/c.');
+    return {t:String(t).slice(0,10), o,h,l,c,v};
+  });
+  if(bars.length<20) throw new Error('Need at least 20 bars (got '+bars.length+').');
+  return {symbol: obj.symbol || document.getElementById('symbol').value, bars};
+}
+
+// Accept CSV pasted from Yahoo/Nasdaq/etc. Header-driven; tolerant of $, commas,
+// quotes, alt delimiters, and newest-first ordering.
+function parseCSV(raw){
+  const lines = raw.split(/\r?\n/).filter(l=>l.trim());
+  if(lines.length<2) throw new Error('CSV needs a header row plus data rows.');
+  const delim = lines[0].includes('\t') ? '\t' : (lines[0].includes(';') ? ';' : ',');
+  const header = lines[0].split(delim).map(h=>h.trim().toLowerCase().replace(/^["']|["']$/g,''));
+  const col = (...names)=>{ for(const n of names){ const i=header.indexOf(n); if(i>=0) return i; } return -1; };
+  const ci = { t:col('t','date','timestamp','time'), o:col('o','open'), h:col('h','high'),
+               l:col('l','low'), c:col('c','close','close/last','adj close','adjclose'), v:col('v','volume') };
+  if(ci.o<0||ci.h<0||ci.l<0||ci.c<0) throw new Error('CSV header must include open, high, low, close columns.');
+  const cl = s => +String(s==null?'':s).replace(/[$,"\s]/g,'');
+  const bars = lines.slice(1).map((ln,i)=>{
+    const f = ln.split(delim);
+    const o=cl(f[ci.o]), h=cl(f[ci.h]), l=cl(f[ci.l]), c=cl(f[ci.c]);
+    if([o,h,l,c].some(x=>!isFinite(x))) throw new Error('CSV row '+(i+1)+' has non-numeric o/h/l/c.');
+    return { t: ci.t>=0 ? String(f[ci.t]).trim().replace(/^["']|["']$/g,'').slice(0,10) : ('#'+(i+1)),
+             o,h,l,c, v: ci.v>=0 ? (cl(f[ci.v])||0) : 0 };
+  });
+  if(bars.length<20) throw new Error('Need at least 20 bars (got '+bars.length+').');
+  // many exports are newest-first — sort ascending if dates are parseable
+  if(ci.t>=0){
+    const d0=Date.parse(bars[0].t), dN=Date.parse(bars[bars.length-1].t);
+    if(isFinite(d0)&&isFinite(dN)&&d0>dN) bars.reverse();
+  }
+  return { symbol: document.getElementById('symbol').value, bars };
+}
+
+/* ============================================================ Chart ============================================================ */
+function renderChart(bars, ann){
+  if(!bars.length){ document.getElementById('chart').innerHTML=''; return; }
+  const view = bars.slice(-90);                 // show recent window
+  const off = bars.length - view.length;
+  const cw = 13, gap = 4, padL=52, padR=14, padT=22, padB=26;
+  const W = padL + padR + view.length*(cw+gap);
+  const H = 430, plotH = H - padT - padB;
+  let hi=-Infinity, lo=Infinity;
+  view.forEach(b=>{ hi=Math.max(hi,b.h); lo=Math.min(lo,b.l); });
+  const pad=(hi-lo)*0.08; hi+=pad; lo-=pad;
+  const Y = p => padT + plotH*(1-(p-lo)/(hi-lo));
+  const X = i => padL + i*(cw+gap);
+
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" font-family="var(--mono)">`;
+  // gridlines + price axis
+  for(let g=0; g<=4; g++){
+    const p = lo + (hi-lo)*g/4, y=Y(p);
+    s+=`<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="rgba(138,155,181,0.10)"/>`;
+    s+=`<text x="${padL-7}" y="${y+3}" fill="#8a9bb5" font-size="9" text-anchor="end">${p.toFixed(2)}</text>`;
+  }
+  // TDST lines (latest active)
+  const last = ann[bars.length-1];
+  if(last.tdstRes && last.tdstRes<hi && last.tdstRes>lo){
+    const y=Y(last.tdstRes);
+    s+=`<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#5b8def" stroke-dasharray="3 3" opacity="0.7"/>`;
+    s+=`<text x="${W-padR}" y="${y-4}" fill="#5b8def" font-size="9" text-anchor="end">TDST R ${last.tdstRes.toFixed(2)}</text>`;
+  }
+  if(last.tdstSup && last.tdstSup<hi && last.tdstSup>lo){
+    const y=Y(last.tdstSup);
+    s+=`<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#5b8def" stroke-dasharray="3 3" opacity="0.7"/>`;
+    s+=`<text x="${W-padR}" y="${y+11}" fill="#5b8def" font-size="9" text-anchor="end">TDST S ${last.tdstSup.toFixed(2)}</text>`;
+  }
+  // candles + TD numbers
+  view.forEach((b,i)=>{
+    const gi = off+i, a = ann[gi];
+    const x = X(i), xc = x+cw/2;
+    const up = b.c>=b.o;
+    const col = up ? 'var(--green)' : 'var(--red)';
+    const yO=Y(b.o), yC=Y(b.c), yH=Y(b.h), yL=Y(b.l);
+    const top=Math.min(yO,yC), bh=Math.max(2,Math.abs(yC-yO));
+    s+=`<line x1="${xc}" y1="${yH}" x2="${xc}" y2="${yL}" stroke="${col}" stroke-width="1"/>`;
+    s+=`<rect x="${x}" y="${top}" width="${cw}" height="${bh}" fill="${col}" opacity="${up?0.9:0.95}" rx="1"/>`;
+    // setup counts: buy below, sell above
+    if(a.buySetup){
+      const fin = a.buySetup===9;
+      s+=`<text x="${xc}" y="${yL+11}" fill="${fin?'#e8d48b':'#8a9bb5'}" font-size="${fin?11:8.5}" font-weight="${fin?'600':'400'}" text-anchor="middle">${a.buySetup}${fin&&a.setupFlag&&a.setupFlag.perfected?'✓':''}</text>`;
+    }
+    if(a.sellSetup){
+      const fin = a.sellSetup===9;
+      s+=`<text x="${xc}" y="${yH-5}" fill="${fin?'#e8d48b':'#8a9bb5'}" font-size="${fin?11:8.5}" font-weight="${fin?'600':'400'}" text-anchor="middle">${a.sellSetup}${fin&&a.setupFlag&&a.setupFlag.perfected?'✓':''}</text>`;
+    }
+    // deferred-perfection marker (small dot where a late setup perfected)
+    if(a.perfMark==='buy') s+=`<circle cx="${xc}" cy="${yL+15}" r="2" fill="#e8d48b"/>`;
+    if(a.perfMark==='sell') s+=`<circle cx="${xc}" cy="${yH-13}" r="2" fill="#e8d48b"/>`;
+    // countdown 13 markers
+    if(a.buyCD===13){ s+=`<text x="${xc}" y="${yL+22}" fill="#3ecf8e" font-size="10" font-weight="600" text-anchor="middle">13</text>`;
+      s+=`<polygon points="${xc-4},${yL+26} ${xc+4},${yL+26} ${xc},${yL+32}" fill="#3ecf8e"/>`; }
+    if(a.sellCD===13){ s+=`<text x="${xc}" y="${yH-16}" fill="#ef4444" font-size="10" font-weight="600" text-anchor="middle">13</text>`;
+      s+=`<polygon points="${xc-4},${yH-14} ${xc+4},${yH-14} ${xc},${yH-8}" fill="#ef4444"/>`; }
+  });
+  s+=`</svg>`;
+  document.getElementById('chart').innerHTML = s;
+}
+
+/* ============================================================ Signal table ============================================================ */
+function renderSignals(signals){
+  const el = document.getElementById('sigTable');
+  if(!signals.length){ el.innerHTML='<div class="empty">No perfected setups or completed countdowns in this window.</div>'; return; }
+  const rows = signals.slice().reverse().map(sg=>{
+    const cls = sg.side==='buy'?'buy':'sell';
+    const pill = sg.type.includes('COUNTDOWN')
+      ? `<span class="pill cd">${sg.label}</span>`
+      : `<span class="pill ${cls}">${sg.label}</span>`;
+    const perf = sg.type.includes('SETUP') ? (sg.perfected?'<span class="green">perfected</span>':'<span class="grayc">unperfected</span>') : '<span class="goldc">—</span>';
+    return `<tr><td>${sg.date}</td><td>${pill}</td><td>${perf}</td><td>$${sg.price.toFixed(2)}</td><td class="red">$${sg.risk.stop.toFixed(2)}</td><td class="green">$${sg.risk.target.toFixed(2)}</td></tr>`;
+  }).join('');
+  el.innerHTML = `<table class="tbl"><thead><tr><th>Date</th><th>Signal</th><th>Quality</th><th>Price</th><th>Stop</th><th>Target 2R</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+/* ============================================================ Order intents ============================================================ */
+function buildIntents(symbol, signals){
+  const wallet = num('wallet'), riskPct = num('risk')/100;
+  const riskDollars = wallet*riskPct;
+  // most recent actionable signal per side, only setups-that-are-perfected or countdowns
+  const actionable = signals.filter(s=> s.type.includes('COUNTDOWN') || s.perfected);
+  const recent = actionable.slice(-4);
+  return recent.map(sg=>{
+    const rps = Math.max(0.01, sg.risk.riskPerShare);
+    let qty = Math.floor(riskDollars / rps);
+    const maxAfford = Math.floor(wallet / sg.price);
+    if(qty>maxAfford) qty = maxAfford;
+    if(qty<0) qty=0;
+    return {
+      schema:"demark.order_intent.v1",
+      generatedAt:new Date().toISOString(),
+      broker:"robinhood-agentic",
+      account:"agent-wallet",
+      symbol,
+      side: sg.side,
+      type:"limit",
+      limitPrice: +sg.price.toFixed(2),
+      quantity: qty,
+      timeInForce:"gtc",
+      signal:{ indicator:"TD Sequential", event:sg.label, date:sg.date,
+               perfected: sg.type.includes('SETUP') ? sg.perfected : true },
+      risk:{ stop:sg.risk.stop, target:sg.risk.target,
+             riskPerShare:+rps.toFixed(2), riskBudget:+riskDollars.toFixed(2) },
+      rationale:`${sg.label} on ${symbol} (${sg.date}) at $${sg.price.toFixed(2)}. `+
+                `${sg.side==='buy'?'Long':'Short/exit'} sized to ${(riskPct*100).toFixed(2)}% wallet risk; `+
+                `stop $${sg.risk.stop.toFixed(2)}, 2R target $${sg.risk.target.toFixed(2)}.`,
+      requiresHumanApproval:true
+    };
+  });
+}
+
+function renderIntents(){
+  const out = state.intents.length ? state.intents : {note:"No actionable signals — load data or wait for a setup/countdown to complete."};
+  document.getElementById('intentOut').textContent = JSON.stringify(out, null, 2);
+}
+
+/* ============================================================
+   Backtest — long/flat. Enter on a buy trigger; exit on a sell
+   trigger, the TD stop, or the 2R target (whichever comes first).
+   Stop/target checked intrabar before same-bar signals are acted on.
+   ============================================================ */
+function backtest(bars, signals, opts){
+  const triggers = signals.filter(s => s.type.includes('COUNTDOWN') || (opts.useSetups && s.perfected));
+  const byIdx = {};
+  triggers.forEach(s => { (byIdx[s.idx]=byIdx[s.idx]||[]).push(s); });
+
+  let cash=opts.capital, shares=0, entryPx=0, stop=0, target=0, entryDate=null;
+  let barsInMkt=0;
+  const trades=[], equity=[];
+
+  for(let i=0;i<bars.length;i++){
+    const b=bars[i];
+    // 1) manage an open position intrabar (stop first = conservative)
+    if(shares>0){
+      let exitPx=null, reason=null;
+      if(b.l<=stop){ exitPx=stop; reason='stop'; }
+      else if(b.h>=target){ exitPx=target; reason='target'; }
+      if(exitPx!=null){
+        cash += shares*exitPx;
+        trades.push(mkTrade(entryDate,entryPx,b.t,exitPx,shares,reason));
+        shares=0;
+      }
+    }
+    // 2) act on this bar's signals at the close
+    (byIdx[i]||[]).forEach(s=>{
+      if(s.side==='buy' && shares===0){
+        const q=Math.floor(cash/b.c);
+        if(q>0){ shares=q; entryPx=b.c; cash-=q*b.c; stop=s.risk.stop; target=s.risk.target; entryDate=b.t; }
+      } else if(s.side==='sell' && shares>0){
+        cash += shares*b.c;
+        trades.push(mkTrade(entryDate,entryPx,b.t,b.c,shares,'signal'));
+        shares=0;
+      }
+    });
+    if(shares>0) barsInMkt++;
+    equity.push({t:b.t, value: cash + shares*b.c});
+  }
+  // liquidate at last close
+  if(shares>0){
+    const last=bars[bars.length-1];
+    cash += shares*last.c;
+    trades.push(mkTrade(entryDate,entryPx,last.t,last.c,shares,'close'));
+    shares=0;
+  }
+
+  const cap=opts.capital, finalEq=cash;
+  const wins=trades.filter(t=>t.pnl>0), losses=trades.filter(t=>t.pnl<=0);
+  let peak=cap, maxDD=0;
+  equity.forEach(e=>{ if(e.value>peak) peak=e.value; const dd=(peak-e.value)/peak; if(dd>maxDD) maxDD=dd; });
+  const bh = bars.length>1 ? (bars[bars.length-1].c-bars[0].c)/bars[0].c*100 : 0;
+  const stats={
+    totalReturnPct:(finalEq-cap)/cap*100,
+    finalEquity:finalEq,
+    buyHoldPct:bh,
+    nTrades:trades.length,
+    winRate: trades.length ? wins.length/trades.length*100 : 0,
+    avgWinPct: wins.length ? wins.reduce((a,t)=>a+t.pnlPct,0)/wins.length : 0,
+    avgLossPct: losses.length ? losses.reduce((a,t)=>a+t.pnlPct,0)/losses.length : 0,
+    maxDDPct: maxDD*100,
+    exposurePct: bars.length ? barsInMkt/bars.length*100 : 0
+  };
+  return {trades, equity, stats};
+}
+function mkTrade(ed,ep,xd,xp,q,reason){
+  const pnl=(xp-ep)*q;
+  return {entryDate:ed, entryPx:+ep.toFixed(2), exitDate:xd, exitPx:+xp.toFixed(2),
+          shares:q, reason, pnl:+pnl.toFixed(2), pnlPct:(xp-ep)/ep*100};
+}
+
+function renderBacktest(bars, signals){
+  const opts={ capital: num('wallet')||10000, useSetups: document.getElementById('btTrigger').value==='all' };
+  const bt = backtest(bars, signals, opts);
+  const s = bt.stats;
+  const sgn = v => (v>=0?'green':'red');
+  const card = (k,v,cls='') => `<div class="stat"><div class="k">${k}</div><div class="v sm ${cls}">${v}</div></div>`;
+  document.getElementById('btStats').innerHTML =
+    card('Strategy', `${s.totalReturnPct>=0?'+':''}${s.totalReturnPct.toFixed(1)}%`, sgn(s.totalReturnPct)) +
+    card('Buy & hold', `${s.buyHoldPct>=0?'+':''}${s.buyHoldPct.toFixed(1)}%`, sgn(s.buyHoldPct)) +
+    card('Win rate', `${s.winRate.toFixed(0)}%`, 'goldc') +
+    card('Trades', s.nTrades, 'goldc') +
+    card('Max DD', `-${s.maxDDPct.toFixed(1)}%`, 'red') +
+    card('Exposure', `${s.exposurePct.toFixed(0)}%`, 'grayc');
+  renderEquityCurve(bt.equity, opts.capital, bars);
+  renderTrades(bt.trades);
+}
+
+function renderEquityCurve(equity, capital, bars){
+  const el=document.getElementById('btCurve');
+  if(equity.length<2){ el.innerHTML=''; return; }
+  const W=Math.max(640, equity.length*6+70), H=150, padL=54, padR=14, padT=14, padB=20;
+  const plotH=H-padT-padB;
+  // buy & hold series (same capital, fully invested at bar 0)
+  const bhShares=capital/bars[0].c;
+  const bh=bars.map(b=>bhShares*b.c);
+  let hi=-Infinity, lo=Infinity;
+  equity.forEach(e=>{ hi=Math.max(hi,e.value); lo=Math.min(lo,e.value); });
+  bh.forEach(v=>{ hi=Math.max(hi,v); lo=Math.min(lo,v); });
+  const pad=(hi-lo)*0.08||1; hi+=pad; lo-=pad;
+  const X=i=>padL+(W-padL-padR)*i/(equity.length-1);
+  const Y=v=>padT+plotH*(1-(v-lo)/(hi-lo));
+  const line=(arr,col,dash='')=>{
+    let d=arr.map((v,i)=>`${i?'L':'M'}${X(i).toFixed(1)} ${Y(v).toFixed(1)}`).join(' ');
+    return `<path d="${d}" fill="none" stroke="${col}" stroke-width="1.6" ${dash?`stroke-dasharray="${dash}"`:''}/>`;
+  };
+  let svg=`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" font-family="var(--mono)">`;
+  for(let g=0;g<=3;g++){ const v=lo+(hi-lo)*g/3, y=Y(v);
+    svg+=`<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="rgba(138,155,181,0.10)"/>`;
+    svg+=`<text x="${padL-7}" y="${y+3}" fill="#8a9bb5" font-size="9" text-anchor="end">$${(v/1000).toFixed(1)}k</text>`;
+  }
+  svg+=`<line x1="${padL}" y1="${Y(capital)}" x2="${W-padR}" y2="${Y(capital)}" stroke="#8a9bb5" stroke-dasharray="2 3" opacity="0.5"/>`;
+  svg+=line(bh,'#5b8def','4 3');
+  svg+=line(equity.map(e=>e.value),'#c9a84c');
+  svg+=`<text x="${W-padR}" y="${padT+10}" fill="#c9a84c" font-size="9" text-anchor="end">strategy</text>`;
+  svg+=`<text x="${W-padR}" y="${padT+22}" fill="#5b8def" font-size="9" text-anchor="end">buy &amp; hold</text>`;
+  svg+=`</svg>`;
+  el.innerHTML=svg;
+}
+
+function renderTrades(trades){
+  const el=document.getElementById('btTrades');
+  if(!trades.length){ el.innerHTML='<div class="empty">No trades triggered in this window.</div>'; return; }
+  const rows=trades.slice().reverse().slice(0,12).map(t=>{
+    const cls=t.pnl>=0?'green':'red';
+    const rmap={stop:'<span class="red">stop</span>',target:'<span class="green">target</span>',signal:'<span class="grayc">signal</span>',close:'<span class="grayc">eod</span>'};
+    return `<tr><td>${t.entryDate}</td><td>$${t.entryPx.toFixed(2)}</td><td>${t.exitDate}</td><td>$${t.exitPx.toFixed(2)}</td><td>${rmap[t.reason]||t.reason}</td><td class="${cls}">${t.pnlPct>=0?'+':''}${t.pnlPct.toFixed(1)}%</td><td class="${cls}">${t.pnl>=0?'+':''}$${t.pnl.toFixed(0)}</td></tr>`;
+  }).join('');
+  el.innerHTML=`<table class="tbl"><thead><tr><th>Entry</th><th>In</th><th>Exit</th><th>Out</th><th>Reason</th><th>Return</th><th>P/L</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+/* ============================================================ Stats ============================================================ */
+function renderStats(symbol, bars, r){
+  const last = bars[bars.length-1];
+  const prev = bars[bars.length-2] || last;
+  const chg = ((last.c-prev.c)/prev.c*100);
+  document.getElementById('sLast').innerHTML =
+    `$${last.c.toFixed(2)} <span style="font-size:12px" class="${chg>=0?'green':'red'}">${chg>=0?'+':''}${chg.toFixed(2)}%</span>`;
+
+  const a = r.ann[bars.length-1];
+  let setupTxt='—';
+  if(a.buySetup) setupTxt=`<span class="green">Buy ${a.buySetup}/9</span>`;
+  else if(a.sellSetup) setupTxt=`<span class="red">Sell ${a.sellSetup}/9</span>`;
+  document.getElementById('sSetup').innerHTML=setupTxt;
+
+  let cdTxt='—';
+  if(r.liveBuyCD) cdTxt=`<span class="green">Buy ${r.liveBuyCD}/13</span>`;
+  else if(r.liveSellCD) cdTxt=`<span class="red">Sell ${r.liveSellCD}/13</span>`;
+  document.getElementById('sCD').innerHTML=cdTxt;
+
+  const ls = r.signals[r.signals.length-1];
+  document.getElementById('sSignal').innerHTML = ls
+    ? `<span class="${ls.side==='buy'?'green':'red'}">${ls.label}</span><br/><span class="grayc" style="font-size:10px">${ls.date}</span>`
+    : '<span class="grayc">none</span>';
+
+  document.getElementById('metaSym').textContent = symbol;
+  document.getElementById('metaBars').textContent = bars.length+' bars';
+  document.getElementById('chartTtl').textContent = `${symbol} · daily · ${bars[0].t} → ${last.t}`;
+}
+
+/* ============================================================ Orchestration ============================================================ */
+function run(parsed){
+  state.bars = parsed.bars;
+  const r = computeDeMark(parsed.bars);
+  state.result = r;
+  state.intents = buildIntents(parsed.symbol, r.signals);
+  renderStats(parsed.symbol, parsed.bars, r);
+  renderChart(parsed.bars, r.ann);
+  renderSignals(r.signals);
+  renderIntents();
+  renderBacktest(parsed.bars, r.signals);
+}
+
+document.getElementById('loadBtn').addEventListener('click', ()=>{
+  const raw = document.getElementById('barsInput').value.trim();
+  if(!raw){ alert('Paste OHLC JSON, or click "Load demo data".'); return; }
+  try{ run(parseBars(raw)); }
+  catch(e){ alert(e.message); }
+});
+['wallet','risk','symbol'].forEach(id=>{
+  document.getElementById(id).addEventListener('change', ()=>{
+    if(state.result){
+      state.intents = buildIntents(document.getElementById('symbol').value, state.result.signals);
+      renderIntents();
+      renderBacktest(state.bars, state.result.signals);
+    }
+  });
+});
+document.getElementById('btTrigger').addEventListener('change', ()=>{
+  if(state.result) renderBacktest(state.bars, state.result.signals);
+});
+
+document.getElementById('copyBtn').addEventListener('click', ()=>{
+  navigator.clipboard.writeText(document.getElementById('intentOut').textContent)
+    .then(()=>flash('copyBtn','Copied ✓','Copy intents JSON'));
+});
+const MCP_URL = 'https://agent.robinhood.com/mcp/trading';
+
+document.getElementById('promptBtn').addEventListener('click', ()=>{
+  const sym = document.getElementById('symbol').value;
+  const p = `You are connected to Robinhood Agentic Trading via MCP (${MCP_URL}).\n`+
+    `1. Fetch the last 120 daily OHLC bars for ${sym} and return ONLY this JSON (no prose):\n`+
+    `   {"symbol":"${sym}","timeframe":"1day","bars":[{"t":"YYYY-MM-DD","o":0,"h":0,"l":0,"c":0,"v":0}, ...]}\n`+
+    `2. I will paste it into my DeMark Sequential tool, review the generated order_intent.v1 objects, and approve the ones to trade.\n`+
+    `Do not place any orders yet — wait for my approved intents.`;
+  navigator.clipboard.writeText(p).then(()=>flash('promptBtn','Copied ✓','Copy fetch prompt'));
+});
+
+document.getElementById('execBtn').addEventListener('click', ()=>{
+  if(!state.intents.length){ alert('No actionable intents yet — load data with a perfected setup or completed countdown.'); return; }
+  const sym = document.getElementById('symbol').value;
+  const p = `You are connected to Robinhood Agentic Trading via MCP (${MCP_URL}), acting only on my dedicated agent wallet.\n\n`+
+    `I have REVIEWED and APPROVED the DeMark Sequential order intents below. Place each one EXACTLY as specified with the Robinhood MCP place_order tool. Do not resize, add, reorder, or invent orders, and never exceed the wallet's buying power.\n\n`+
+    `For each intent: use symbol=${sym}, the given side, type=limit, limitPrice, quantity, and timeInForce. Where the MCP supports a protective stop, also set it to risk.stop. After each placement, report the order id and status. If an order would be rejected or exceed buying power, skip it and tell me why — do not substitute a different order.\n\n`+
+    `APPROVED_INTENTS =\n`+ JSON.stringify(state.intents, null, 2);
+  navigator.clipboard.writeText(p).then(()=>flash('execBtn','Copied ✓','Copy execution prompt →'));
+});
+
+function flash(id,on,off){ const b=document.getElementById(id); b.textContent=on; setTimeout(()=>b.textContent=off,1400); }
+
+/* ---- Demo data: seeded random walk that yields setups/countdowns ---- */
+document.getElementById('sampleBtn').addEventListener('click', ()=>{
+  let seed=20260611;
+  const rnd=()=>{ seed=(seed*1103515245+12345)&0x7fffffff; return seed/0x7fffffff; };
+  const bars=[]; let price=180; const start=new Date('2026-01-02');
+  for(let i=0;i<170;i++){
+    // gentle uptrend + overlapping cycles (mean reversion) so DeMark
+    // reversal signals get exercised with a realistic mix of outcomes.
+    const cycle = 22*Math.sin(i/7.5) + 8.8*Math.sin(i/3);
+    const target = 180 + i*0.16 + cycle;
+    const o=price;
+    let c = o + (target-o)*0.32 + (rnd()-0.5)*2;
+    c=Math.max(5, c);
+    const h=Math.max(o,c)+rnd()*1.3;
+    const l=Math.min(o,c)-rnd()*1.3;
+    const d=new Date(start); d.setDate(d.getDate()+Math.floor(i*1.4));
+    bars.push({t:d.toISOString().slice(0,10), o:+o.toFixed(2), h:+h.toFixed(2), l:+l.toFixed(2), c:+c.toFixed(2), v:Math.round(3e7+rnd()*2e7)});
+    price=c;
+  }
+  document.getElementById('symbol').value='DEMO';
+  document.getElementById('barsInput').value=JSON.stringify({symbol:'DEMO',timeframe:'1day',bars},null,0);
+  run({symbol:'DEMO', bars});
+});
+</script>
+</body>
+</html>
