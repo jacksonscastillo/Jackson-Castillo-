@@ -134,6 +134,7 @@ details .body ol{margin:8px 0 8px 20px} details .body li{margin:5px 0}
         </label>
         <button class="btn btn-gold" id="loadBtn">Compute signals</button>
         <button class="btn btn-ghost" id="sampleBtn">Load demo data</button>
+        <button class="btn btn-ghost" id="resetBtn">Reset saved session</button>
         <div class="hint">Need the price history? Use <i>Copy fetch prompt</i> below, or paste a <b>CSV</b> (Yahoo/Nasdaq export) — header with <code>date,open,high,low,close</code>. JSON accepts <code>t,o,h,l,c,v</code> or <code>open_price…</code> keys too.</div>
       </div>
 
@@ -197,7 +198,11 @@ details .body ol{margin:8px 0 8px 20px} details .body li{margin:5px 0}
           <option value="all">Setup 9 (perfected) + Countdown 13</option>
         </select>
       </label>
-      <div class="hint" style="margin:0;flex:1;min-width:220px">Goes long on buy triggers; exits on sell triggers, the TD stop, or the 2R target. Starting capital = wallet balance. Long/flat, stocks only — mirrors the agentic beta.</div>
+      <label class="fld" style="margin:0;min-width:150px">
+        <span class="lab">Fees / slippage (bps)</span>
+        <input id="btFees" value="0" inputmode="decimal" />
+      </label>
+      <div class="hint" style="margin:0;flex:1;min-width:220px">Goes long on buy triggers; exits on sell triggers, the TD stop, or the 2R target. Starting capital = wallet balance. Long/flat, stocks only — mirrors the agentic beta. Commission is $0; <b>bps</b> models slippage per fill (buys fill higher, sells lower).</div>
     </div>
     <div id="btStats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:11px;margin:16px 0 6px"></div>
     <div class="scrollx"><div id="btCurve"></div></div>
@@ -570,7 +575,13 @@ function backtest(bars, signals, opts){
   const byIdx = {};
   triggers.forEach(s => { (byIdx[s.idx]=byIdx[s.idx]||[]).push(s); });
 
-  let cash=opts.capital, shares=0, entryPx=0, stop=0, target=0, entryDate=null;
+  // Slippage in basis points: buy fills are worse (higher), sell fills worse
+  // (lower). Robinhood stock commission is $0, so we only model slippage.
+  const slipFrac = Math.max(0, opts.feesBps||0)/10000;
+  const buyFill  = px => px*(1+slipFrac);
+  const sellFill = px => px*(1-slipFrac);
+
+  let cash=opts.capital, shares=0, entryPx=0, stop=0, target=0, entryDate=null, entryIdx=0;
   let barsInMkt=0;
   const trades=[], equity=[];
 
@@ -582,19 +593,22 @@ function backtest(bars, signals, opts){
       if(b.l<=stop){ exitPx=stop; reason='stop'; }
       else if(b.h>=target){ exitPx=target; reason='target'; }
       if(exitPx!=null){
-        cash += shares*exitPx;
-        trades.push(mkTrade(entryDate,entryPx,b.t,exitPx,shares,reason));
+        const fill=sellFill(exitPx);
+        cash += shares*fill;
+        trades.push(mkTrade(entryDate,entryPx,b.t,fill,shares,reason,i-entryIdx));
         shares=0;
       }
     }
     // 2) act on this bar's signals at the close
     (byIdx[i]||[]).forEach(s=>{
       if(s.side==='buy' && shares===0){
-        const q=Math.floor(cash/b.c);
-        if(q>0){ shares=q; entryPx=b.c; cash-=q*b.c; stop=s.risk.stop; target=s.risk.target; entryDate=b.t; }
+        const fill=buyFill(b.c);
+        const q=Math.floor(cash/fill);
+        if(q>0){ shares=q; entryPx=fill; cash-=q*fill; stop=s.risk.stop; target=s.risk.target; entryDate=b.t; entryIdx=i; }
       } else if(s.side==='sell' && shares>0){
-        cash += shares*b.c;
-        trades.push(mkTrade(entryDate,entryPx,b.t,b.c,shares,'signal'));
+        const fill=sellFill(b.c);
+        cash += shares*fill;
+        trades.push(mkTrade(entryDate,entryPx,b.t,fill,shares,'signal',i-entryIdx));
         shares=0;
       }
     });
@@ -603,17 +617,64 @@ function backtest(bars, signals, opts){
   }
   // liquidate at last close
   if(shares>0){
-    const last=bars[bars.length-1];
-    cash += shares*last.c;
-    trades.push(mkTrade(entryDate,entryPx,last.t,last.c,shares,'close'));
+    const lastI=bars.length-1, last=bars[lastI];
+    const fill=sellFill(last.c);
+    cash += shares*fill;
+    trades.push(mkTrade(entryDate,entryPx,last.t,fill,shares,'close',lastI-entryIdx));
     shares=0;
   }
 
   const cap=opts.capital, finalEq=cash;
   const wins=trades.filter(t=>t.pnl>0), losses=trades.filter(t=>t.pnl<=0);
   let peak=cap, maxDD=0;
-  equity.forEach(e=>{ if(e.value>peak) peak=e.value; const dd=(peak-e.value)/peak; if(dd>maxDD) maxDD=dd; });
-  const bh = bars.length>1 ? (bars[bars.length-1].c-bars[0].c)/bars[0].c*100 : 0;
+  equity.forEach(e=>{ if(e.value>peak) peak=e.value; const dd=peak>0?(peak-e.value)/peak:0; if(dd>maxDD) maxDD=dd; });
+  const bh = bars.length>1 && bars[0].c>0 ? (bars[bars.length-1].c-bars[0].c)/bars[0].c*100 : 0;
+
+  // --- Risk / quality metrics (all guarded against /0, NaN, no-trades) ---
+  // CAGR over the bar date span (assume daily bars; fall back to bar count/252).
+  let years=null;
+  if(bars.length>1){
+    const d0=Date.parse(bars[0].t), dN=Date.parse(bars[bars.length-1].t);
+    if(isFinite(d0)&&isFinite(dN)&&dN>d0) years=(dN-d0)/(365.25*86400000);
+  }
+  if(years==null || years<=0) years = bars.length>1 ? (bars.length-1)/252 : null;
+  let cagr=null;
+  if(years!=null && years>0 && cap>0 && finalEq>0){
+    cagr = (Math.pow(finalEq/cap, 1/years) - 1) * 100;
+  }
+
+  // Daily returns of the equity curve → Sharpe / Sortino (rf=0, ×√252).
+  const rets=[];
+  for(let i=1;i<equity.length;i++){
+    const p=equity[i-1].value;
+    if(p>0) rets.push((equity[i].value-p)/p);
+  }
+  let sharpe=null, sortino=null;
+  if(rets.length>1){
+    const mean=rets.reduce((a,r)=>a+r,0)/rets.length;
+    const variance=rets.reduce((a,r)=>a+(r-mean)*(r-mean),0)/(rets.length-1);
+    const sd=Math.sqrt(variance);
+    if(sd>0) sharpe=(mean/sd)*Math.sqrt(252);
+    const downside=rets.filter(r=>r<0);
+    if(downside.length){
+      const dvar=downside.reduce((a,r)=>a+r*r,0)/downside.length;
+      const dd=Math.sqrt(dvar);
+      if(dd>0) sortino=(mean/dd)*Math.sqrt(252);
+    }
+  }
+
+  // Profit factor = gross wins / gross losses (both in $).
+  const grossWin=wins.reduce((a,t)=>a+t.pnl,0);
+  const grossLoss=losses.reduce((a,t)=>a+Math.abs(t.pnl),0);
+  let profitFactor=null;
+  if(grossLoss>0) profitFactor=grossWin/grossLoss;
+  else if(grossWin>0) profitFactor=Infinity;        // wins, no losing $
+
+  const avgHoldDays = trades.length
+    ? trades.reduce((a,t)=>a+(t.holdDays||0),0)/trades.length : null;
+  const largestWin  = wins.length   ? Math.max(...wins.map(t=>t.pnl))            : null;
+  const largestLoss = losses.length ? Math.min(...losses.map(t=>t.pnl))          : null;
+
   const stats={
     totalReturnPct:(finalEq-cap)/cap*100,
     finalEquity:finalEq,
@@ -623,29 +684,48 @@ function backtest(bars, signals, opts){
     avgWinPct: wins.length ? wins.reduce((a,t)=>a+t.pnlPct,0)/wins.length : 0,
     avgLossPct: losses.length ? losses.reduce((a,t)=>a+t.pnlPct,0)/losses.length : 0,
     maxDDPct: maxDD*100,
-    exposurePct: bars.length ? barsInMkt/bars.length*100 : 0
+    exposurePct: bars.length ? barsInMkt/bars.length*100 : 0,
+    cagrPct: cagr,
+    sharpe, sortino, profitFactor, avgHoldDays, largestWin, largestLoss
   };
   return {trades, equity, stats};
 }
-function mkTrade(ed,ep,xd,xp,q,reason){
+function mkTrade(ed,ep,xd,xp,q,reason,holdDays){
   const pnl=(xp-ep)*q;
   return {entryDate:ed, entryPx:+ep.toFixed(2), exitDate:xd, exitPx:+xp.toFixed(2),
-          shares:q, reason, pnl:+pnl.toFixed(2), pnlPct:(xp-ep)/ep*100};
+          shares:q, reason, pnl:+pnl.toFixed(2), pnlPct: ep>0 ? (xp-ep)/ep*100 : 0,
+          holdDays: holdDays||0};
 }
 
 function renderBacktest(bars, signals){
-  const opts={ capital: num('wallet')||10000, useSetups: document.getElementById('btTrigger').value==='all' };
+  const opts={ capital: num('wallet')||10000, useSetups: document.getElementById('btTrigger').value==='all',
+               feesBps: num('btFees') };
   const bt = backtest(bars, signals, opts);
   const s = bt.stats;
   const sgn = v => (v>=0?'green':'red');
   const card = (k,v,cls='') => `<div class="stat"><div class="k">${k}</div><div class="v sm ${cls}">${v}</div></div>`;
+  // Graceful formatters — return '—' for null / NaN / non-finite values.
+  const ok = v => v!=null && isFinite(v);
+  const dash = '<span class="grayc">—</span>';
+  const fPct = (k,v) => card(k, ok(v) ? `${v>=0?'+':''}${v.toFixed(1)}%` : dash, ok(v)?sgn(v):'');
+  const fNum = (k,v,dp,cls)=> card(k, ok(v) ? v.toFixed(dp==null?2:dp) : dash, cls||'goldc');
+  const fMoney = (k,v,cls)=> card(k, ok(v) ? `${v>=0?'+':''}$${Math.round(v).toLocaleString()}` : dash, cls||(ok(v)?sgn(v):''));
+  const fPF = (k,v) => card(k, v===Infinity ? '∞' : (ok(v) ? v.toFixed(2) : dash), 'goldc');
+
   document.getElementById('btStats').innerHTML =
-    card('Strategy', `${s.totalReturnPct>=0?'+':''}${s.totalReturnPct.toFixed(1)}%`, sgn(s.totalReturnPct)) +
-    card('Buy & hold', `${s.buyHoldPct>=0?'+':''}${s.buyHoldPct.toFixed(1)}%`, sgn(s.buyHoldPct)) +
-    card('Win rate', `${s.winRate.toFixed(0)}%`, 'goldc') +
+    fPct('Strategy', s.totalReturnPct) +
+    fPct('Buy & hold', s.buyHoldPct) +
+    fPct('CAGR', s.cagrPct) +
+    card('Win rate', s.nTrades ? `${s.winRate.toFixed(0)}%` : dash, 'goldc') +
     card('Trades', s.nTrades, 'goldc') +
-    card('Max DD', `-${s.maxDDPct.toFixed(1)}%`, 'red') +
-    card('Exposure', `${s.exposurePct.toFixed(0)}%`, 'grayc');
+    card('Max DD', s.nTrades ? `-${s.maxDDPct.toFixed(1)}%` : dash, 'red') +
+    card('Exposure', `${s.exposurePct.toFixed(0)}%`, 'grayc') +
+    fNum('Sharpe', s.sharpe, 2, sgn(s.sharpe>=0?1:-1)) +
+    fNum('Sortino', s.sortino, 2, sgn(s.sortino>=0?1:-1)) +
+    fPF('Profit factor', s.profitFactor) +
+    fNum('Avg hold (d)', s.avgHoldDays, 0, 'grayc') +
+    fMoney('Largest win', s.largestWin, 'green') +
+    fMoney('Largest loss', s.largestLoss, 'red');
   renderEquityCurve(bt.equity, opts.capital, bars);
   renderTrades(bt.trades);
 }
@@ -738,7 +818,7 @@ function run(parsed){
 document.getElementById('loadBtn').addEventListener('click', ()=>{
   const raw = document.getElementById('barsInput').value.trim();
   if(!raw){ alert('Paste OHLC JSON, or click "Load demo data".'); return; }
-  try{ run(parseBars(raw)); }
+  try{ run(parseBars(raw)); saveState(); }
   catch(e){ alert(e.message); }
 });
 ['wallet','risk','symbol'].forEach(id=>{
@@ -748,10 +828,14 @@ document.getElementById('loadBtn').addEventListener('click', ()=>{
       renderIntents();
       renderBacktest(state.bars, state.result.signals);
     }
+    saveState();
   });
 });
-document.getElementById('btTrigger').addEventListener('change', ()=>{
-  if(state.result) renderBacktest(state.bars, state.result.signals);
+['btTrigger','btFees'].forEach(id=>{
+  document.getElementById(id).addEventListener('change', ()=>{
+    if(state.result) renderBacktest(state.bars, state.result.signals);
+    saveState();
+  });
 });
 
 document.getElementById('copyBtn').addEventListener('click', ()=>{
@@ -804,7 +888,49 @@ document.getElementById('sampleBtn').addEventListener('click', ()=>{
   document.getElementById('symbol').value='DEMO';
   document.getElementById('barsInput').value=JSON.stringify({symbol:'DEMO',timeframe:'1day',bars},null,0);
   run({symbol:'DEMO', bars});
+  saveState();
 });
+
+/* ============================================================
+   Persistence — symbol, wallet, risk, trigger, fees/slippage and
+   the last pasted bars are saved to localStorage and restored on
+   load. A Reset button clears the saved state.
+   ============================================================ */
+const LS_KEY = 'demark.session.v1';
+function saveState(){
+  try{
+    const data={
+      symbol:   document.getElementById('symbol').value,
+      wallet:   document.getElementById('wallet').value,
+      risk:     document.getElementById('risk').value,
+      btTrigger:document.getElementById('btTrigger').value,
+      btFees:   document.getElementById('btFees').value,
+      bars:     document.getElementById('barsInput').value
+    };
+    localStorage.setItem(LS_KEY, JSON.stringify(data));
+  }catch(e){ /* storage may be unavailable (private mode / quota) — non-fatal */ }
+}
+function restoreState(){
+  let data=null;
+  try{ data=JSON.parse(localStorage.getItem(LS_KEY)||'null'); }catch(e){ data=null; }
+  if(!data) return;
+  const set=(id,v)=>{ if(v!=null && v!=='') document.getElementById(id).value=v; };
+  set('symbol', data.symbol);
+  set('wallet', data.wallet);
+  set('risk',   data.risk);
+  set('btFees', data.btFees);
+  if(data.btTrigger) document.getElementById('btTrigger').value=data.btTrigger;
+  if(data.bars){
+    document.getElementById('barsInput').value=data.bars;
+    try{ run(parseBars(data.bars)); }   // re-run if saved data is present
+    catch(e){ /* stale/invalid saved bars — leave inputs, skip compute */ }
+  }
+}
+document.getElementById('resetBtn').addEventListener('click', ()=>{
+  try{ localStorage.removeItem(LS_KEY); }catch(e){}
+  location.reload();
+});
+restoreState();
 </script>
 </body>
 </html>
