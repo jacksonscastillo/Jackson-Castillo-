@@ -25,7 +25,13 @@ in a browser — no server or build step.
 4. **Approve & execute** — You review the intents; the agent submits the approved ones
    via Robinhood's MCP order tools. Stocks only in beta.
 
-Click **Load demo data** to see all four signal types render on a synthetic series.
+**Strategy backtest** — Before risking the agent wallet, the tool replays the signals as
+a long/flat strategy over the loaded window (enter on buy triggers; exit on sell triggers,
+the TD stop, or the 2R target) and reports total return vs. buy & hold, win rate, trade
+count, max drawdown, exposure, an equity curve, and a trade log. Toggle between
+*Countdown 13 only* and *Setup 9 + Countdown 13* entries.
+
+Click **Load demo data** to see all four signal types and a full backtest on a synthetic series.
 
 > Educational tool, not financial advice. Backtest before risking capital, and fund the
 > agent wallet only with money you can afford to trade.

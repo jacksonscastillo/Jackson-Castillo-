@@ -186,6 +186,23 @@ details .body ol{margin:8px 0 8px 20px} details .body li{margin:5px 0}
     <pre class="intent" id="intentOut">{ }</pre>
   </div>
 
+  <div class="sec-title"><h2>Strategy backtest</h2><div class="note">long / flat over the loaded window · educational</div></div>
+  <div class="card">
+    <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap">
+      <label class="fld" style="margin:0;min-width:240px">
+        <span class="lab">Entry / exit trigger</span>
+        <select id="btTrigger">
+          <option value="cd">Countdown 13 only</option>
+          <option value="all">Setup 9 (perfected) + Countdown 13</option>
+        </select>
+      </label>
+      <div class="hint" style="margin:0;flex:1;min-width:220px">Goes long on buy triggers; exits on sell triggers, the TD stop, or the 2R target. Starting capital = wallet balance. Long/flat, stocks only — mirrors the agentic beta.</div>
+    </div>
+    <div id="btStats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:11px;margin:16px 0 6px"></div>
+    <div class="scrollx"><div id="btCurve"></div></div>
+    <div id="btTrades"></div>
+  </div>
+
   <details>
     <summary>How the agentic workflow fits together</summary>
     <div class="body">
@@ -471,6 +488,139 @@ function renderIntents(){
   document.getElementById('intentOut').textContent = JSON.stringify(out, null, 2);
 }
 
+/* ============================================================
+   Backtest — long/flat. Enter on a buy trigger; exit on a sell
+   trigger, the TD stop, or the 2R target (whichever comes first).
+   Stop/target checked intrabar before same-bar signals are acted on.
+   ============================================================ */
+function backtest(bars, signals, opts){
+  const triggers = signals.filter(s => s.type.includes('COUNTDOWN') || (opts.useSetups && s.perfected));
+  const byIdx = {};
+  triggers.forEach(s => { (byIdx[s.idx]=byIdx[s.idx]||[]).push(s); });
+
+  let cash=opts.capital, shares=0, entryPx=0, stop=0, target=0, entryDate=null;
+  let barsInMkt=0;
+  const trades=[], equity=[];
+
+  for(let i=0;i<bars.length;i++){
+    const b=bars[i];
+    // 1) manage an open position intrabar (stop first = conservative)
+    if(shares>0){
+      let exitPx=null, reason=null;
+      if(b.l<=stop){ exitPx=stop; reason='stop'; }
+      else if(b.h>=target){ exitPx=target; reason='target'; }
+      if(exitPx!=null){
+        cash += shares*exitPx;
+        trades.push(mkTrade(entryDate,entryPx,b.t,exitPx,shares,reason));
+        shares=0;
+      }
+    }
+    // 2) act on this bar's signals at the close
+    (byIdx[i]||[]).forEach(s=>{
+      if(s.side==='buy' && shares===0){
+        const q=Math.floor(cash/b.c);
+        if(q>0){ shares=q; entryPx=b.c; cash-=q*b.c; stop=s.risk.stop; target=s.risk.target; entryDate=b.t; }
+      } else if(s.side==='sell' && shares>0){
+        cash += shares*b.c;
+        trades.push(mkTrade(entryDate,entryPx,b.t,b.c,shares,'signal'));
+        shares=0;
+      }
+    });
+    if(shares>0) barsInMkt++;
+    equity.push({t:b.t, value: cash + shares*b.c});
+  }
+  // liquidate at last close
+  if(shares>0){
+    const last=bars[bars.length-1];
+    cash += shares*last.c;
+    trades.push(mkTrade(entryDate,entryPx,last.t,last.c,shares,'close'));
+    shares=0;
+  }
+
+  const cap=opts.capital, finalEq=cash;
+  const wins=trades.filter(t=>t.pnl>0), losses=trades.filter(t=>t.pnl<=0);
+  let peak=cap, maxDD=0;
+  equity.forEach(e=>{ if(e.value>peak) peak=e.value; const dd=(peak-e.value)/peak; if(dd>maxDD) maxDD=dd; });
+  const bh = bars.length>1 ? (bars[bars.length-1].c-bars[0].c)/bars[0].c*100 : 0;
+  const stats={
+    totalReturnPct:(finalEq-cap)/cap*100,
+    finalEquity:finalEq,
+    buyHoldPct:bh,
+    nTrades:trades.length,
+    winRate: trades.length ? wins.length/trades.length*100 : 0,
+    avgWinPct: wins.length ? wins.reduce((a,t)=>a+t.pnlPct,0)/wins.length : 0,
+    avgLossPct: losses.length ? losses.reduce((a,t)=>a+t.pnlPct,0)/losses.length : 0,
+    maxDDPct: maxDD*100,
+    exposurePct: bars.length ? barsInMkt/bars.length*100 : 0
+  };
+  return {trades, equity, stats};
+}
+function mkTrade(ed,ep,xd,xp,q,reason){
+  const pnl=(xp-ep)*q;
+  return {entryDate:ed, entryPx:+ep.toFixed(2), exitDate:xd, exitPx:+xp.toFixed(2),
+          shares:q, reason, pnl:+pnl.toFixed(2), pnlPct:(xp-ep)/ep*100};
+}
+
+function renderBacktest(bars, signals){
+  const opts={ capital: num('wallet')||10000, useSetups: document.getElementById('btTrigger').value==='all' };
+  const bt = backtest(bars, signals, opts);
+  const s = bt.stats;
+  const sgn = v => (v>=0?'green':'red');
+  const card = (k,v,cls='') => `<div class="stat"><div class="k">${k}</div><div class="v sm ${cls}">${v}</div></div>`;
+  document.getElementById('btStats').innerHTML =
+    card('Strategy', `${s.totalReturnPct>=0?'+':''}${s.totalReturnPct.toFixed(1)}%`, sgn(s.totalReturnPct)) +
+    card('Buy & hold', `${s.buyHoldPct>=0?'+':''}${s.buyHoldPct.toFixed(1)}%`, sgn(s.buyHoldPct)) +
+    card('Win rate', `${s.winRate.toFixed(0)}%`, 'goldc') +
+    card('Trades', s.nTrades, 'goldc') +
+    card('Max DD', `-${s.maxDDPct.toFixed(1)}%`, 'red') +
+    card('Exposure', `${s.exposurePct.toFixed(0)}%`, 'grayc');
+  renderEquityCurve(bt.equity, opts.capital, bars);
+  renderTrades(bt.trades);
+}
+
+function renderEquityCurve(equity, capital, bars){
+  const el=document.getElementById('btCurve');
+  if(equity.length<2){ el.innerHTML=''; return; }
+  const W=Math.max(640, equity.length*6+70), H=150, padL=54, padR=14, padT=14, padB=20;
+  const plotH=H-padT-padB;
+  // buy & hold series (same capital, fully invested at bar 0)
+  const bhShares=capital/bars[0].c;
+  const bh=bars.map(b=>bhShares*b.c);
+  let hi=-Infinity, lo=Infinity;
+  equity.forEach(e=>{ hi=Math.max(hi,e.value); lo=Math.min(lo,e.value); });
+  bh.forEach(v=>{ hi=Math.max(hi,v); lo=Math.min(lo,v); });
+  const pad=(hi-lo)*0.08||1; hi+=pad; lo-=pad;
+  const X=i=>padL+(W-padL-padR)*i/(equity.length-1);
+  const Y=v=>padT+plotH*(1-(v-lo)/(hi-lo));
+  const line=(arr,col,dash='')=>{
+    let d=arr.map((v,i)=>`${i?'L':'M'}${X(i).toFixed(1)} ${Y(v).toFixed(1)}`).join(' ');
+    return `<path d="${d}" fill="none" stroke="${col}" stroke-width="1.6" ${dash?`stroke-dasharray="${dash}"`:''}/>`;
+  };
+  let svg=`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" font-family="var(--mono)">`;
+  for(let g=0;g<=3;g++){ const v=lo+(hi-lo)*g/3, y=Y(v);
+    svg+=`<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="rgba(138,155,181,0.10)"/>`;
+    svg+=`<text x="${padL-7}" y="${y+3}" fill="#8a9bb5" font-size="9" text-anchor="end">$${(v/1000).toFixed(1)}k</text>`;
+  }
+  svg+=`<line x1="${padL}" y1="${Y(capital)}" x2="${W-padR}" y2="${Y(capital)}" stroke="#8a9bb5" stroke-dasharray="2 3" opacity="0.5"/>`;
+  svg+=line(bh,'#5b8def','4 3');
+  svg+=line(equity.map(e=>e.value),'#c9a84c');
+  svg+=`<text x="${W-padR}" y="${padT+10}" fill="#c9a84c" font-size="9" text-anchor="end">strategy</text>`;
+  svg+=`<text x="${W-padR}" y="${padT+22}" fill="#5b8def" font-size="9" text-anchor="end">buy &amp; hold</text>`;
+  svg+=`</svg>`;
+  el.innerHTML=svg;
+}
+
+function renderTrades(trades){
+  const el=document.getElementById('btTrades');
+  if(!trades.length){ el.innerHTML='<div class="empty">No trades triggered in this window.</div>'; return; }
+  const rows=trades.slice().reverse().slice(0,12).map(t=>{
+    const cls=t.pnl>=0?'green':'red';
+    const rmap={stop:'<span class="red">stop</span>',target:'<span class="green">target</span>',signal:'<span class="grayc">signal</span>',close:'<span class="grayc">eod</span>'};
+    return `<tr><td>${t.entryDate}</td><td>$${t.entryPx.toFixed(2)}</td><td>${t.exitDate}</td><td>$${t.exitPx.toFixed(2)}</td><td>${rmap[t.reason]||t.reason}</td><td class="${cls}">${t.pnlPct>=0?'+':''}${t.pnlPct.toFixed(1)}%</td><td class="${cls}">${t.pnl>=0?'+':''}$${t.pnl.toFixed(0)}</td></tr>`;
+  }).join('');
+  el.innerHTML=`<table class="tbl"><thead><tr><th>Entry</th><th>In</th><th>Exit</th><th>Out</th><th>Reason</th><th>Return</th><th>P/L</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
 /* ============================================================ Stats ============================================================ */
 function renderStats(symbol, bars, r){
   const last = bars[bars.length-1];
@@ -510,6 +660,7 @@ function run(parsed){
   renderChart(parsed.bars, r.ann);
   renderSignals(r.signals);
   renderIntents();
+  renderBacktest(parsed.bars, r.signals);
 }
 
 document.getElementById('loadBtn').addEventListener('click', ()=>{
@@ -523,8 +674,12 @@ document.getElementById('loadBtn').addEventListener('click', ()=>{
     if(state.result){
       state.intents = buildIntents(document.getElementById('symbol').value, state.result.signals);
       renderIntents();
+      renderBacktest(state.bars, state.result.signals);
     }
   });
+});
+document.getElementById('btTrigger').addEventListener('change', ()=>{
+  if(state.result) renderBacktest(state.bars, state.result.signals);
 });
 
 document.getElementById('copyBtn').addEventListener('click', ()=>{
@@ -545,17 +700,17 @@ function flash(id,on,off){ const b=document.getElementById(id); b.textContent=on
 document.getElementById('sampleBtn').addEventListener('click', ()=>{
   let seed=20260611;
   const rnd=()=>{ seed=(seed*1103515245+12345)&0x7fffffff; return seed/0x7fffffff; };
-  const bars=[]; let price=200; const start=new Date('2026-01-02');
-  for(let i=0;i<150;i++){
-    // regime: clean down → base → clean up → pullback, to exercise
-    // buy setup+countdown, then sell setup+countdown.
-    let drift;
-    if(i<48) drift=-1.6; else if(i<58) drift=0.2; else if(i<118) drift=1.7; else drift=-1.0;
+  const bars=[]; let price=180; const start=new Date('2026-01-02');
+  for(let i=0;i<170;i++){
+    // gentle uptrend + overlapping cycles (mean reversion) so DeMark
+    // reversal signals get exercised with a realistic mix of outcomes.
+    const cycle = 22*Math.sin(i/7.5) + 8.8*Math.sin(i/3);
+    const target = 180 + i*0.16 + cycle;
     const o=price;
-    const move = drift + (rnd()-0.5)*1.6;
-    let c=Math.max(5, o+move);
-    const h=Math.max(o,c)+rnd()*1.1;
-    const l=Math.min(o,c)-rnd()*1.1;
+    let c = o + (target-o)*0.32 + (rnd()-0.5)*2;
+    c=Math.max(5, c);
+    const h=Math.max(o,c)+rnd()*1.3;
+    const l=Math.min(o,c)-rnd()*1.3;
     const d=new Date(start); d.setDate(d.getDate()+Math.floor(i*1.4));
     bars.push({t:d.toISOString().slice(0,10), o:+o.toFixed(2), h:+h.toFixed(2), l:+l.toFixed(2), c:+c.toFixed(2), v:Math.round(3e7+rnd()*2e7)});
     price=c;
