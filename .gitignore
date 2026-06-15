@@ -1,0 +1,7 @@
+# Claude Code local state and transient agent worktrees
+.claude/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
