@@ -134,6 +134,7 @@ details .body ol{margin:8px 0 8px 20px} details .body li{margin:5px 0}
         </label>
         <button class="btn btn-gold" id="loadBtn">Compute signals</button>
         <button class="btn btn-ghost" id="sampleBtn">Load demo data</button>
+        <button class="btn btn-ghost" id="resetBtn">Reset saved session</button>
         <div class="hint">Need the price history? Use <i>Copy fetch prompt</i> below, or paste a <b>CSV</b> (Yahoo/Nasdaq export) — header with <code>date,open,high,low,close</code>. JSON accepts <code>t,o,h,l,c,v</code> or <code>open_price…</code> keys too.</div>
       </div>
 
@@ -197,7 +198,11 @@ details .body ol{margin:8px 0 8px 20px} details .body li{margin:5px 0}
           <option value="all">Setup 9 (perfected) + Countdown 13</option>
         </select>
       </label>
-      <div class="hint" style="margin:0;flex:1;min-width:220px">Goes long on buy triggers; exits on sell triggers, the TD stop, or the 2R target. Starting capital = wallet balance. Long/flat, stocks only — mirrors the agentic beta.</div>
+      <label class="fld" style="margin:0;min-width:150px">
+        <span class="lab">Fees / slippage (bps)</span>
+        <input id="btFees" value="0" inputmode="decimal" />
+      </label>
+      <div class="hint" style="margin:0;flex:1;min-width:220px">Goes long on buy triggers; exits on sell triggers, the TD stop, or the 2R target. Starting capital = wallet balance. Long/flat, stocks only — mirrors the agentic beta. Commission is $0; <b>bps</b> models slippage per fill (buys fill higher, sells lower).</div>
     </div>
     <div id="btStats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:11px;margin:16px 0 6px"></div>
     <div class="scrollx"><div id="btCurve"></div></div>
@@ -357,23 +362,30 @@ function computeDeMark(bars){
   return {ann, signals, liveBuyCD, liveSellCD};
 }
 
-// TD risk stop: extreme of the window ± the true range of the extreme bar
+// TD risk stop: extreme of the window ± the true range of the extreme bar.
+// riskPerShare is the sentinel `null` when no valid same-side stop exists
+// (degenerate range, or a stop that landed on the wrong side of entry). (P0-4)
 function riskLevels(dir, bars, a, b){
   const seg = bars.slice(a,b+1);
+  const entry = bars[b].c;
   if(dir==='buy'){
     let k=0; for(let j=1;j<seg.length;j++) if(seg[j].l<seg[k].l) k=j;
-    const tr = seg[k].h - seg[k].l;
+    const tr = Math.max(0, seg[k].h - seg[k].l);          // clamp: never negative
     const stop = +(seg[k].l - tr).toFixed(2);
-    const entry = bars[b].c;
-    const target = +(entry + (entry-stop)*2).toFixed(2); // 2R
-    return {stop, target, riskPerShare:+(entry-stop).toFixed(2)};
+    const target = +(entry + (entry-stop)*2).toFixed(2);  // 2R
+    const rps = +(entry-stop).toFixed(2);
+    // buy stop must sit below entry with positive risk, else no valid stop.
+    if(!(stop < entry) || !(rps > 0)) return {stop, target, riskPerShare:null};
+    return {stop, target, riskPerShare:rps};
   } else {
     let k=0; for(let j=1;j<seg.length;j++) if(seg[j].h>seg[k].h) k=j;
-    const tr = seg[k].h - seg[k].l;
+    const tr = Math.max(0, seg[k].h - seg[k].l);          // clamp: never negative
     const stop = +(seg[k].h + tr).toFixed(2);
-    const entry = bars[b].c;
     const target = +(entry - (stop-entry)*2).toFixed(2);
-    return {stop, target, riskPerShare:+(stop-entry).toFixed(2)};
+    const rps = +(stop-entry).toFixed(2);
+    // sell stop must sit above entry with positive risk, else no valid stop.
+    if(!(stop > entry) || !(rps > 0)) return {stop, target, riskPerShare:null};
+    return {stop, target, riskPerShare:rps};
   }
 }
 
@@ -388,6 +400,28 @@ function mkSignal(type, idx, bar, perfected, risk){
 const state = { bars:[], result:null, intents:[] };
 
 function num(id){ return parseFloat(document.getElementById(id).value)||0; }
+
+// Parse a bar date string to an epoch ms, accepting ISO (YYYY-MM-DD) AND
+// US MM/DD/YYYY (e.g. Nasdaq exports). Returns NaN when unparseable so callers
+// can fall back to leaving order alone. Used by both the JSON and CSV paths so
+// newest-first auto-reverse works regardless of date format. (P0-5)
+function parseBarDate(s){
+  s = String(s==null?'':s).trim();
+  const us = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);   // MM/DD/YYYY
+  if(us){ return Date.UTC(+us[3], +us[1]-1, +us[2]); }
+  return Date.parse(s);
+}
+
+// Reject economically impossible OHLC. A valid bar has all prices > 0 and a
+// consistent range: high is the max, low is the min. Throws naming the 1-based
+// row so the user can find the bad data. (P0-4 / P2-4)
+function validateOHLC(o,h,l,c,label){
+  if(![o,h,l,c].every(x=>isFinite(x) && x>0))
+    throw new Error(label+': o/h/l/c must all be positive numbers.');
+  if(h<l || h<c || h<o || l>c || l>o)
+    throw new Error(label+': impossible OHLC (need high ≥ open/close ≥ low). '+
+      'Got o='+o+' h='+h+' l='+l+' c='+c+'.');
+}
 
 /* ---- Ingest / normalize bars JSON ---- */
 function parseBars(raw){
@@ -404,10 +438,18 @@ function parseBars(raw){
     const l = +(r.l ?? r.low ?? r.low_price);
     const c = +(r.c ?? r.close ?? r.close_price);
     const v = +(r.v ?? r.volume ?? 0);
-    if([o,h,l,c].some(x=>!isFinite(x))) throw new Error('Bar '+(i+1)+' missing o/h/l/c.');
+    validateOHLC(o,h,l,c,'Bar '+(i+1));                    // P0-4: reject insane OHLC
     return {t:String(t).slice(0,10), o,h,l,c,v};
   });
   if(bars.length<20) throw new Error('Need at least 20 bars (got '+bars.length+').');
+  // P0-5: bars must be chronological. Sort ascending when every date parses;
+  // otherwise fall back to the simple newest-first reverse used by parseCSV.
+  const ds = bars.map(b=>parseBarDate(b.t));
+  if(ds.every(isFinite)){
+    bars.sort((a,b)=>parseBarDate(a.t)-parseBarDate(b.t));
+  } else if(isFinite(ds[0]) && isFinite(ds[ds.length-1]) && ds[0]>ds[ds.length-1]){
+    bars.reverse();
+  }
   return {symbol: obj.symbol || document.getElementById('symbol').value, bars};
 }
 
@@ -426,15 +468,20 @@ function parseCSV(raw){
   const bars = lines.slice(1).map((ln,i)=>{
     const f = ln.split(delim);
     const o=cl(f[ci.o]), h=cl(f[ci.h]), l=cl(f[ci.l]), c=cl(f[ci.c]);
-    if([o,h,l,c].some(x=>!isFinite(x))) throw new Error('CSV row '+(i+1)+' has non-numeric o/h/l/c.');
+    validateOHLC(o,h,l,c,'CSV row '+(i+1));                // P0-4/P2-4: reject insane OHLC
     return { t: ci.t>=0 ? String(f[ci.t]).trim().replace(/^["']|["']$/g,'').slice(0,10) : ('#'+(i+1)),
              o,h,l,c, v: ci.v>=0 ? (cl(f[ci.v])||0) : 0 };
   });
   if(bars.length<20) throw new Error('Need at least 20 bars (got '+bars.length+').');
-  // many exports are newest-first — sort ascending if dates are parseable
+  // many exports are newest-first — sort ascending if dates are parseable.
+  // Use parseBarDate so MM/DD/YYYY (Nasdaq) reverses too, not just ISO. (P0-5)
   if(ci.t>=0){
-    const d0=Date.parse(bars[0].t), dN=Date.parse(bars[bars.length-1].t);
-    if(isFinite(d0)&&isFinite(dN)&&d0>dN) bars.reverse();
+    const ds = bars.map(b=>parseBarDate(b.t));
+    if(ds.every(isFinite)){
+      bars.sort((a,b)=>parseBarDate(a.t)-parseBarDate(b.t));
+    } else if(isFinite(ds[0]) && isFinite(ds[ds.length-1]) && ds[0]>ds[ds.length-1]){
+      bars.reverse();
+    }
   }
   return { symbol: document.getElementById('symbol').value, bars };
 }
@@ -520,19 +567,32 @@ function renderSignals(signals){
 }
 
 /* ============================================================ Order intents ============================================================ */
-function buildIntents(symbol, signals){
+// Build order intents from signals. The desk is LONG/FLAT only:
+//   • buys  → normal long entries, risk-sized.
+//   • sells → position-aware EXITS (close the existing long); never short. (P0-1)
+// bars is needed to (a) place limits at the LATEST close and (b) age-gate stale
+// signals. It is optional so legacy callers / tests can omit it.
+function buildIntents(symbol, signals, bars){
   const wallet = num('wallet'), riskPct = num('risk')/100;
+  // P0-2: degenerate inputs produce no intents (caller shows a graceful note).
+  if(!(wallet>0) || !(riskPct>0)) return [];
   const riskDollars = wallet*riskPct;
+
+  const lastIdx = (bars && bars.length) ? bars.length-1 : null;
+  const latestClose = lastIdx!=null ? bars[lastIdx].c : null;
+
   // most recent actionable signal per side, only setups-that-are-perfected or countdowns
-  const actionable = signals.filter(s=> s.type.includes('COUNTDOWN') || s.perfected);
+  let actionable = signals.filter(s=> s.type.includes('COUNTDOWN') || s.perfected);
+  // P1-5: staleness guard — only emit signals within the last 5 bars.
+  if(lastIdx!=null) actionable = actionable.filter(s=> s.idx >= lastIdx-4);
   const recent = actionable.slice(-4);
-  return recent.map(sg=>{
-    const rps = Math.max(0.01, sg.risk.riskPerShare);
-    let qty = Math.floor(riskDollars / rps);
-    const maxAfford = Math.floor(wallet / sg.price);
-    if(qty>maxAfford) qty = maxAfford;
-    if(qty<0) qty=0;
-    return {
+
+  const intents = recent.map(sg=>{
+    const ageBars = lastIdx!=null ? (lastIdx - sg.idx) : null;
+    // Order is placed NOW, so the limit references the latest close, not the
+    // (possibly stale) signal-bar close. signalClose preserves the original. (P1-5)
+    const limitPrice = +(latestClose!=null ? latestClose : sg.price).toFixed(2);
+    const base = {
       schema:"demark.order_intent.v1",
       generatedAt:new Date().toISOString(),
       broker:"robinhood-agentic",
@@ -540,23 +600,66 @@ function buildIntents(symbol, signals){
       symbol,
       side: sg.side,
       type:"limit",
-      limitPrice: +sg.price.toFixed(2),
-      quantity: qty,
+      limitPrice,
       timeInForce:"gtc",
       signal:{ indicator:"TD Sequential", event:sg.label, date:sg.date,
                perfected: sg.type.includes('SETUP') ? sg.perfected : true },
+      signalClose:+sg.price.toFixed(2),
+      ageBars,
       risk:{ stop:sg.risk.stop, target:sg.risk.target,
-             riskPerShare:+rps.toFixed(2), riskBudget:+riskDollars.toFixed(2) },
-      rationale:`${sg.label} on ${symbol} (${sg.date}) at $${sg.price.toFixed(2)}. `+
-                `${sg.side==='buy'?'Long':'Short/exit'} sized to ${(riskPct*100).toFixed(2)}% wallet risk; `+
-                `stop $${sg.risk.stop.toFixed(2)}, 2R target $${sg.risk.target.toFixed(2)}.`,
+             riskPerShare: sg.risk.riskPerShare, riskBudget:+riskDollars.toFixed(2) },
       requiresHumanApproval:true
     };
+    if(sg.side==='sell'){
+      // P0-1: sells are EXITS, never new shorts. Don't fabricate a share count —
+      // the agent sells only currently-held shares and skips if flat.
+      return Object.assign(base, {
+        quantity: null,
+        reduceOnly: true,
+        closeLong: true,
+        action: "close_long",
+        rationale:`${sg.label} on ${symbol} (${sg.date}). EXIT signal: SELL only the `+
+                  `shares of ${symbol} you currently hold to close the long. If the `+
+                  `position is flat, SKIP this intent — never open a short. `+
+                  `Limit $${limitPrice.toFixed(2)} (latest close), ${ageBars} bar(s) old.`
+      });
+    }
+    // Buy → normal long entry, risk-sized off the latest close.
+    const rps = sg.risk.riskPerShare;
+    let qty = Math.floor(riskDollars / rps);
+    const maxAfford = Math.floor(wallet / limitPrice);
+    if(qty>maxAfford) qty = maxAfford;
+    if(qty<0) qty=0;
+    return Object.assign(base, {
+      quantity: qty,
+      rationale:`${sg.label} on ${symbol} (${sg.date}). OPEN/ADD long, sized to `+
+                `${(riskPct*100).toFixed(2)}% wallet risk; stop $${sg.risk.stop.toFixed(2)}, `+
+                `2R target $${sg.risk.target.toFixed(2)}. Limit $${limitPrice.toFixed(2)} `+
+                `(latest close), ${ageBars} bar(s) old.`
+    });
+  });
+
+  // P0-2: keep only intents that are actually executable —
+  //   • a valid same-side stop (riskPerShare finite & > 0); drop null sentinels.
+  //   • buys must have finite quantity > 0; sells (exits) carry quantity:null.
+  return intents.filter(it=>{
+    const rps = it.risk.riskPerShare;
+    if(!(isFinite(rps) && rps>0)) return false;
+    if(it.side==='buy') return isFinite(it.quantity) && it.quantity>0;
+    return true; // sell exits intentionally have quantity:null
   });
 }
 
 function renderIntents(){
-  const out = state.intents.length ? state.intents : {note:"No actionable signals — load data or wait for a setup/countdown to complete."};
+  // P0-2: no intents can mean degenerate inputs (wallet/risk ≤ 0), a stale or
+  // unperfected signal set, or no valid risk stop — show a graceful note.
+  let note;
+  if(!state.intents.length){
+    note = (num('wallet')>0 && num('risk')>0)
+      ? {note:"No actionable intents — no recent perfected setup / completed countdown with a valid risk stop in the last 5 bars."}
+      : {note:"Set a positive wallet and risk % to generate order intents."};
+  }
+  const out = state.intents.length ? state.intents : note;
   document.getElementById('intentOut').textContent = JSON.stringify(out, null, 2);
 }
 
@@ -567,10 +670,21 @@ function renderIntents(){
    ============================================================ */
 function backtest(bars, signals, opts){
   const triggers = signals.filter(s => s.type.includes('COUNTDOWN') || (opts.useSetups && s.perfected));
+  // P0-3: remove look-ahead. A setup perfected via DEFERRED perfection isn't
+  // confirmed until its perfIdx, so a backtest must enter THEN, not on the
+  // bar-9 idx (which is in the future relative to perfection knowledge).
+  // Countdowns are confirmed on their own bar, so they use s.idx unchanged.
+  const effIdx = s => (s.type.includes('SETUP') && s.perfIdx != null) ? s.perfIdx : s.idx;
   const byIdx = {};
-  triggers.forEach(s => { (byIdx[s.idx]=byIdx[s.idx]||[]).push(s); });
+  triggers.forEach(s => { const e=effIdx(s); (byIdx[e]=byIdx[e]||[]).push(s); });
 
-  let cash=opts.capital, shares=0, entryPx=0, stop=0, target=0, entryDate=null;
+  // Slippage in basis points: buy fills are worse (higher), sell fills worse
+  // (lower). Robinhood stock commission is $0, so we only model slippage.
+  const slipFrac = Math.max(0, opts.feesBps||0)/10000;
+  const buyFill  = px => px*(1+slipFrac);
+  const sellFill = px => px*(1-slipFrac);
+
+  let cash=opts.capital, shares=0, entryPx=0, stop=0, target=0, entryDate=null, entryIdx=0;
   let barsInMkt=0;
   const trades=[], equity=[];
 
@@ -582,19 +696,22 @@ function backtest(bars, signals, opts){
       if(b.l<=stop){ exitPx=stop; reason='stop'; }
       else if(b.h>=target){ exitPx=target; reason='target'; }
       if(exitPx!=null){
-        cash += shares*exitPx;
-        trades.push(mkTrade(entryDate,entryPx,b.t,exitPx,shares,reason));
+        const fill=sellFill(exitPx);
+        cash += shares*fill;
+        trades.push(mkTrade(entryDate,entryPx,b.t,fill,shares,reason,i-entryIdx));
         shares=0;
       }
     }
     // 2) act on this bar's signals at the close
     (byIdx[i]||[]).forEach(s=>{
       if(s.side==='buy' && shares===0){
-        const q=Math.floor(cash/b.c);
-        if(q>0){ shares=q; entryPx=b.c; cash-=q*b.c; stop=s.risk.stop; target=s.risk.target; entryDate=b.t; }
+        const fill=buyFill(b.c);
+        const q=Math.floor(cash/fill);
+        if(q>0){ shares=q; entryPx=fill; cash-=q*fill; stop=s.risk.stop; target=s.risk.target; entryDate=b.t; entryIdx=i; }
       } else if(s.side==='sell' && shares>0){
-        cash += shares*b.c;
-        trades.push(mkTrade(entryDate,entryPx,b.t,b.c,shares,'signal'));
+        const fill=sellFill(b.c);
+        cash += shares*fill;
+        trades.push(mkTrade(entryDate,entryPx,b.t,fill,shares,'signal',i-entryIdx));
         shares=0;
       }
     });
@@ -603,17 +720,64 @@ function backtest(bars, signals, opts){
   }
   // liquidate at last close
   if(shares>0){
-    const last=bars[bars.length-1];
-    cash += shares*last.c;
-    trades.push(mkTrade(entryDate,entryPx,last.t,last.c,shares,'close'));
+    const lastI=bars.length-1, last=bars[lastI];
+    const fill=sellFill(last.c);
+    cash += shares*fill;
+    trades.push(mkTrade(entryDate,entryPx,last.t,fill,shares,'close',lastI-entryIdx));
     shares=0;
   }
 
   const cap=opts.capital, finalEq=cash;
   const wins=trades.filter(t=>t.pnl>0), losses=trades.filter(t=>t.pnl<=0);
   let peak=cap, maxDD=0;
-  equity.forEach(e=>{ if(e.value>peak) peak=e.value; const dd=(peak-e.value)/peak; if(dd>maxDD) maxDD=dd; });
-  const bh = bars.length>1 ? (bars[bars.length-1].c-bars[0].c)/bars[0].c*100 : 0;
+  equity.forEach(e=>{ if(e.value>peak) peak=e.value; const dd=peak>0?(peak-e.value)/peak:0; if(dd>maxDD) maxDD=dd; });
+  const bh = bars.length>1 && bars[0].c>0 ? (bars[bars.length-1].c-bars[0].c)/bars[0].c*100 : 0;
+
+  // --- Risk / quality metrics (all guarded against /0, NaN, no-trades) ---
+  // CAGR over the bar date span (assume daily bars; fall back to bar count/252).
+  let years=null;
+  if(bars.length>1){
+    const d0=Date.parse(bars[0].t), dN=Date.parse(bars[bars.length-1].t);
+    if(isFinite(d0)&&isFinite(dN)&&dN>d0) years=(dN-d0)/(365.25*86400000);
+  }
+  if(years==null || years<=0) years = bars.length>1 ? (bars.length-1)/252 : null;
+  let cagr=null;
+  if(years!=null && years>0 && cap>0 && finalEq>0){
+    cagr = (Math.pow(finalEq/cap, 1/years) - 1) * 100;
+  }
+
+  // Daily returns of the equity curve → Sharpe / Sortino (rf=0, ×√252).
+  const rets=[];
+  for(let i=1;i<equity.length;i++){
+    const p=equity[i-1].value;
+    if(p>0) rets.push((equity[i].value-p)/p);
+  }
+  let sharpe=null, sortino=null;
+  if(rets.length>1){
+    const mean=rets.reduce((a,r)=>a+r,0)/rets.length;
+    const variance=rets.reduce((a,r)=>a+(r-mean)*(r-mean),0)/(rets.length-1);
+    const sd=Math.sqrt(variance);
+    if(sd>0) sharpe=(mean/sd)*Math.sqrt(252);
+    const downside=rets.filter(r=>r<0);
+    if(downside.length){
+      const dvar=downside.reduce((a,r)=>a+r*r,0)/downside.length;
+      const dd=Math.sqrt(dvar);
+      if(dd>0) sortino=(mean/dd)*Math.sqrt(252);
+    }
+  }
+
+  // Profit factor = gross wins / gross losses (both in $).
+  const grossWin=wins.reduce((a,t)=>a+t.pnl,0);
+  const grossLoss=losses.reduce((a,t)=>a+Math.abs(t.pnl),0);
+  let profitFactor=null;
+  if(grossLoss>0) profitFactor=grossWin/grossLoss;
+  else if(grossWin>0) profitFactor=Infinity;        // wins, no losing $
+
+  const avgHoldDays = trades.length
+    ? trades.reduce((a,t)=>a+(t.holdDays||0),0)/trades.length : null;
+  const largestWin  = wins.length   ? Math.max(...wins.map(t=>t.pnl))            : null;
+  const largestLoss = losses.length ? Math.min(...losses.map(t=>t.pnl))          : null;
+
   const stats={
     totalReturnPct:(finalEq-cap)/cap*100,
     finalEquity:finalEq,
@@ -623,29 +787,48 @@ function backtest(bars, signals, opts){
     avgWinPct: wins.length ? wins.reduce((a,t)=>a+t.pnlPct,0)/wins.length : 0,
     avgLossPct: losses.length ? losses.reduce((a,t)=>a+t.pnlPct,0)/losses.length : 0,
     maxDDPct: maxDD*100,
-    exposurePct: bars.length ? barsInMkt/bars.length*100 : 0
+    exposurePct: bars.length ? barsInMkt/bars.length*100 : 0,
+    cagrPct: cagr,
+    sharpe, sortino, profitFactor, avgHoldDays, largestWin, largestLoss
   };
   return {trades, equity, stats};
 }
-function mkTrade(ed,ep,xd,xp,q,reason){
+function mkTrade(ed,ep,xd,xp,q,reason,holdDays){
   const pnl=(xp-ep)*q;
   return {entryDate:ed, entryPx:+ep.toFixed(2), exitDate:xd, exitPx:+xp.toFixed(2),
-          shares:q, reason, pnl:+pnl.toFixed(2), pnlPct:(xp-ep)/ep*100};
+          shares:q, reason, pnl:+pnl.toFixed(2), pnlPct: ep>0 ? (xp-ep)/ep*100 : 0,
+          holdDays: holdDays||0};
 }
 
 function renderBacktest(bars, signals){
-  const opts={ capital: num('wallet')||10000, useSetups: document.getElementById('btTrigger').value==='all' };
+  const opts={ capital: num('wallet')||10000, useSetups: document.getElementById('btTrigger').value==='all',
+               feesBps: num('btFees') };
   const bt = backtest(bars, signals, opts);
   const s = bt.stats;
   const sgn = v => (v>=0?'green':'red');
   const card = (k,v,cls='') => `<div class="stat"><div class="k">${k}</div><div class="v sm ${cls}">${v}</div></div>`;
+  // Graceful formatters — return '—' for null / NaN / non-finite values.
+  const ok = v => v!=null && isFinite(v);
+  const dash = '<span class="grayc">—</span>';
+  const fPct = (k,v) => card(k, ok(v) ? `${v>=0?'+':''}${v.toFixed(1)}%` : dash, ok(v)?sgn(v):'');
+  const fNum = (k,v,dp,cls)=> card(k, ok(v) ? v.toFixed(dp==null?2:dp) : dash, cls||'goldc');
+  const fMoney = (k,v,cls)=> card(k, ok(v) ? `${v>=0?'+':''}$${Math.round(v).toLocaleString()}` : dash, cls||(ok(v)?sgn(v):''));
+  const fPF = (k,v) => card(k, v===Infinity ? '∞' : (ok(v) ? v.toFixed(2) : dash), 'goldc');
+
   document.getElementById('btStats').innerHTML =
-    card('Strategy', `${s.totalReturnPct>=0?'+':''}${s.totalReturnPct.toFixed(1)}%`, sgn(s.totalReturnPct)) +
-    card('Buy & hold', `${s.buyHoldPct>=0?'+':''}${s.buyHoldPct.toFixed(1)}%`, sgn(s.buyHoldPct)) +
-    card('Win rate', `${s.winRate.toFixed(0)}%`, 'goldc') +
+    fPct('Strategy', s.totalReturnPct) +
+    fPct('Buy & hold', s.buyHoldPct) +
+    fPct('CAGR', s.cagrPct) +
+    card('Win rate', s.nTrades ? `${s.winRate.toFixed(0)}%` : dash, 'goldc') +
     card('Trades', s.nTrades, 'goldc') +
-    card('Max DD', `-${s.maxDDPct.toFixed(1)}%`, 'red') +
-    card('Exposure', `${s.exposurePct.toFixed(0)}%`, 'grayc');
+    card('Max DD', s.nTrades ? `-${s.maxDDPct.toFixed(1)}%` : dash, 'red') +
+    card('Exposure', `${s.exposurePct.toFixed(0)}%`, 'grayc') +
+    fNum('Sharpe', s.sharpe, 2, sgn(s.sharpe>=0?1:-1)) +
+    fNum('Sortino', s.sortino, 2, sgn(s.sortino>=0?1:-1)) +
+    fPF('Profit factor', s.profitFactor) +
+    fNum('Avg hold (d)', s.avgHoldDays, 0, 'grayc') +
+    fMoney('Largest win', s.largestWin, 'green') +
+    fMoney('Largest loss', s.largestLoss, 'red');
   renderEquityCurve(bt.equity, opts.capital, bars);
   renderTrades(bt.trades);
 }
@@ -727,7 +910,7 @@ function run(parsed){
   state.bars = parsed.bars;
   const r = computeDeMark(parsed.bars);
   state.result = r;
-  state.intents = buildIntents(parsed.symbol, r.signals);
+  state.intents = buildIntents(parsed.symbol, r.signals, parsed.bars);
   renderStats(parsed.symbol, parsed.bars, r);
   renderChart(parsed.bars, r.ann);
   renderSignals(r.signals);
@@ -738,20 +921,24 @@ function run(parsed){
 document.getElementById('loadBtn').addEventListener('click', ()=>{
   const raw = document.getElementById('barsInput').value.trim();
   if(!raw){ alert('Paste OHLC JSON, or click "Load demo data".'); return; }
-  try{ run(parseBars(raw)); }
+  try{ run(parseBars(raw)); saveState(); }
   catch(e){ alert(e.message); }
 });
 ['wallet','risk','symbol'].forEach(id=>{
   document.getElementById(id).addEventListener('change', ()=>{
     if(state.result){
-      state.intents = buildIntents(document.getElementById('symbol').value, state.result.signals);
+      state.intents = buildIntents(document.getElementById('symbol').value, state.result.signals, state.bars);
       renderIntents();
       renderBacktest(state.bars, state.result.signals);
     }
+    saveState();
   });
 });
-document.getElementById('btTrigger').addEventListener('change', ()=>{
-  if(state.result) renderBacktest(state.bars, state.result.signals);
+['btTrigger','btFees'].forEach(id=>{
+  document.getElementById(id).addEventListener('change', ()=>{
+    if(state.result) renderBacktest(state.bars, state.result.signals);
+    saveState();
+  });
 });
 
 document.getElementById('copyBtn').addEventListener('click', ()=>{
@@ -773,9 +960,12 @@ document.getElementById('promptBtn').addEventListener('click', ()=>{
 document.getElementById('execBtn').addEventListener('click', ()=>{
   if(!state.intents.length){ alert('No actionable intents yet — load data with a perfected setup or completed countdown.'); return; }
   const sym = document.getElementById('symbol').value;
-  const p = `You are connected to Robinhood Agentic Trading via MCP (${MCP_URL}), acting only on my dedicated agent wallet.\n\n`+
+  const p = `You are connected to Robinhood Agentic Trading via MCP (${MCP_URL}), acting only on my dedicated agent wallet. This desk trades STOCKS LONG/FLAT ONLY — never open or hold a short.\n\n`+
     `I have REVIEWED and APPROVED the DeMark Sequential order intents below. Place each one EXACTLY as specified with the Robinhood MCP place_order tool. Do not resize, add, reorder, or invent orders, and never exceed the wallet's buying power.\n\n`+
-    `For each intent: use symbol=${sym}, the given side, type=limit, limitPrice, quantity, and timeInForce. Where the MCP supports a protective stop, also set it to risk.stop. After each placement, report the order id and status. If an order would be rejected or exceed buying power, skip it and tell me why — do not substitute a different order.\n\n`+
+    `Interpret side strictly:\n`+
+    `• side="buy" → OPEN or ADD to a long. Use symbol=${sym}, type=limit, the given limitPrice, quantity, and timeInForce. Where the MCP supports a protective stop, also set it to risk.stop.\n`+
+    `• side="sell" (reduceOnly/closeLong, action="close_long", quantity=null) → CLOSE the EXISTING long only. Sell only the shares of ${sym} currently held (up to the held quantity). If the position is FLAT, SKIP the intent — do NOT open a short, and do NOT fabricate a quantity.\n\n`+
+    `After each placement, report the order id and status. If an order would be rejected or exceed buying power, skip it and tell me why — do not substitute a different order.\n\n`+
     `APPROVED_INTENTS =\n`+ JSON.stringify(state.intents, null, 2);
   navigator.clipboard.writeText(p).then(()=>flash('execBtn','Copied ✓','Copy execution prompt →'));
 });
@@ -804,7 +994,49 @@ document.getElementById('sampleBtn').addEventListener('click', ()=>{
   document.getElementById('symbol').value='DEMO';
   document.getElementById('barsInput').value=JSON.stringify({symbol:'DEMO',timeframe:'1day',bars},null,0);
   run({symbol:'DEMO', bars});
+  saveState();
 });
+
+/* ============================================================
+   Persistence — symbol, wallet, risk, trigger, fees/slippage and
+   the last pasted bars are saved to localStorage and restored on
+   load. A Reset button clears the saved state.
+   ============================================================ */
+const LS_KEY = 'demark.session.v1';
+function saveState(){
+  try{
+    const data={
+      symbol:   document.getElementById('symbol').value,
+      wallet:   document.getElementById('wallet').value,
+      risk:     document.getElementById('risk').value,
+      btTrigger:document.getElementById('btTrigger').value,
+      btFees:   document.getElementById('btFees').value,
+      bars:     document.getElementById('barsInput').value
+    };
+    localStorage.setItem(LS_KEY, JSON.stringify(data));
+  }catch(e){ /* storage may be unavailable (private mode / quota) — non-fatal */ }
+}
+function restoreState(){
+  let data=null;
+  try{ data=JSON.parse(localStorage.getItem(LS_KEY)||'null'); }catch(e){ data=null; }
+  if(!data) return;
+  const set=(id,v)=>{ if(v!=null && v!=='') document.getElementById(id).value=v; };
+  set('symbol', data.symbol);
+  set('wallet', data.wallet);
+  set('risk',   data.risk);
+  set('btFees', data.btFees);
+  if(data.btTrigger) document.getElementById('btTrigger').value=data.btTrigger;
+  if(data.bars){
+    document.getElementById('barsInput').value=data.bars;
+    try{ run(parseBars(data.bars)); }   // re-run if saved data is present
+    catch(e){ /* stale/invalid saved bars — leave inputs, skip compute */ }
+  }
+}
+document.getElementById('resetBtn').addEventListener('click', ()=>{
+  try{ localStorage.removeItem(LS_KEY); }catch(e){}
+  location.reload();
+});
+restoreState();
 </script>
 </body>
 </html>

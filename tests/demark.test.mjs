@@ -223,6 +223,29 @@ test("riskLevels: buy/sell direct invariants on a hand-crafted window", () => {
   assert.ok(sell.target < ub[ub.length - 1].c, "sell 2R target below entry");
 });
 
+test("riskLevels: degenerate window yields riskPerShare:null, never a wrong-side stop (P0-4)", () => {
+  // Buy: the only bar has high==low (tr=0) and low==entry close, so stop would
+  // equal entry → no positive risk and the stop is NOT below entry. Expect null.
+  const flat = [{ t: "2026-01-01", o: 100, h: 100, l: 100, c: 100, v: 1 }];
+  const buy = riskLevels("buy", flat, 0, 0);
+  assert.equal(buy.riskPerShare, null, "no valid buy stop ⇒ riskPerShare:null");
+  assert.ok(!(buy.stop < buy.target && buy.riskPerShare > 0), "must not report a wrong-side/zero-risk buy stop");
+
+  // Sell mirror.
+  const sell = riskLevels("sell", flat, 0, 0);
+  assert.equal(sell.riskPerShare, null, "no valid sell stop ⇒ riskPerShare:null");
+
+  // Invariant on the whole demo: any non-null riskPerShare implies a correct-side stop.
+  const bars = demoBars();
+  const r = computeDeMark(bars);
+  for (const sg of r.signals) {
+    if (sg.risk.riskPerShare == null) continue; // sentinel: skipped downstream
+    assert.ok(sg.risk.riskPerShare > 0, `non-null riskPerShare must be > 0 (@${sg.idx})`);
+    if (sg.side === "buy") assert.ok(sg.risk.stop < sg.price, `buy stop must be < entry (@${sg.idx})`);
+    else assert.ok(sg.risk.stop > sg.price, `sell stop must be > entry (@${sg.idx})`);
+  }
+});
+
 /* ---------------------------------------------------------------- backtest */
 
 function dateToFirstIdx(bars) {
@@ -283,4 +306,39 @@ test("backtest exposure/winRate stay within sane bounds", () => {
   assert.ok(bt.stats.exposurePct >= 0 && bt.stats.exposurePct <= 100, "exposure 0..100%");
   assert.ok(bt.stats.winRate >= 0 && bt.stats.winRate <= 100, "win rate 0..100%");
   assert.ok(bt.stats.maxDDPct >= 0, "max drawdown non-negative");
+});
+
+/* --------------------------------------------- backtest look-ahead (P0-3) */
+
+/** Deterministic deferred buy setup: completes (bar 9) at idx 12 but is NOT
+ *  perfected there; a later bar (idx 13) breaches the bar-6/7 low ref and
+ *  perfects it (perfIdx 13). A look-ahead-free backtest must enter at the
+ *  perfecting bar's date, never at the bar-9 date. */
+function deferredSetupBars() {
+  const closes = [100, 100, 100, 100, 99, 98, 97, 96, 95, 94, 93, 92, 91, 91.5, 88];
+  const bars = closes.map((c, i) => {
+    const o = i === 0 ? c : closes[i - 1];
+    const t = new Date(Date.UTC(2026, 0, 1 + i)).toISOString().slice(0, 10);
+    return { t, o: +o.toFixed(2), h: +(Math.max(o, c) + 0.5).toFixed(2), l: +(Math.min(o, c) - 0.5).toFixed(2), c: +c.toFixed(2), v: 1000 };
+  });
+  // Lift bars 11 & 12 lows above the bar-6/7 ref so bar-9 perfection fails...
+  bars[11].l = 94.0; bars[12].l = 93.5;
+  // ...then bar 13 dips below the ref (92.5) to perfect it; bar 14 keeps falling.
+  bars[13].l = 92.0; bars[14].l = 87.5;
+  return bars;
+}
+
+test("backtest enters a deferred setup at perfIdx, not bar 9 (no look-ahead, P0-3)", () => {
+  const bars = deferredSetupBars();
+  const r = computeDeMark(bars);
+  const setup = r.signals.find((s) => s.type === "BUY_SETUP");
+  assert.ok(setup, "fixture must produce a buy setup");
+  assert.equal(setup.idx, 12, "bar-9 completion index");
+  assert.equal(setup.perfIdx, 13, "deferred perfection index (later than bar 9)");
+  assert.ok(setup.perfIdx > setup.idx, "perfIdx must be after the bar-9 idx");
+
+  const bt = backtest(bars, r.signals, { capital: 10000, useSetups: true });
+  const entries = bt.trades.map((t) => t.entryDate);
+  assert.ok(entries.includes(bars[setup.perfIdx].t), "entry must occur on the perfecting bar's date");
+  assert.ok(!entries.includes(bars[setup.idx].t), "entry must NOT occur on the bar-9 date (would be look-ahead)");
 });
