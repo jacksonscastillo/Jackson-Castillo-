@@ -42,6 +42,10 @@ command, agent-wallet funding, spending limits/manual approval, and the
 fetch → compute → approve → execute loop. The in-app *Connect to your Robinhood account*
 panel mirrors it, and *Copy execution prompt* hands your approved intents straight to the agent.
 
+**Going live:** **[GO-LIVE.md](GO-LIVE.md)** is the step-by-step runbook from the hosted
+tool → validating signals on real data → funding the agent wallet → your first tiny trade,
+with the safety gates at each stage.
+
 > Educational tool, not financial advice. Backtest before risking capital, and fund the
 > agent wallet only with money you can afford to trade.
 
