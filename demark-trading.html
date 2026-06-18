@@ -255,6 +255,12 @@ details .body ol{margin:8px 0 8px 20px} details .body li{margin:5px 0}
    - Cancellation on opposing setup completion
    - TD risk stop per signal
    ============================================================ */
+// P1-3: a same-direction Setup that extends to this raw run length is treated
+// as a "recycle" and resets any in-progress same-direction Countdown. DeMark's
+// recycle rule resets the count when momentum re-accelerates in the trade
+// direction; 18 (two full 9-setups) is the conventional default threshold.
+const RECYCLE_THRESHOLD = 18;
+
 function computeDeMark(bars){
   const n = bars.length;
   const c = bars.map(b=>b.c), h = bars.map(b=>b.h), l = bars.map(b=>b.l);
@@ -263,20 +269,47 @@ function computeDeMark(bars){
                              tdstRes:null, tdstSup:null}));
   const signals = [];
 
-  /* ---- Pass 1: Setups ---- */
-  let bs=0, ss=0;
+  /* ---- Pass 1: Setups ----
+     P1-1 (price-flip required to INITIATE): a Setup may only begin (count=1)
+     on a price flip. A buy Setup starts when c[i] < c[i-4] AND the prior bar
+     was NOT already in a down-count (c[i-1] >= c[i-5], a bearish flip). Mirror
+     for sell. Once started, the count increments while the down/up condition
+     holds and resets to 0 on the first violation. After a Setup completes at 9
+     and resets, a fresh same-direction Setup cannot begin without an
+     intervening opposite-direction flip — which is naturally enforced because
+     a new count-of-1 itself requires a flip (c[i-1] >= c[i-5] means the run was
+     broken by an up-bar before this bar). (demark.com/sequential-indicator)
+
+     P1-3 recycle bookkeeping: we also track the length of the raw consecutive
+     down/up run (bsRun/ssRun) so the countdown pass can detect a same-direction
+     Setup recycling at the RECYCLE_THRESHOLD (default 18). */
+  let bs=0, ss=0;          // gated setup counters (1..9, flip-initiated)
+  let bsRun=0, ssRun=0;    // raw consecutive run length (for recycle threshold)
   let tdstRes=null, tdstSup=null;        // running active TDST levels
   for(let i=0;i<n;i++){
-    if(i>=4 && c[i] < c[i-4]) bs++; else bs=0;
-    if(i>=4 && c[i] > c[i-4]) ss++; else ss=0;
+    const downBar = i>=4 && c[i] < c[i-4];
+    const upBar   = i>=4 && c[i] > c[i-4];
+    // raw run length, unconditioned on the flip gate
+    bsRun = downBar ? bsRun+1 : 0;
+    ssRun = upBar   ? ssRun+1 : 0;
+    // bearish price flip: this bar is a down-bar but the prior bar was NOT a
+    // down-bar (c[i-1] >= c[i-5]) — i.e. the down-count is freshly initiated.
+    const buyFlip  = downBar && (i<5 || c[i-1] >= c[i-5]);
+    const sellFlip = upBar   && (i<5 || c[i-1] <= c[i-5]);
+    if(buyFlip) bs=1; else if(downBar && bs>0) bs++; else bs=0;
+    if(sellFlip) ss=1; else if(upBar && ss>0) ss++; else ss=0;
     ann[i].buySetup  = bs>0 && bs<=9 ? bs : 0;
     ann[i].sellSetup = ss>0 && ss<=9 ? ss : 0;
+    ann[i].buyRun = bsRun; ann[i].sellRun = ssRun;   // raw run, for recycle rule
 
     if(bs===9){                                   // buy setup complete (bars i-8..i)
       const lo=Math.min(l[i-1],l[i]), ref=Math.min(l[i-3],l[i-2]);
       const perfected = lo<=ref;
       tdstSup = Math.min(...l.slice(i-8,i+1));     // support line under a buy setup
-      ann[i].setupFlag = {dir:'buy', perfected};
+      // TDST resistance of the buy setup = highest high of the 9 setup bars.
+      // A buy Countdown is cancelled by a close above this level (P1-2).
+      const tdstResBuy = Math.max(...h.slice(i-8,i+1));
+      ann[i].setupFlag = {dir:'buy', perfected, tdst:tdstResBuy, run:bsRun};
       const sig = mkSignal('BUY_SETUP', i, bars[i], perfected, riskLevels('buy', bars, i-8, i));
       sig.perfRef = ref;                           // for deferred perfection
       signals.push(sig);
@@ -286,7 +319,10 @@ function computeDeMark(bars){
       const hi=Math.max(h[i-1],h[i]), ref=Math.max(h[i-3],h[i-2]);
       const perfected = hi>=ref;
       tdstRes = Math.max(...h.slice(i-8,i+1));      // resistance line over a sell setup
-      ann[i].setupFlag = {dir:'sell', perfected};
+      // TDST support of the sell setup = lowest low of the 9 setup bars.
+      // A sell Countdown is cancelled by a close below this level (P1-2).
+      const tdstSupSell = Math.min(...l.slice(i-8,i+1));
+      ann[i].setupFlag = {dir:'sell', perfected, tdst:tdstSupSell, run:ssRun};
       const sig = mkSignal('SELL_SETUP', i, bars[i], perfected, riskLevels('sell', bars, i-8, i));
       sig.perfRef = ref;
       signals.push(sig);
@@ -296,28 +332,61 @@ function computeDeMark(bars){
     ann[i].tdstSup = tdstSup;
   }
 
-  /* ---- Pass 2: Countdowns ---- */
-  let buyCD=null;   // {count, close8}
-  let sellCD=null;
+  /* ---- Pass 2: Countdowns ----
+     Countdown state carries:
+       count   — current countdown count (1..13)
+       close8  — close of countdown bar 8 (the bar-13 qualifier reference)
+       tdst    — TDST cancellation level captured from the initiating setup (P1-2)
+       bar1    — bar index of countdown bar 1, so the risk-stop window can span
+                 the TRUE (non-consecutive) countdown range bar1..bar13 (P1-4)
+       recycled— whether the same-direction setup has already recycled this CD */
+  let buyCD=null, sellCD=null;
   for(let i=0;i<n;i++){
     const f = ann[i].setupFlag;
     // Start a countdown only if none is active in that direction; an opposing
-    // setup cancels the in-progress countdown. Same-direction setups do NOT
-    // reset the count (it persists toward 13).
-    if(f && f.dir==='buy'){ if(!buyCD) buyCD={count:0,close8:null}; sellCD=null; }
-    if(f && f.dir==='sell'){ if(!sellCD) sellCD={count:0,close8:null}; buyCD=null; }
+    // setup cancels the in-progress countdown.
+    if(f && f.dir==='buy'){
+      // P1-3 recycle: if a buy Countdown is already active and a NEW full buy
+      // Setup completes (a same-direction recycle), reset the active count.
+      if(buyCD) buyCD={count:0,close8:null,tdst:f.tdst,bar1:null};
+      else buyCD={count:0,close8:null,tdst:f.tdst,bar1:null};
+      sellCD=null;
+    }
+    if(f && f.dir==='sell'){
+      if(sellCD) sellCD={count:0,close8:null,tdst:f.tdst,bar1:null};
+      else sellCD={count:0,close8:null,tdst:f.tdst,bar1:null};
+      buyCD=null;
+    }
+
+    // P1-3 recycle (threshold): if the raw same-direction run extends to
+    // RECYCLE_THRESHOLD while a Countdown is active, momentum has re-accelerated
+    // in the trade direction — reset the active same-direction Countdown.
+    if(buyCD && ann[i].buyRun===RECYCLE_THRESHOLD) buyCD={count:0,close8:null,tdst:buyCD.tdst,bar1:null};
+    if(sellCD && ann[i].sellRun===RECYCLE_THRESHOLD) sellCD={count:0,close8:null,tdst:sellCD.tdst,bar1:null};
+
+    // P1-2 TDST-break cancellation: an in-progress buy Countdown is cancelled
+    // when price structurally breaks the down-trend by CLOSING ABOVE the active
+    // buy-setup TDST resistance. Mirror: a sell Countdown cancels on a close
+    // BELOW the sell-setup TDST support. (DeMark: "Countdown cancels on a TDST
+    // violation.") Only applies once the countdown has begun (count>0).
+    if(buyCD && buyCD.count>0 && buyCD.tdst!=null && c[i] > buyCD.tdst) buyCD=null;
+    if(sellCD && sellCD.count>0 && sellCD.tdst!=null && c[i] < sellCD.tdst) sellCD=null;
 
     // Buy countdown: close <= low two bars ago
     if(buyCD && i>=2 && c[i] <= l[i-2]){
       if(buyCD.count<12){
         buyCD.count++;
+        if(buyCD.count===1) buyCD.bar1 = i;          // P1-4: true CD span start
         if(buyCD.count===8) buyCD.close8 = c[i];
         ann[i].buyCD = buyCD.count;
       } else { // tentative 13 — needs low <= close of countdown bar 8
         if(buyCD.close8!=null && l[i] <= buyCD.close8){
           buyCD.count=13; ann[i].buyCD=13; ann[i].cdFlag={dir:'buy'};
+          // P1-4: stop window spans the actual countdown range (bar 1..bar 13),
+          // not the last 13 calendar bars — countdown bars are non-consecutive.
+          const a = buyCD.bar1!=null ? buyCD.bar1 : Math.max(0,i-12);
           signals.push(mkSignal('BUY_COUNTDOWN', i, bars[i], true,
-            riskLevels('buy', bars, Math.max(0,i-12), i)));
+            riskLevels('buy', bars, a, i)));
           buyCD=null;
         }
       }
@@ -326,13 +395,15 @@ function computeDeMark(bars){
     if(sellCD && i>=2 && c[i] >= h[i-2]){
       if(sellCD.count<12){
         sellCD.count++;
+        if(sellCD.count===1) sellCD.bar1 = i;        // P1-4: true CD span start
         if(sellCD.count===8) sellCD.close8 = c[i];
         ann[i].sellCD = sellCD.count;
       } else {
         if(sellCD.close8!=null && h[i] >= sellCD.close8){
           sellCD.count=13; ann[i].sellCD=13; ann[i].cdFlag={dir:'sell'};
+          const a = sellCD.bar1!=null ? sellCD.bar1 : Math.max(0,i-12);
           signals.push(mkSignal('SELL_COUNTDOWN', i, bars[i], true,
-            riskLevels('sell', bars, Math.max(0,i-12), i)));
+            riskLevels('sell', bars, a, i)));
           sellCD=null;
         }
       }
@@ -342,12 +413,16 @@ function computeDeMark(bars){
   /* ---- Pass 3: deferred setup perfection ----
      If a setup isn't perfected on bar 9, perfection occurs on the first later
      bar whose low (buy) / high (sell) breaches the bar-6/7 reference, provided
-     it happens before an opposing setup completes. */
+     it happens before an opposing setup completes.
+     P2-3: the scan stops STRICTLY before the opposing setup's completion bar
+     (j < limit), so a breach occurring exactly on that opposing-setup bar does
+     NOT perfect this earlier setup — perfection must precede the regime change.
+     When there is no opposing setup, scan through the final bar (n-1) inclusive. */
   for(const sg of signals){
     if(!sg.type.includes('SETUP') || sg.perfected || sg.perfRef==null) continue;
     const opp = signals.find(o=>o.idx>sg.idx && o.type.includes('SETUP') && o.side!==sg.side);
-    const limit = opp ? opp.idx : n-1;
-    for(let j=sg.idx+1;j<=limit;j++){
+    const limit = opp ? opp.idx : n;           // exclusive upper bound
+    for(let j=sg.idx+1;j<limit;j++){
       if(sg.side==='buy' ? l[j]<=sg.perfRef : h[j]>=sg.perfRef){
         sg.perfected = true; sg.perfIdx = j;
         if(ann[sg.idx].setupFlag) ann[sg.idx].setupFlag.perfected = true;
@@ -362,27 +437,49 @@ function computeDeMark(bars){
   return {ann, signals, liveBuyCD, liveSellCD};
 }
 
-// TD risk stop: extreme of the window ± the true range of the extreme bar.
+// TD risk stop: extreme of the window ± the TRUE range of the extreme bar.
 // riskPerShare is the sentinel `null` when no valid same-side stop exists
 // (degenerate range, or a stop that landed on the wrong side of entry). (P0-4)
+//
+// P2-2: use TRUE range (not bar range) for the extreme bar — include the prior
+// bar's close gap: TR = max(h, prevClose) - min(l, prevClose). a..b are absolute
+// indices into `bars`, so the prior close is bars[k-1].c for the extreme bar k.
+//
+// P2-1: a doji / zero-range extreme bar (h==l==c) yields TR==0, which would
+// place the stop exactly at entry (riskPerShare 0). Rather than emit a no-op
+// stop==entry, widen the stop by a minimum floor (DOJI_FLOOR_FRAC of price, or a
+// 1-cent tick, whichever is larger) and recompute the 2R target so the signal
+// still carries a defensible, tradeable stop.
+const DOJI_FLOOR_FRAC = 0.001;   // 0.1% of price
+function trueRange(bars, k){
+  const cur = bars[k];
+  const pc = k>0 ? bars[k-1].c : cur.c;     // prior close (or self at series start)
+  return Math.max(cur.h, pc) - Math.min(cur.l, pc);
+}
 function riskLevels(dir, bars, a, b){
-  const seg = bars.slice(a,b+1);
   const entry = bars[b].c;
+  const floor = Math.max(0.01, Math.abs(entry)*DOJI_FLOOR_FRAC);
   if(dir==='buy'){
-    let k=0; for(let j=1;j<seg.length;j++) if(seg[j].l<seg[k].l) k=j;
-    const tr = Math.max(0, seg[k].h - seg[k].l);          // clamp: never negative
-    const stop = +(seg[k].l - tr).toFixed(2);
-    const target = +(entry + (entry-stop)*2).toFixed(2);  // 2R
+    let k=a; for(let j=a+1;j<=b;j++) if(bars[j].l<bars[k].l) k=j;
+    let tr = Math.max(0, trueRange(bars, k));             // clamp: never negative
+    let stop = +(bars[k].l - tr).toFixed(2);
+    if(!(stop < entry)){                                  // P2-1: doji/zero-range
+      stop = +(entry - floor).toFixed(2);                 // widen by the floor
+    }
     const rps = +(entry-stop).toFixed(2);
+    const target = +(entry + (entry-stop)*2).toFixed(2);  // 2R
     // buy stop must sit below entry with positive risk, else no valid stop.
     if(!(stop < entry) || !(rps > 0)) return {stop, target, riskPerShare:null};
     return {stop, target, riskPerShare:rps};
   } else {
-    let k=0; for(let j=1;j<seg.length;j++) if(seg[j].h>seg[k].h) k=j;
-    const tr = Math.max(0, seg[k].h - seg[k].l);          // clamp: never negative
-    const stop = +(seg[k].h + tr).toFixed(2);
-    const target = +(entry - (stop-entry)*2).toFixed(2);
+    let k=a; for(let j=a+1;j<=b;j++) if(bars[j].h>bars[k].h) k=j;
+    let tr = Math.max(0, trueRange(bars, k));             // clamp: never negative
+    let stop = +(bars[k].h + tr).toFixed(2);
+    if(!(stop > entry)){                                  // P2-1: doji/zero-range
+      stop = +(entry + floor).toFixed(2);
+    }
     const rps = +(stop-entry).toFixed(2);
+    const target = +(entry - (stop-entry)*2).toFixed(2);
     // sell stop must sit above entry with positive risk, else no valid stop.
     if(!(stop > entry) || !(rps > 0)) return {stop, target, riskPerShare:null};
     return {stop, target, riskPerShare:rps};

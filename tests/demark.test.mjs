@@ -12,8 +12,14 @@ import { loadEngine, demoBars, barsFromCloses } from "./_engine.mjs";
 const eng = loadEngine(["computeDeMark", "riskLevels", "mkSignal", "backtest", "mkTrade"]);
 const { computeDeMark, riskLevels, backtest } = eng;
 
+// Recycle threshold mirrored from the engine (P1-3, default 18).
+const RECYCLE = 18;
+
 /** Replay the buy-countdown pass to recover the close of countdown-bar 8 for
- *  each completed buy CD-13, so tests can assert the bar-13 <= close8 rule. */
+ *  each completed buy CD-13, so tests can assert the bar-13 <= close8 rule.
+ *  Mirrors the engine's fidelity rules: flip-gated setup starts (via setupFlag),
+ *  same-direction recycle reset at RECYCLE, and TDST-break cancellation (a close
+ *  above the active buy-setup TDST resistance cancels the in-progress CD). */
 function reconBuyCD(bars) {
   const r = computeDeMark(bars);
   const c = bars.map((b) => b.c), l = bars.map((b) => b.l);
@@ -22,8 +28,10 @@ function reconBuyCD(bars) {
   const out = [];
   for (let i = 0; i < bars.length; i++) {
     const f = ann[i].setupFlag;
-    if (f && f.dir === "buy" && !buyCD) buyCD = { count: 0, close8: null };
+    if (f && f.dir === "buy") buyCD = { count: 0, close8: null, tdst: f.tdst }; // start or recycle
     if (f && f.dir === "sell") buyCD = null;
+    if (buyCD && ann[i].buyRun === RECYCLE) buyCD = { count: 0, close8: null, tdst: buyCD.tdst };
+    if (buyCD && buyCD.count > 0 && buyCD.tdst != null && c[i] > buyCD.tdst) buyCD = null;
     if (buyCD && i >= 2 && c[i] <= l[i - 2]) {
       if (buyCD.count < 12) { buyCD.count++; if (buyCD.count === 8) buyCD.close8 = c[i]; }
       else if (buyCD.close8 != null && l[i] <= buyCD.close8) { out.push({ idx: i, close8: buyCD.close8 }); buyCD = null; }
@@ -41,8 +49,10 @@ function reconSellCD(bars) {
   const out = [];
   for (let i = 0; i < bars.length; i++) {
     const f = ann[i].setupFlag;
-    if (f && f.dir === "sell" && !sellCD) sellCD = { count: 0, close8: null };
+    if (f && f.dir === "sell") sellCD = { count: 0, close8: null, tdst: f.tdst };
     if (f && f.dir === "buy") sellCD = null;
+    if (sellCD && ann[i].sellRun === RECYCLE) sellCD = { count: 0, close8: null, tdst: sellCD.tdst };
+    if (sellCD && sellCD.count > 0 && sellCD.tdst != null && c[i] < sellCD.tdst) sellCD = null;
     if (sellCD && i >= 2 && c[i] >= h[i - 2]) {
       if (sellCD.count < 12) { sellCD.count++; if (sellCD.count === 8) sellCD.close8 = c[i]; }
       else if (sellCD.close8 != null && h[i] >= sellCD.close8) { out.push({ idx: i, close8: sellCD.close8 }); sellCD = null; }
@@ -147,21 +157,46 @@ test("sell Countdown 13: close>=high[-2] at bar 13 and bar-13 high >= close8 (ha
   assert.ok(h[idx] >= close8, "CD bar 13 high must be >= close of countdown bar 8");
 });
 
-test("Countdown 13 qualifier holds for every countdown in the cyclical demo", () => {
-  const bars = demoBars();
-  const r = computeDeMark(bars);
-  const c = bars.map((b) => b.c), h = bars.map((b) => b.h), l = bars.map((b) => b.l);
+test("Countdown 13 qualifier holds for every countdown (trending fixtures)", () => {
+  // NOTE: after the TD-fidelity fixes (flip-gated setup starts, TDST-break
+  // cancellation, recycle reset), the cyclical demo no longer completes any
+  // countdown — every nascent CD is structurally cancelled (a close back above
+  // the buy-setup TDST, or a recycle) before it reaches 13. That is the
+  // corrected behavior. To still exercise the bar-13 qualifier we use sustained
+  // trends (no TDST break) that DO complete a countdown.
+  const downCloses = []; for (let i = 0; i < 40; i++) downCloses.push(200 - i * 2);
+  const upCloses = []; for (let i = 0; i < 40; i++) upCloses.push(120 + i * 2);
+  const downBars = barsFromCloses(downCloses, { wickHi: 0.3, wickLo: 0.3 });
+  const upBars = barsFromCloses(upCloses, { wickHi: 0.3, wickLo: 0.3 });
 
-  const buyCDs = r.signals.filter((s) => s.type === "BUY_COUNTDOWN");
-  const sellCDs = r.signals.filter((s) => s.type === "SELL_COUNTDOWN");
-  assert.ok(buyCDs.length > 0 && sellCDs.length > 0, "demo should produce both buy and sell countdowns");
+  const rd = computeDeMark(downBars), ru = computeDeMark(upBars);
+  const buyCDs = rd.signals.filter((s) => s.type === "BUY_COUNTDOWN");
+  const sellCDs = ru.signals.filter((s) => s.type === "SELL_COUNTDOWN");
+  assert.ok(buyCDs.length > 0, "sustained downtrend should complete a buy countdown");
+  assert.ok(sellCDs.length > 0, "sustained uptrend should complete a sell countdown");
 
-  for (const sg of buyCDs) assert.ok(c[sg.idx] <= l[sg.idx - 2], `buy CD ${sg.idx}: close not <= low[-2]`);
-  for (const sg of sellCDs) assert.ok(c[sg.idx] >= h[sg.idx - 2], `sell CD ${sg.idx}: close not >= high[-2]`);
+  const cd = downBars.map((b) => b.c), ld = downBars.map((b) => b.l);
+  const cu = upBars.map((b) => b.c), hu = upBars.map((b) => b.h);
+  for (const sg of buyCDs) assert.ok(cd[sg.idx] <= ld[sg.idx - 2], `buy CD ${sg.idx}: close not <= low[-2]`);
+  for (const sg of sellCDs) assert.ok(cu[sg.idx] >= hu[sg.idx - 2], `sell CD ${sg.idx}: close not >= high[-2]`);
 
   // bar-13 vs close8 via reconstruction
-  for (const { idx, close8 } of reconBuyCD(bars)) assert.ok(l[idx] <= close8, `buy CD ${idx}: low not <= close8`);
-  for (const { idx, close8 } of reconSellCD(bars)) assert.ok(h[idx] >= close8, `sell CD ${idx}: high not >= close8`);
+  for (const { idx, close8 } of reconBuyCD(downBars)) assert.ok(ld[idx] <= close8, `buy CD ${idx}: low not <= close8`);
+  for (const { idx, close8 } of reconSellCD(upBars)) assert.ok(hu[idx] >= close8, `sell CD ${idx}: high not >= close8`);
+});
+
+test("cyclical demo produces no completed countdowns after fidelity fixes (TDST/recycle/flip)", () => {
+  // Locks in the changed signal mix: the choppy demo's countdowns are all
+  // structurally cancelled, so only setups survive. If a future change lets a
+  // demo countdown complete again, this test flags it for review.
+  const bars = demoBars();
+  const r = computeDeMark(bars);
+  const counts = {};
+  for (const s of r.signals) counts[s.type] = (counts[s.type] || 0) + 1;
+  assert.equal(counts.BUY_SETUP, 7, "demo buy-setup count");
+  assert.equal(counts.SELL_SETUP, 3, "demo sell-setup count");
+  assert.equal(counts.BUY_COUNTDOWN || 0, 0, "demo completes no buy countdown");
+  assert.equal(counts.SELL_COUNTDOWN || 0, 0, "demo completes no sell countdown");
 });
 
 /* ----------------------------------------------------- deferred perfection */
@@ -223,17 +258,24 @@ test("riskLevels: buy/sell direct invariants on a hand-crafted window", () => {
   assert.ok(sell.target < ub[ub.length - 1].c, "sell 2R target below entry");
 });
 
-test("riskLevels: degenerate window yields riskPerShare:null, never a wrong-side stop (P0-4)", () => {
-  // Buy: the only bar has high==low (tr=0) and low==entry close, so stop would
-  // equal entry → no positive risk and the stop is NOT below entry. Expect null.
+test("riskLevels: doji/zero-range window widens the stop by a floor, never a no-op stop==entry (P2-1)", () => {
+  // The only bar has high==low==close (true range 0), so the raw TD stop would
+  // land exactly at entry (riskPerShare 0). P2-1: instead of a no-op stop, widen
+  // by a minimum floor (max(0.01, 0.1% of price)) and recompute the 2R target.
   const flat = [{ t: "2026-01-01", o: 100, h: 100, l: 100, c: 100, v: 1 }];
-  const buy = riskLevels("buy", flat, 0, 0);
-  assert.equal(buy.riskPerShare, null, "no valid buy stop ⇒ riskPerShare:null");
-  assert.ok(!(buy.stop < buy.target && buy.riskPerShare > 0), "must not report a wrong-side/zero-risk buy stop");
+  const floor = Math.max(0.01, 100 * 0.001); // 0.1
 
-  // Sell mirror.
+  const buy = riskLevels("buy", flat, 0, 0);
+  assert.ok(buy.riskPerShare > 0, "doji buy must yield positive risk, not 0/null");
+  assert.ok(buy.stop < 100, "doji buy stop must be widened below entry");
+  assert.equal(buy.stop, +(100 - floor).toFixed(2), "buy stop widened by the floor");
+  assert.equal(buy.target, +(100 + (100 - buy.stop) * 2).toFixed(2), "2R target recomputed off widened stop");
+
   const sell = riskLevels("sell", flat, 0, 0);
-  assert.equal(sell.riskPerShare, null, "no valid sell stop ⇒ riskPerShare:null");
+  assert.ok(sell.riskPerShare > 0, "doji sell must yield positive risk, not 0/null");
+  assert.ok(sell.stop > 100, "doji sell stop must be widened above entry");
+  assert.equal(sell.stop, +(100 + floor).toFixed(2), "sell stop widened by the floor");
+  assert.equal(sell.target, +(100 - (sell.stop - 100) * 2).toFixed(2), "2R target recomputed off widened stop");
 
   // Invariant on the whole demo: any non-null riskPerShare implies a correct-side stop.
   const bars = demoBars();
@@ -292,6 +334,17 @@ test("backtest invariants on the cyclical demo (countdown-only triggers)", () =>
   assert.ok(bt.stats.nTrades >= 0);
 });
 
+test("backtest invariants with a completed countdown (countdown-only triggers, trending fixture)", () => {
+  // The demo no longer completes a countdown post-fidelity; use a sustained
+  // downtrend (which completes a buy CD) so the countdown-only path is exercised.
+  const closes = []; for (let i = 0; i < 40; i++) closes.push(200 - i * 2);
+  const bars = barsFromCloses(closes, { wickHi: 0.3, wickLo: 0.3 });
+  const r = computeDeMark(bars);
+  assert.ok(r.signals.some((s) => s.type === "BUY_COUNTDOWN"), "fixture should complete a buy countdown");
+  const bt = assertBacktestInvariants(bars, r.signals, { capital: 10000, useSetups: false });
+  assert.ok(bt.stats.nTrades > 0, "countdown-only backtest should trade on a completed countdown");
+});
+
 test("backtest invariants on the cyclical demo (setups + countdowns)", () => {
   const bars = demoBars();
   const r = computeDeMark(bars);
@@ -341,4 +394,201 @@ test("backtest enters a deferred setup at perfIdx, not bar 9 (no look-ahead, P0-
   const entries = bt.trades.map((t) => t.entryDate);
   assert.ok(entries.includes(bars[setup.perfIdx].t), "entry must occur on the perfecting bar's date");
   assert.ok(!entries.includes(bars[setup.idx].t), "entry must NOT occur on the bar-9 date (would be look-ahead)");
+});
+
+/* ============================================================
+   TD-fidelity rule lock-in tests (P1-1..P1-4, P2-1..P2-3)
+   ============================================================ */
+
+/* ---- P1-1: a Setup may only INITIATE on a price flip ---- */
+
+test("P1-1 flip-required: a single uninterrupted down-run produces only ONE buy setup (no back-to-back without a flip)", () => {
+  // 4 priming bars, then 18 strictly-falling closes = one continuous down-count.
+  // The old engine restarted counting after bar 9 and emitted a 2nd setup; the
+  // flip rule forbids re-initiation without an intervening up-flip.
+  const closes = [100, 100, 100, 100];
+  for (let i = 0; i < 18; i++) closes.push(99 - i);
+  const bars = barsFromCloses(closes);
+  const r = computeDeMark(bars);
+  const buySetups = r.signals.filter((s) => s.type === "BUY_SETUP");
+  assert.equal(buySetups.length, 1, "an unbroken down-run must yield exactly one buy setup");
+  assert.equal(buySetups[0].idx, 12, "the single setup completes at the bar-9 index (12)");
+});
+
+test("P1-1 flip-required mirror: a single uninterrupted up-run produces only ONE sell setup", () => {
+  const closes = [100, 100, 100, 100];
+  for (let i = 0; i < 18; i++) closes.push(101 + i);
+  const bars = barsFromCloses(closes);
+  const r = computeDeMark(bars);
+  const sellSetups = r.signals.filter((s) => s.type === "SELL_SETUP");
+  assert.equal(sellSetups.length, 1, "an unbroken up-run must yield exactly one sell setup");
+  assert.equal(sellSetups[0].idx, 12);
+});
+
+test("P1-1 flip-required: a second same-direction setup CAN start after an intervening opposite flip", () => {
+  // down9 (buy setup #1), then a strong up-leg (opposite/up flip + sell setup),
+  // then down9 again (buy setup #2). Two buy setups are now legal.
+  const closes = [100, 100, 100, 100, 99, 98, 97, 96, 95, 94, 93, 92, 91];   // buy setup @12
+  for (let i = 0; i < 9; i++) closes.push(130 + i);                          // up flip + sell setup
+  for (let i = 0; i < 9; i++) closes.push(129 - i);                          // buy setup #2
+  const bars = barsFromCloses(closes);
+  const r = computeDeMark(bars);
+  // Note: signals come from a vm sandbox realm, so their Array prototype differs
+  // from this realm's — join to a string for a realm-safe comparison.
+  const buySetups = r.signals.filter((s) => s.type === "BUY_SETUP").map((s) => s.idx);
+  const sellSetups = r.signals.filter((s) => s.type === "SELL_SETUP").map((s) => s.idx);
+  assert.equal(buySetups.length, 2, "two buy setups, separated by an up-flip, are allowed");
+  assert.equal(buySetups.join(","), "12,30");
+  assert.ok(sellSetups.length >= 1, "the intervening up-leg completes a sell setup (the flip)");
+});
+
+/* ---- P1-2: TDST-break cancels an in-progress Countdown ---- */
+
+test("P1-2 TDST cancellation: a close above the buy-setup TDST resistance cancels the buy countdown", () => {
+  // Long fall completes a buy setup and begins a countdown; a single spike close
+  // far above the setup's resistance cancels it, so no BUY_COUNTDOWN completes
+  // even though price then resumes falling.
+  const closes = [100, 100, 100, 100];
+  for (let i = 0; i < 13; i++) closes.push(99 - i);   // buy setup @12, CD begins
+  closes.push(150);                                   // close >> setup TDST -> cancel
+  for (let i = 0; i < 20; i++) closes.push(85 - i);   // resume falling
+  const bars = barsFromCloses(closes, { wickHi: 0.3, wickLo: 0.3 });
+  const r = computeDeMark(bars);
+  assert.equal(r.signals.filter((s) => s.type === "BUY_COUNTDOWN").length, 0,
+    "the TDST-break must cancel the buy countdown");
+
+  // Control: WITHOUT the spike (price keeps falling), the countdown DOES complete.
+  const ctrl = [100, 100, 100, 100];
+  for (let i = 0; i < 40; i++) ctrl.push(99 - i);
+  const rc = computeDeMark(barsFromCloses(ctrl, { wickHi: 0.3, wickLo: 0.3 }));
+  assert.ok(rc.signals.some((s) => s.type === "BUY_COUNTDOWN"),
+    "without a TDST break the buy countdown completes (proves the spike caused the cancel)");
+});
+
+test("P1-2 TDST cancellation mirror: a close below the sell-setup TDST support cancels the sell countdown", () => {
+  const closes = [100, 100, 100, 100];
+  for (let i = 0; i < 13; i++) closes.push(101 + i);  // sell setup @12, CD begins
+  closes.push(50);                                    // close << setup TDST -> cancel
+  for (let i = 0; i < 20; i++) closes.push(120 + i);  // resume rising
+  const bars = barsFromCloses(closes, { wickHi: 0.3, wickLo: 0.3 });
+  const r = computeDeMark(bars);
+  assert.equal(r.signals.filter((s) => s.type === "SELL_COUNTDOWN").length, 0,
+    "the TDST-break must cancel the sell countdown");
+});
+
+/* ---- P1-3: recycle resets an in-progress Countdown ---- */
+
+test("P1-3 recycle: the buy countdown count resets when the raw down-run reaches the recycle threshold (18)", () => {
+  // A 40-bar monotonic fall. The buy CD counts 1..9, but at the bar where the
+  // raw down-run hits 18 the recycle rule resets it to 1 (visible in the buyCD
+  // annotation dropping back to 1), so completion is pushed later than it would
+  // be without recycling.
+  const closes = [];
+  for (let i = 0; i < 40; i++) closes.push(200 - i * 2);
+  const bars = barsFromCloses(closes, { wickHi: 0.3, wickLo: 0.3 });
+  const r = computeDeMark(bars);
+  const cdAnn = r.ann.map((a) => a.buyCD);
+  const runAnn = r.ann.map((a) => a.buyRun);
+
+  const recycleBar = runAnn.indexOf(18);
+  assert.ok(recycleBar > 0, "the raw run should reach the recycle threshold");
+  // the count immediately before the recycle bar was 9; at the recycle bar it
+  // restarts at 1 (rather than continuing to 10).
+  assert.equal(cdAnn[recycleBar - 1], 9, "count was 9 the bar before the recycle threshold");
+  assert.equal(cdAnn[recycleBar], 1, "count resets to 1 at the recycle threshold (P1-3)");
+
+  // and a single, post-recycle countdown still completes (count 13 exists once).
+  const cds = r.signals.filter((s) => s.type === "BUY_COUNTDOWN");
+  assert.equal(cds.length, 1, "exactly one (post-recycle) buy countdown completes");
+});
+
+/* ---- P1-4: countdown risk-stop window spans the TRUE countdown range ---- */
+
+test("P1-4 countdown stop window spans the real countdown range (bar1..bar13), not the last 13 calendar bars", () => {
+  // Monotonic fall -> a buy countdown completes at some idx. The risk stop is
+  // taken over the actual countdown span (bar1..bar13). Because countdown bars
+  // here are consecutive after the recycle, the extreme bar is the last one, and
+  // the stop reflects the bar-13 low minus its true range — strictly below entry.
+  const closes = [];
+  for (let i = 0; i < 40; i++) closes.push(200 - i * 2);
+  const bars = barsFromCloses(closes, { wickHi: 0.3, wickLo: 0.3 });
+  const r = computeDeMark(bars);
+  const cd = r.signals.find((s) => s.type === "BUY_COUNTDOWN");
+  assert.ok(cd, "fixture should complete a buy countdown");
+  assert.ok(cd.risk.stop < cd.price, "buy countdown stop must be below entry");
+  assert.ok(cd.risk.riskPerShare > 0, "buy countdown must carry positive risk");
+  // The stop must be no higher than the bar-13 low (the deepest bar in the span).
+  assert.ok(cd.risk.stop <= bars[cd.idx].l, "stop must sit at/below the deepest countdown-bar low");
+});
+
+/* ---- P2-2: TRUE range (not bar range) drives the stop ---- */
+
+test("P2-2 riskLevels uses TRUE range (prior-close gap) for the extreme bar, not bar range", () => {
+  // 5 bars; the last is a gap-down extreme: prevClose 96 sits above its high 91.
+  // bar range = 91-89 = 2 -> bar-range stop would be 89-2 = 87.
+  // true range = max(91,96)-min(89,96) = 7 -> TR stop = 89-7 = 82.
+  const mk = (t, o, h, l, c) => ({ t, o, h, l, c, v: 1 });
+  const bars = [
+    mk("2026-01-01", 100, 100, 99, 99),
+    mk("2026-01-02", 99, 99, 98, 98),
+    mk("2026-01-03", 98, 98, 97, 97),
+    mk("2026-01-04", 97, 97, 96, 96),
+    mk("2026-01-05", 90, 91, 89, 90),   // gap down vs prevClose 96
+  ];
+  const buy = riskLevels("buy", bars, 0, bars.length - 1);
+  assert.equal(buy.stop, 82, "stop must use TRUE range (82), not bar range (87)");
+  assert.equal(buy.riskPerShare, +(90 - 82).toFixed(2), "riskPerShare reflects the true-range stop");
+
+  // Sell mirror: gap-up extreme; prevClose below the bar low.
+  const sbars = [
+    mk("2026-01-01", 100, 101, 100, 100),
+    mk("2026-01-02", 100, 102, 101, 101),
+    mk("2026-01-03", 101, 103, 102, 102),
+    mk("2026-01-04", 102, 104, 103, 103),
+    mk("2026-01-05", 110, 111, 109, 110), // gap up vs prevClose 103
+  ];
+  // extreme high bar = last (111). prevClose 103. TR = max(111,103)-min(109,103)=8.
+  // stop = 111 + 8 = 119 (bar range would be 111 + 2 = 113).
+  const sell = riskLevels("sell", sbars, 0, sbars.length - 1);
+  assert.equal(sell.stop, 119, "sell stop must use TRUE range (119), not bar range (113)");
+});
+
+/* ---- P2-3: deferred-perfection boundary off-by-one (j < limit) ---- */
+
+/** Buy setup at idx 12 left unperfected at bar 9; an opposing sell setup
+ *  completes at idx 21. `breachIdx` is the only bar whose low breaches the
+ *  buy perfRef. */
+function p23Bars(breachIdx) {
+  const closes = [100, 100, 100, 100, 99, 98, 97, 96, 95, 94, 93, 92, 91];
+  for (let i = 0; i < 9; i++) closes.push(95 + i * 4); // up-leg -> sell setup @21
+  const mk = (t, o, h, l, c) => ({ t, o: +o.toFixed(2), h: +h.toFixed(2), l: +l.toFixed(2), c: +c.toFixed(2), v: 1 });
+  const bars = closes.map((c, i) => {
+    const o = i === 0 ? c : closes[i - 1];
+    const t = new Date(Date.UTC(2026, 0, 1 + i)).toISOString().slice(0, 10);
+    return mk(t, o, Math.max(o, c) + 0.5, Math.min(o, c) - 0.5, c);
+  });
+  bars[9].l = 93.0; bars[10].l = 93.0;      // perfRef = min(low9,low10) = 93.0
+  bars[11].l = 93.5; bars[12].l = 93.5;     // bar8/9 lows above ref -> NOT perfected at 9
+  for (let i = 13; i <= 21; i++) bars[i].l = Math.max(bars[i].l, 94.0); // no breach by default
+  bars[breachIdx].l = 92.0;                 // the single breaching bar
+  return bars;
+}
+
+test("P2-3 boundary: a breach EXACTLY on the opposing setup's completion bar does NOT perfect (j < limit)", () => {
+  const bars = p23Bars(21);                 // breach lands on the sell-completion bar
+  const r = computeDeMark(bars);
+  const buy = r.signals.find((s) => s.type === "BUY_SETUP");
+  const sell = r.signals.find((s) => s.type === "SELL_SETUP");
+  assert.equal(buy.idx, 12);
+  assert.equal(sell.idx, 21, "opposing sell setup completes at idx 21");
+  assert.equal(buy.perfected, false, "breach on the opposing-completion bar must NOT perfect (j < limit)");
+  assert.equal(buy.perfIdx, undefined, "no perfIdx when the only breach is the boundary bar");
+});
+
+test("P2-3 control: a breach one bar BEFORE the opposing completion DOES perfect (proves the off-by-one)", () => {
+  const bars = p23Bars(20);                 // breach one bar before the sell completion
+  const r = computeDeMark(bars);
+  const buy = r.signals.find((s) => s.type === "BUY_SETUP");
+  assert.equal(buy.perfected, true, "a breach strictly before the opposing setup perfects the earlier setup");
+  assert.equal(buy.perfIdx, 20, "perfection occurs at the breaching bar (idx 20)");
 });

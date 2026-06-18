@@ -96,17 +96,49 @@ export function sliceFunction(src, name) {
 }
 
 /**
+ * Slice a top-level `const NAME = <expr>;` declaration out of source. Used to
+ * pull in module-level constants the engine functions depend on (e.g.
+ * RECYCLE_THRESHOLD, DOJI_FLOOR_FRAC) so the sandboxed functions resolve them.
+ */
+export function sliceConst(src, name) {
+  const re = new RegExp("const\\s+" + name + "\\s*=", "g");
+  const m = re.exec(src);
+  if (!m) throw new Error("Const not found: " + name);
+  // scan to the terminating semicolon at depth 0 (skip strings/parens braces)
+  let i = re.lastIndex, depth = 0;
+  for (let j = i; j < src.length; j++) {
+    const ch = src[j];
+    if (ch === '"' || ch === "'" || ch === "`") {
+      const q = ch; j++;
+      while (j < src.length) { if (src[j] === "\\") { j += 2; continue; } if (src[j] === q) break; j++; }
+      continue;
+    }
+    if (ch === "(" || ch === "[" || ch === "{") depth++;
+    else if (ch === ")" || ch === "]" || ch === "}") depth--;
+    else if (ch === ";" && depth === 0) return src.slice(m.index, j + 1);
+  }
+  throw new Error("No terminating semicolon for const: " + name);
+}
+
+// Module-level declarations that the engine functions close over. We always
+// inject these so sliced functions resolve them; harmless if unused.
+const SHARED_CONSTS = ["RECYCLE_THRESHOLD", "DOJI_FLOOR_FRAC"];
+const SHARED_FUNCS = ["trueRange"];
+
+/**
  * Build a sandbox containing the requested engine functions. `extraGlobals`
  * lets parse tests stub `document`, etc. Returns the sandbox object so callers
  * can read the functions off it.
  */
 export function loadEngine(names, extraGlobals = {}) {
   const src = readScriptBlock();
+  const consts = SHARED_CONSTS.map((n) => { try { return sliceConst(src, n); } catch { return ""; } }).filter(Boolean);
+  const helpers = SHARED_FUNCS.map((n) => { try { return sliceFunction(src, n); } catch { return ""; } }).filter(Boolean);
   const pieces = names.map((n) => sliceFunction(src, n)).join("\n\n");
   const sandbox = { ...extraGlobals };
   vm.createContext(sandbox);
   // Expose the sliced declarations, then attach them to the sandbox object.
-  const exposer = pieces + "\n\n;(()=>{" +
+  const exposer = consts.join("\n") + "\n" + helpers.join("\n\n") + "\n\n" + pieces + "\n\n;(()=>{" +
     names.map((n) => `globalThis.${n}=${n};`).join("") + "})();";
   vm.runInContext(exposer, sandbox, { filename: "demark-engine.sliced.js" });
   return sandbox;
