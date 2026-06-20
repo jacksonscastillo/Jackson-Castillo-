@@ -500,6 +500,9 @@ input[type=range]::-moz-range-thumb{
         <div class="rankchip" id="arenaRank"></div>
       </div>
       <div id="modList"></div>
+      <div style="text-align:center;margin-top:20px">
+        <button class="backlink" id="resetMine" style="font-size:10px;color:var(--gray)">&#8634; RESET MY PROGRESS</button>
+      </div>
       <div class="homefoot">SOURCE: BUILDING A FINANCIAL SERVICES CLIENTELE, 12TH ED.<br>O. ALFRED GRANUM, CLU · NM CHICAGO 1958 TO 1983</div>
     </div>
   </div>
@@ -815,6 +818,17 @@ try{
 }catch(e){}
 function persist(){
   try{ localStorage.setItem("granumGame", JSON.stringify({done:S.done, pts:S.pts, best:S.best})); }catch(e){}
+}
+function resetProgress(){
+  if(!confirm("Reset YOUR score and module progress to zero?\nYour name stays on the board; your row resets to 0.")) return;
+  S.pts=0; S.streak=0; S.best=0; S.mult=1; S.done={}; S.modScores={};
+  S.mod=null; S.idx=0; S.hits=0; S.total=0;
+  persist();
+  arenaSave(false);   // pushes 0 to the live board if joined; harmless no-op otherwise
+  renderHUD();
+  renderHome();
+  show("scrHome");
+  toast("PROGRESS RESET · BACK TO ZERO");
 }
 
 /* ================= AUDIO ================= */
@@ -1492,6 +1506,7 @@ async function hostReset(){
 
 /* ================= WIRES ================= */
 $("quitBtn").addEventListener("click",()=>{ renderHome(); show("scrHome"); });
+$("resetMine").addEventListener("click", resetProgress);
 $("joinGo").addEventListener("click", joinArena);
 $("joinName").addEventListener("keydown", e=>{ if(e.key==="Enter") joinArena(); });
 $("joinBack").addEventListener("click",()=>{ renderHome(); show("scrHome"); });
