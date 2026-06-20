@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>The Granum Game · Team Competition</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
   --blue:#0033E6; --deep:#001A99; --sky:#D9E5FF; --pale:#F0F5FF;
@@ -1200,9 +1199,13 @@ function finishModule(){
 const SUPABASE_URL  = "https://hbnndxrmggvbhcedilpn.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhibm5keHJtZ2d2YmhjZWRpbHBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5MTgzMjcsImV4cCI6MjA5NDQ5NDMyN30.r6_1yVZ_x1clNPJEPsyQ5IwLWLWO6p4PIOP_gQoaZEQ";
 const TABLE = "granum_scores";
-let sb=null;
-try{ if(window.supabase&&window.supabase.createClient) sb=window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {realtime:{params:{eventsPerSecond:5}}}); }catch(e){}
-const HAS_ARENA = !!sb;
+/* Talk to Supabase's REST API directly with the browser's built-in fetch.
+   No external SDK to download (so CDN/content blockers can't break it) and no
+   realtime WebSocket (which Safari and corporate firewalls often block). The
+   board stays live by polling every few seconds instead. */
+const REST = SUPABASE_URL + "/rest/v1/" + TABLE;
+const SB_HEADERS = { "apikey":SUPABASE_ANON, "Authorization":"Bearer "+SUPABASE_ANON, "Content-Type":"application/json" };
+const HAS_ARENA = (typeof fetch === "function");
 
 const ARENA = { joined:false, name:"", pid:"", rank:null, lastRank:null, rows:[], online:false, poll:null, sub:false };
 
@@ -1280,8 +1283,12 @@ async function arenaSave(final){
     updated_at:new Date().toISOString()
   };
   try{
-    const {error}=await sb.from(TABLE).upsert(row,{onConflict:"player_id"});
-    if(error){ setOnline(false); return; }
+    const res=await fetch(REST+"?on_conflict=player_id", {
+      method:"POST",
+      headers:Object.assign({}, SB_HEADERS, {"Prefer":"resolution=merge-duplicates, return=minimal"}),
+      body:JSON.stringify(row)
+    });
+    if(!res.ok){ setOnline(false); return; }
     setOnline(true);
   }catch(e){ setOnline(false); return; }
   arenaRefresh();
@@ -1297,8 +1304,9 @@ async function arenaRefresh(){
   if(!HAS_ARENA || _refreshing) return;
   _refreshing=true;
   try{
-    const {data,error}=await sb.from(TABLE).select("*");
-    if(error){ setOnline(false); _refreshing=false; return; }
+    const res=await fetch(REST+"?select=*", { headers:SB_HEADERS, cache:"no-store" });
+    if(!res.ok){ setOnline(false); _refreshing=false; return; }
+    const data=await res.json();
     setOnline(true);
     ARENA.rows=sortRows(data||[]);
     updateRank(true);
@@ -1307,18 +1315,10 @@ async function arenaRefresh(){
   }catch(e){ setOnline(false); }
   _refreshing=false;
 }
-function arenaSubscribe(){
-  if(!HAS_ARENA || ARENA.sub) return;
-  try{
-    ARENA.sub=true;
-    sb.channel("granum_live")
-      .on("postgres_changes",{event:"*",schema:"public",table:TABLE}, ()=>arenaRefresh())
-      .subscribe(status=>{ if(status==="SUBSCRIBED") setOnline(true); });
-  }catch(e){ ARENA.sub=false; }
-}
+function arenaSubscribe(){ /* realtime disabled — polling keeps the board live (max compatibility with Safari / firewalls) */ }
 function arenaStartPoll(){
   clearInterval(ARENA.poll);
-  ARENA.poll=setInterval(arenaRefresh, 7000);
+  ARENA.poll=setInterval(arenaRefresh, 4000);
 }
 
 /* ---- rank / HUD ---- */
@@ -1467,8 +1467,8 @@ async function hostReset(){
   const code=prompt("HOST RESET: this wipes EVERY score on the shared board for everyone. Type RESET to confirm.");
   if(code!=="RESET") return;
   try{
-    const {error}=await sb.from(TABLE).delete().gte("pts",-1);
-    if(error){ toast("RESET FAILED \u00b7 CHECK SQL POLICIES"); return; }
+    const res=await fetch(REST+"?pts=gte.-1", { method:"DELETE", headers:Object.assign({}, SB_HEADERS, {"Prefer":"return=minimal"}) });
+    if(!res.ok){ toast("RESET FAILED \u00b7 CHECK SQL POLICIES"); return; }
   }catch(e){ toast("RESET FAILED"); return; }
   _winnerShown=false;
   toast("BOARD WIPED. FRESH MONTH.");
