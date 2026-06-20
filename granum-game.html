@@ -1204,7 +1204,11 @@ const TABLE = "granum_scores";
    realtime WebSocket (which Safari and corporate firewalls often block). The
    board stays live by polling every few seconds instead. */
 const REST = SUPABASE_URL + "/rest/v1/" + TABLE;
-const SB_HEADERS = { "apikey":SUPABASE_ANON, "Authorization":"Bearer "+SUPABASE_ANON, "Content-Type":"application/json" };
+/* This project's PostgREST exposes the "api" schema by default, but the
+   granum_scores table lives in "public" — so every request must target the
+   public schema explicitly (Accept-Profile for reads, Content-Profile for
+   writes). PostgREST ignores whichever one doesn't apply to the method. */
+const SB_HEADERS = { "apikey":SUPABASE_ANON, "Authorization":"Bearer "+SUPABASE_ANON, "Content-Type":"application/json", "Accept-Profile":"public", "Content-Profile":"public" };
 const HAS_ARENA = (typeof fetch === "function");
 
 const ARENA = { joined:false, name:"", pid:"", rank:null, lastRank:null, rows:[], online:false, poll:null, sub:false };
