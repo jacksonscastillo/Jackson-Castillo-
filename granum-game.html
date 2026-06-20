@@ -1305,15 +1305,26 @@ async function arenaRefresh(){
   _refreshing=true;
   try{
     const res=await fetch(REST+"?select=*", { headers:SB_HEADERS, cache:"no-store" });
-    if(!res.ok){ setOnline(false); _refreshing=false; return; }
+    if(!res.ok){
+      let d=""; try{ d=(await res.text()).slice(0,220); }catch(_){}
+      connError("HTTP "+res.status+(d?" — "+d:""));
+      setOnline(false); _refreshing=false; return;
+    }
     const data=await res.json();
     setOnline(true);
     ARENA.rows=sortRows(data||[]);
     updateRank(true);
     paintStandings();
     maybeAutoWinner();
-  }catch(e){ setOnline(false); }
+  }catch(e){ connError("NETWORK/CORS: "+((e&&e.message)||e)); setOnline(false); }
   _refreshing=false;
+}
+function connError(msg){
+  try{ console.error("[granum board]", msg); }catch(_){}
+  const body=$("srBody");
+  if(body && !ARENA.rows.length){
+    body.innerHTML='<div class="lbempty" style="text-align:left;color:#c0182b;font-size:11px;line-height:1.45;word-break:break-word;padding:10px">CAN’T REACH THE BOARD<br><span style="color:#5A6473;font-size:9px">'+esc(msg)+'</span></div>';
+  }
 }
 function arenaSubscribe(){ /* realtime disabled — polling keeps the board live (max compatibility with Safari / firewalls) */ }
 function arenaStartPoll(){
