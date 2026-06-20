@@ -49,3 +49,18 @@ begin
     execute 'alter publication supabase_realtime add table public.granum_scores';
   end if;
 end $$;
+
+-- ---------- GRANTS (REQUIRED) ----------
+-- RLS decides WHICH ROWS a role may touch; GRANT decides whether the role may
+-- touch the table at all. Without these the public anon key gets:
+--   HTTP 401 / 42501  "permission denied for table granum_scores"
+-- The app authenticates with the anon key (Postgres role "anon"); we also grant
+-- "authenticated" for safety. This is a no-login game board, so both roles get
+-- full CRUD and the permissive policies above keep it scoped sanely.
+grant usage on schema public to anon, authenticated;
+grant select, insert, update, delete on public.granum_scores to anon, authenticated;
+
+-- ---------- RELOAD POSTGREST SCHEMA CACHE ----------
+-- Forces the REST API to re-read the table + grants immediately, so you don't
+-- hit a stale  404 PGRST205  "could not find the table in the schema cache".
+notify pgrst, 'reload schema';
