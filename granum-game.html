@@ -1225,7 +1225,7 @@ const REST = SUPABASE_URL + "/rest/v1/" + TABLE;
 const SB_HEADERS = { "apikey":SUPABASE_ANON, "Authorization":"Bearer "+SUPABASE_ANON, "Content-Type":"application/json", "Accept-Profile":"public", "Content-Profile":"public" };
 const HAS_ARENA = (typeof fetch === "function");
 
-const ARENA = { joined:false, name:"", pid:"", rank:null, lastRank:null, rows:[], online:false, poll:null, sub:false };
+const ARENA = { joined:false, name:"", pid:"", rank:null, lastRank:null, rows:[], online:false, poll:null, sub:false, saveError:null };
 
 function genPID(){ return "p_"+Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4); }
 function loadLocal(){
@@ -1306,9 +1306,19 @@ async function arenaSave(final){
       headers:Object.assign({}, SB_HEADERS, {"Prefer":"resolution=merge-duplicates, return=minimal"}),
       body:JSON.stringify(row)
     });
-    if(!res.ok){ setOnline(false); return; }
+    if(!res.ok){
+      let d=""; try{ d=(await res.text()).slice(0,220); }catch(_){}
+      ARENA.saveError="SAVE "+res.status+(d?" — "+d:"");
+      try{ console.error("[granum save]", ARENA.saveError); }catch(_){}
+      setOnline(false); return;
+    }
+    ARENA.saveError=null;
     setOnline(true);
-  }catch(e){ setOnline(false); return; }
+  }catch(e){
+    ARENA.saveError="SAVE NETWORK: "+((e&&e.message)||e);
+    try{ console.error("[granum save]", ARENA.saveError); }catch(_){}
+    setOnline(false); return;
+  }
   arenaRefresh();
 }
 let _touchT=null;
@@ -1404,8 +1414,11 @@ function paintStandings(){
 function renderSiderail(){
   const body=$("srBody"); if(!body) return;
   const c=$("srCount"); if(c) c.textContent=ARENA.rows.length+(ARENA.rows.length===1?" PLAYER":" PLAYERS");
-  if(!ARENA.rows.length){ body.innerHTML='<div class="lbempty">NO SCORES YET.<br>BE FIRST ON THE BOARD.</div>'; return; }
-  body.innerHTML=ARENA.rows.map((r,i)=>rowHTML(r,i)).join("");
+  const banner = ARENA.saveError
+    ? '<div class="lbempty" style="text-align:left;color:#c0182b;font-size:10px;line-height:1.45;word-break:break-word;padding:8px;border:2px solid #c0182b;margin-bottom:10px">YOUR SCORE ISN’T SAVING<br><span style="color:#5A6473;font-size:9px">'+esc(ARENA.saveError)+'</span></div>'
+    : '';
+  if(!ARENA.rows.length){ body.innerHTML=banner+'<div class="lbempty">NO SCORES YET.<br>BE FIRST ON THE BOARD.</div>'; return; }
+  body.innerHTML=banner+ARENA.rows.map((r,i)=>rowHTML(r,i)).join("");
 }
 function renderBoard(){
   const pod=$("podium"), list=$("boardRows");
