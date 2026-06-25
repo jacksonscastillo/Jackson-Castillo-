@@ -1,0 +1,7 @@
+# Claude Code harness artifacts (agent worktrees, local state)
+.claude/
+
+# Local / OS / tooling
+node_modules/
+.DS_Store
+*.log
