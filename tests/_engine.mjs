@@ -122,7 +122,7 @@ export function sliceConst(src, name) {
 
 // Module-level declarations that the engine functions close over. We always
 // inject these so sliced functions resolve them; harmless if unused.
-const SHARED_CONSTS = ["RECYCLE_THRESHOLD", "DOJI_FLOOR_FRAC"];
+const SHARED_CONSTS = ["RECYCLE_THRESHOLD", "DOJI_FLOOR_FRAC", "THIN_SAMPLE_N", "STALE_TRADING_DAYS"];
 const SHARED_FUNCS = ["trueRange", "minWin", "maxWin"];
 
 /**

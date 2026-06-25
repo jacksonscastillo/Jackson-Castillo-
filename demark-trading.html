@@ -222,6 +222,7 @@ details .body ol{margin:8px 0 8px 20px} details .body li{margin:5px 0}
       <button class="btn btn-ghost" id="copyBtn" style="width:auto;padding:9px 18px">Copy intents JSON</button>
       <button class="btn btn-ghost" id="promptBtn" style="width:auto;padding:9px 18px">Copy fetch prompt</button>
     </div>
+    <div class="notice" id="copyNotice"></div>
     <pre class="intent" id="intentOut">{ }</pre>
   </div>
 
@@ -600,6 +601,39 @@ function dataQuality(bars){
   return {count, first, last, datesParsed, medianGapDays, maxGapDays, warnings};
 }
 
+// P0-5: wall-clock staleness. Compare the most recent bar's date against the
+// current date (browser `now`) and warn when the data is older than ~N trading
+// days. This is distinct from the data-RELATIVE ageBars check (signal recency):
+// here we catch a series that simply hasn't been refreshed in a while. Returns
+// {stale, ageDays} — ageDays is null when the last date can't be parsed. Pure.
+const STALE_TRADING_DAYS = 5;        // ~one trading week
+function staleness(lastDate, nowMs, maxTradingDays){
+  const max = maxTradingDays || STALE_TRADING_DAYS;
+  const t = parseBarDate(lastDate);
+  if(!isFinite(t) || !isFinite(nowMs)) return { stale:false, ageDays:null };
+  const ageDays = Math.floor((nowMs - t)/86400000);
+  // Convert the trading-day threshold to a calendar-day budget (5 trading days
+  // span ~7 calendar days once a weekend is included); add a 2-day cushion.
+  const calBudget = Math.ceil(max*7/5) + 2;
+  return { stale: ageDays > calBudget, ageDays };
+}
+
+// P0-3: compare a symbol embedded in ingested JSON against the Symbol input
+// field. Returns {mismatch, jsonSymbol, inputSymbol} — mismatch is true only
+// when BOTH are non-empty and differ (case/whitespace-insensitive). CSV carries
+// no symbol, so jsonSymbol is null there and mismatch is always false. Pure.
+function symbolMismatch(jsonSymbol, inputSymbol){
+  const norm = s => String(s==null?'':s).trim().toUpperCase();
+  const j = norm(jsonSymbol), i = norm(inputSymbol);
+  return { mismatch: !!(j && i && j!==i), jsonSymbol:j||null, inputSymbol:i||null };
+}
+
+// P0-2: ratio/derived statistics computed from very few trades are noise, not
+// precision. Returns true when a sample of n trades is too thin to trust the
+// Sharpe / Sortino / Profit-Factor figures (conventional minimum is 30).
+const THIN_SAMPLE_N = 30;
+function isThinSample(nTrades){ return !(nTrades>=THIN_SAMPLE_N); }
+
 // CSV-escape a single field (quote when it contains a comma, quote, or newline).
 function csvField(v){
   const s = v==null ? '' : String(v);
@@ -725,7 +759,11 @@ function parseBars(raw){
   } else if(isFinite(ds[0]) && isFinite(ds[ds.length-1]) && ds[0]>ds[ds.length-1]){
     bars.reverse();
   }
-  return {symbol: obj.symbol || document.getElementById('symbol').value, bars};
+  // P0-3: preserve the raw JSON symbol (if any) so the caller can compare it
+  // against the Symbol input field and warn on a mismatch — never silently
+  // override the user's chosen symbol.
+  return {symbol: obj.symbol || document.getElementById('symbol').value,
+          jsonSymbol: (typeof obj.symbol==='string' && obj.symbol.trim()) ? obj.symbol : null, bars};
 }
 
 // Accept CSV pasted from Yahoo/Nasdaq/etc. Header-driven; tolerant of $, commas,
@@ -1033,20 +1071,37 @@ function backtest(bars, signals, opts){
     (byIdx[i]||[]).forEach(s=>{
       if(s.side==='buy' && shares===0){
         const fill=buyFill(b.c);
-        const q=Math.floor(cash/fill);
+        // Resolve the stop FIRST so position size is computed off the same
+        // risk-per-share the live trade will actually use (P0-1). Default
+        // behavior (no opts.stopSource / opts.targetR) uses the signal's own
+        // TD stop & target.
+        let st=s.risk.stop, tg=s.risk.target;
+        if(opts.stopSource==='atr' && opts.atr && isFinite(opts.atr[i])){
+          const cand=+(b.c - opts.atr[i]*1.5).toFixed(2);
+          if(cand>0 && cand<b.c) st=cand;             // only if it is a valid long stop
+        }
+        if(opts.targetR!=null){
+          const rps=b.c-st;
+          if(rps>0) tg=+(b.c + rps*opts.targetR).toFixed(2);
+        }
+        // P0-1: size the entry the SAME way buildIntents does — risk a fixed
+        // fraction of CURRENT cash, divided by per-share risk (entry − stop),
+        // then cap by what the cash can actually afford and floor at 0. This
+        // makes the backtest validate the strategy that actually trades, instead
+        // of going all-in. riskPct mirrors the UI "Risk / trade (%)" input.
+        // Omitting riskPct defaults to 1% (the UI default); an EXPLICIT
+        // non-positive riskPct means "no risk budget" → no position.
+        const riskPct = opts.riskPct==null ? 0.01 : (opts.riskPct>0 ? opts.riskPct : 0);
+        const riskPerShare = fill - st;               // long: entry fill − stop
+        let q = 0;
+        if(riskPct>0 && riskPerShare>0){
+          q = Math.floor((cash*riskPct) / riskPerShare);
+          const maxAfford = Math.floor(cash / fill);
+          if(q>maxAfford) q=maxAfford;
+          if(q<0) q=0;
+        }
         if(q>0){
           shares=q; entryPx=fill; cash-=q*fill; entryDate=b.t; entryIdx=i;
-          // Default behavior (no opts.stopSource / opts.targetR) uses the signal's
-          // own TD stop & target unchanged — preserves existing engine output.
-          let st=s.risk.stop, tg=s.risk.target;
-          if(opts.stopSource==='atr' && opts.atr && isFinite(opts.atr[i])){
-            const cand=+(b.c - opts.atr[i]*1.5).toFixed(2);
-            if(cand>0 && cand<b.c) st=cand;             // only if it is a valid long stop
-          }
-          if(opts.targetR!=null){
-            const rps=b.c-st;
-            if(rps>0) tg=+(b.c + rps*opts.targetR).toFixed(2);
-          }
           stop=st; target=tg;
         }
       } else if(s.side==='sell' && shares>0){
@@ -1145,8 +1200,11 @@ let _lastBt=null;   // cache last backtest for export buttons
 function renderBacktest(bars, signals){
   const stopSrc=document.getElementById('btStop').value;
   let targetR=num('btTargetR'); if(!(targetR>0)) targetR=2;
+  // P0-1: pass the same Risk/trade(%) the live sizer uses so the backtest sizes
+  // each entry identically (risk-based) rather than going all-in.
+  let riskPct=num('risk')/100; if(!(riskPct>0)) riskPct=0.01;
   const opts={ capital: num('wallet')||10000, useSetups: document.getElementById('btTrigger').value==='all',
-               feesBps: num('btFees'), stopSource:stopSrc, targetR,
+               feesBps: num('btFees'), stopSource:stopSrc, targetR, riskPct,
                atr: stopSrc==='atr' ? atrSeries(bars,14) : null };
   const bt = backtest(bars, signals, opts);
   _lastBt = bt;
@@ -1162,6 +1220,19 @@ function renderBacktest(bars, signals){
   const fNum = (k,v,dp,cls)=> card(k, ok(v) ? v.toFixed(dp==null?2:dp) : dash, cls||'goldc');
   const fMoney = (k,v,cls)=> card(k, ok(v) ? `${v>=0?'+':''}$${Math.round(v).toLocaleString()}` : dash, cls||(ok(v)?sgn(v):''));
   const fPF = (k,v) => card(k, v===Infinity ? '∞' : (ok(v) ? v.toFixed(2) : dash), 'goldc');
+  // P0-2: when fewer than 30 trades, these ratio metrics are statistically thin
+  // — dim them and append a low-confidence note so noise isn't shown as precision.
+  const thin = isThinSample(s.nTrades);
+  const lowConf = thin
+    ? ` <span class="grayc" style="font-size:9px" title="Fewer than ${THIN_SAMPLE_N} trades — statistically thin, treat as indicative only.">⚠ n&lt;${THIN_SAMPLE_N}</span>`
+    : '';
+  const fRatio = (k,v,signedDp) => card(
+    thin ? `${k}` : k,
+    (ok(v) ? v.toFixed(signedDp==null?2:signedDp) : dash) + lowConf,
+    thin ? 'grayc' : (signedDp===null ? 'goldc' : sgn(v>=0?1:-1)));
+  const fPFconf = (k,v) => card(k,
+    (v===Infinity ? '∞' : (ok(v) ? v.toFixed(2) : dash)) + lowConf,
+    thin ? 'grayc' : 'goldc');
 
   document.getElementById('btStats').innerHTML =
     fPct('Strategy', s.totalReturnPct) +
@@ -1171,9 +1242,9 @@ function renderBacktest(bars, signals){
     card('Trades', s.nTrades, 'goldc') +
     card('Max DD', s.nTrades ? `-${s.maxDDPct.toFixed(1)}%` : dash, 'red') +
     card('Exposure', `${s.exposurePct.toFixed(0)}%`, 'grayc') +
-    fNum('Sharpe', s.sharpe, 2, sgn(s.sharpe>=0?1:-1)) +
-    fNum('Sortino', s.sortino, 2, sgn(s.sortino>=0?1:-1)) +
-    fPF('Profit factor', s.profitFactor) +
+    fRatio('Sharpe', s.sharpe, 2) +
+    fRatio('Sortino', s.sortino, 2) +
+    fPFconf('Profit factor', s.profitFactor) +
     fNum('Avg hold (d)', s.avgHoldDays, 0, 'grayc') +
     fMoney('Largest win', s.largestWin, 'green') +
     fMoney('Largest loss', s.largestLoss, 'red');
@@ -1321,6 +1392,10 @@ function renderDQ(symbol, bars){
              `<div class="item">${range}</div>`+
              `<div class="item">median step <b>${gap}</b></div>`;
   for(const w of q.warnings) html += `<div class="flag">⚠ ${w}</div>`;
+  // P0-5: wall-clock staleness vs the browser's current date.
+  const st = staleness(q.last, Date.now(), STALE_TRADING_DAYS);
+  if(st.stale) html += `<div class="flag">⚠ Stale data — latest bar is ${st.ageDays} day(s) old (`+
+                       `&gt; ${STALE_TRADING_DAYS} trading days). Refresh before trading.</div>`;
   el.className='dq show';
   el.innerHTML=html;
 }
@@ -1346,7 +1421,19 @@ function computeDeMarkCached(bars){
 let _curSymbol='—';
 function run(parsed){
   state.bars = parsed.bars;
-  _curSymbol = parsed.symbol;
+  // P0-3: symbol-integrity guard. If the ingested JSON carries a symbol that
+  // disagrees with the Symbol input field, surface a loud inline warning and
+  // KEEP the user's chosen symbol — never silently trade a different ticker.
+  const inputSym = document.getElementById('symbol').value;
+  const cmp = symbolMismatch(parsed.jsonSymbol, inputSym);
+  if(cmp.mismatch){
+    _curSymbol = cmp.inputSymbol;
+    showNotice('<b>Symbol mismatch.</b> The pasted data is labeled <b>'+escapeHtml(cmp.jsonSymbol)+
+      '</b> but the Symbol field says <b>'+escapeHtml(cmp.inputSymbol)+'</b>. Intents &amp; the execution '+
+      'prompt will use <b>'+escapeHtml(cmp.inputSymbol)+'</b>. Fix the Symbol field (or the data) before trading.','warnc');
+  } else {
+    _curSymbol = parsed.symbol;
+  }
   const r = computeDeMarkCached(parsed.bars);   // memoized TD engine
   state.result = r;
   document.getElementById('chartEmpty') && (document.getElementById('chartEmpty').style.display='none');
@@ -1386,8 +1473,7 @@ document.getElementById('loadBtn').addEventListener('click', ()=>{
 function escapeHtml(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 document.getElementById('copyBtn').addEventListener('click', ()=>{
-  navigator.clipboard.writeText(document.getElementById('intentOut').textContent)
-    .then(()=>flash('copyBtn','Copied ✓','Copy intents JSON'));
+  copyText(document.getElementById('intentOut').textContent, 'copyBtn','Copied ✓','Copy intents JSON');
 });
 const MCP_URL = 'https://agent.robinhood.com/mcp/trading';
 
@@ -1398,7 +1484,7 @@ document.getElementById('promptBtn').addEventListener('click', ()=>{
     `   {"symbol":"${sym}","timeframe":"1day","bars":[{"t":"YYYY-MM-DD","o":0,"h":0,"l":0,"c":0,"v":0}, ...]}\n`+
     `2. I will paste it into my DeMark Sequential tool, review the generated order_intent.v1 objects, and approve the ones to trade.\n`+
     `Do not place any orders yet — wait for my approved intents.`;
-  navigator.clipboard.writeText(p).then(()=>flash('promptBtn','Copied ✓','Copy fetch prompt'));
+  copyText(p, 'promptBtn','Copied ✓','Copy fetch prompt');
 });
 
 document.getElementById('execBtn').addEventListener('click', ()=>{
@@ -1412,10 +1498,65 @@ document.getElementById('execBtn').addEventListener('click', ()=>{
     `• side="sell" (reduceOnly/closeLong, action="close_long", quantity=null) → CLOSE the EXISTING long only. Sell only the shares of ${sym} currently held (up to the held quantity). If the position is FLAT, SKIP the intent — do NOT open a short, and do NOT fabricate a quantity.\n\n`+
     `After each placement, report the order id and status. If an order would be rejected or exceed buying power, skip it and tell me why — do not substitute a different order.\n\n`+
     `APPROVED_INTENTS =\n`+ JSON.stringify(state.intents, null, 2);
-  navigator.clipboard.writeText(p).then(()=>flash('execBtn','Copied ✓','Copy execution prompt →'));
+  // The execution prompt MUST never fail silently — copyText falls back to
+  // execCommand and then to an inline manual-copy notice. (P0-4)
+  copyText(p, 'execBtn','Copied ✓','Copy execution prompt →');
 });
 
 function flash(id,on,off){ const b=document.getElementById(id); b.textContent=on; setTimeout(()=>b.textContent=off,1400); }
+
+// P0-4: inline notice for the intents/copy area (separate from the input-card
+// notice). Reuses the same .notice mechanism.
+function showCopyNotice(msg, kind){
+  const el=document.getElementById('copyNotice');
+  if(!el) return;
+  if(!msg){ el.className='notice'; el.innerHTML=''; return; }
+  el.className='notice show '+(kind||'err');
+  el.innerHTML=msg;
+}
+
+// P0-4: robust clipboard copy with graceful fallback. On file:// (the documented
+// local usage) navigator.clipboard is frequently unavailable or rejects. Strategy:
+//   1) navigator.clipboard.writeText (async, preferred)
+//   2) on rejection / absence → hidden <textarea> + document.execCommand('copy')
+//   3) if THAT fails too → show an inline notice telling the user to copy
+//      manually, and reveal the text so they can. Never fails silently.
+function legacyCopy(text){
+  try{
+    const ta=document.createElement('textarea');
+    ta.value=text;
+    ta.setAttribute('readonly','');
+    ta.style.position='fixed'; ta.style.top='-1000px'; ta.style.opacity='0';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select(); ta.setSelectionRange(0, text.length);
+    const ok=document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  }catch(e){ return false; }
+}
+function copyText(text, btnId, onLabel, offLabel){
+  const onLegacy = ()=>{
+    if(legacyCopy(text)){ showCopyNotice(''); flash(btnId,onLabel,offLabel); }
+    else {
+      showCopyNotice('<b>Couldn’t copy automatically.</b> Your browser blocked clipboard '+
+        'access (common on <code>file://</code>). Select the text below and copy it manually '+
+        '(Ctrl/Cmd-C).','warnc');
+      // reveal the text so the user can grab it even if the button content was short.
+      const out=document.getElementById('intentOut');
+      try{
+        const sel=window.getSelection(); const range=document.createRange();
+        range.selectNodeContents(out); sel.removeAllRanges(); sel.addRange(range);
+      }catch(e){ /* selection unsupported — text is already visible in the page */ }
+    }
+  };
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text)
+        .then(()=>{ showCopyNotice(''); flash(btnId,onLabel,offLabel); })
+        .catch(onLegacy);
+    } else { onLegacy(); }
+  }catch(e){ onLegacy(); }
+}
 
 /* ---- Export buttons: trade log & equity curve (client-side Blob download) ---- */
 function exportGuard(){
@@ -1454,9 +1595,15 @@ document.getElementById('sampleBtn').addEventListener('click', ()=>{
     bars.push({t:d.toISOString().slice(0,10), o:+o.toFixed(2), h:+h.toFixed(2), l:+l.toFixed(2), c:+c.toFixed(2), v:Math.round(3e7+rnd()*2e7)});
     price=c;
   }
-  document.getElementById('symbol').value='DEMO';
   document.getElementById('barsInput').value=JSON.stringify({symbol:'DEMO',timeframe:'1day',bars},null,0);
-  run({symbol:'DEMO', bars});
+  // Only adopt the demo's "DEMO" ticker when the Symbol field is empty or still
+  // the default — otherwise leave the user's symbol intact so the P0-3 mismatch
+  // guard can surface the disagreement (e.g. field=ZZZ vs demo data=DEMO).
+  const symEl=document.getElementById('symbol');
+  const cur=symEl.value.trim().toUpperCase();
+  if(!cur || cur==='AAPL') symEl.value='DEMO';
+  // jsonSymbol carries the demo's own label so run() can compare it.
+  run({symbol: symEl.value || 'DEMO', jsonSymbol:'DEMO', bars});
   saveState();
 });
 
