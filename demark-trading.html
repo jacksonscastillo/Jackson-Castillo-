@@ -95,6 +95,40 @@ details .body code{font-family:var(--mono);color:var(--gold-light);background:rg
 details .body ol{margin:8px 0 8px 20px} details .body li{margin:5px 0}
 .warn{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.28);border-radius:8px;padding:11px 13px;color:#f4b4b0;font-size:11.5px;line-height:1.55;margin-top:10px}
 .empty{color:var(--gray);font-style:italic;padding:18px 6px;font-size:12.5px}
+
+/* inline notices (replace alert()) */
+.notice{border-radius:8px;padding:10px 12px;font-size:11.5px;line-height:1.55;margin-top:10px;display:none}
+.notice.show{display:block}
+.notice.err{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.30);color:#f4b4b0}
+.notice.warnc{background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.30);color:var(--gold-light)}
+.notice.ok{background:rgba(62,207,142,.08);border:1px solid rgba(62,207,142,.30);color:#a9e9cd}
+.notice b{color:#fff}
+
+/* data-quality banner */
+.dq{display:none;gap:14px;flex-wrap:wrap;align-items:center;background:var(--navy-mid);border:1px solid var(--line-soft);border-radius:10px;padding:11px 14px;margin-bottom:14px;font-size:11.5px}
+.dq.show{display:flex}
+.dq .item{color:var(--gray)} .dq .item b{color:var(--gold-light);font-weight:600}
+.dq .flag{color:#f4b4b0;background:rgba(239,68,68,.10);border:1px solid rgba(239,68,68,.25);padding:2px 8px;border-radius:20px;font-size:10.5px}
+
+/* empty / initial state */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:42px 20px;color:var(--gray)}
+.empty-state .big{font-family:var(--serif);font-size:19px;color:var(--white);margin-bottom:6px}
+.empty-state .sm{font-size:12px;max-width:420px;line-height:1.6}
+
+/* "?" help tooltip */
+.help{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;border:1px solid var(--line);color:var(--gold-light);font-size:9px;font-weight:700;cursor:help;position:relative;margin-left:5px;vertical-align:1px;font-family:var(--sans)}
+.help:hover .tip{opacity:1;visibility:visible}
+.help .tip{position:absolute;bottom:135%;left:50%;transform:translateX(-50%);width:210px;background:#06101f;border:1px solid var(--line);border-radius:8px;padding:9px 11px;color:var(--white);font-size:11px;font-weight:400;line-height:1.5;letter-spacing:0;text-transform:none;opacity:0;visibility:hidden;transition:opacity .12s;z-index:60;box-shadow:0 8px 24px rgba(0,0,0,.5);text-align:left}
+.help .tip::after{content:"";position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:var(--line)}
+
+/* chart hover tooltip */
+#chartTip{position:fixed;pointer-events:none;background:#06101f;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-family:var(--mono);font-size:11px;color:var(--white);line-height:1.55;opacity:0;transition:opacity .08s;z-index:70;box-shadow:0 8px 24px rgba(0,0,0,.5);white-space:nowrap}
+#chartTip .d{color:var(--gold-light);font-weight:600;margin-bottom:3px}
+#chartTip .row{color:var(--gray)} #chartTip .row b{color:var(--white);font-weight:500}
+.dlbtns{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 4px}
+.dlbtns .btn{width:auto;padding:7px 14px;font-size:11px}
+.subtbl-h{display:flex;align-items:baseline;justify-content:space-between;margin:18px 2px 8px}
+.subtbl-h .t{font-family:var(--mono);font-size:12px;color:var(--gold-light);letter-spacing:.05em}
 </style>
 </head>
 <body>
@@ -135,6 +169,7 @@ details .body ol{margin:8px 0 8px 20px} details .body li{margin:5px 0}
         <button class="btn btn-gold" id="loadBtn">Compute signals</button>
         <button class="btn btn-ghost" id="sampleBtn">Load demo data</button>
         <button class="btn btn-ghost" id="resetBtn">Reset saved session</button>
+        <div class="notice err" id="inputNotice"></div>
         <div class="hint">Need the price history? Use <i>Copy fetch prompt</i> below, or paste a <b>CSV</b> (Yahoo/Nasdaq export) — header with <code>date,open,high,low,close</code>. JSON accepts <code>t,o,h,l,c,v</code> or <code>open_price…</code> keys too.</div>
       </div>
 
@@ -152,6 +187,7 @@ details .body ol{margin:8px 0 8px 20px} details .body li{margin:5px 0}
 
     <!-- Output -->
     <div>
+      <div class="dq" id="dqBanner"></div>
       <div class="stats">
         <div class="stat"><div class="k">Last close</div><div class="v" id="sLast">—</div></div>
         <div class="stat"><div class="k">Active setup</div><div class="v sm" id="sSetup">—</div></div>
@@ -165,11 +201,12 @@ details .body ol{margin:8px 0 8px 20px} details .body li{margin:5px 0}
           <div class="legend">
             <span><i style="background:var(--green)"></i>up</span>
             <span><i style="background:var(--red)"></i>down</span>
-            <span><i style="background:var(--gold)"></i>setup 9 / cd 13</span>
-            <span><i style="background:var(--blue)"></i>TDST</span>
+            <span><i style="background:var(--gold)"></i>setup 9<span class="help">?<span class="tip"><b>Setup (9):</b> nine straight bars closing lower (buy) or higher (sell) than four bars earlier — a sign the move may be exhausting and could reverse.</span></span></span>
+            <span><i style="background:var(--gold)"></i>cd 13<span class="help">?<span class="tip"><b>Countdown (13):</b> after a Setup, thirteen qualifying bars that confirm exhaustion — a stronger reversal signal than the Setup alone.</span></span></span>
+            <span><i style="background:var(--blue)"></i>TDST<span class="help">?<span class="tip"><b>TDST:</b> a support/resistance line drawn from the Setup's range; price closing through it cancels the countdown and flags a trend continuation.</span></span></span>
           </div>
         </div>
-        <div class="scrollx"><div id="chart"></div></div>
+        <div class="scrollx"><div id="chart"><div class="empty-state" id="chartEmpty"><div class="big">No data loaded yet</div><div class="sm">Click <b>Load demo data</b> for a worked example, or paste your own OHLC bars (JSON or CSV) and press <b>Compute signals</b>.</div></div></div></div>
       </div>
 
       <div class="sec-title"><h2>Signals</h2><div class="note">perfected setups & completed countdowns</div></div>
@@ -199,14 +236,35 @@ details .body ol{margin:8px 0 8px 20px} details .body li{margin:5px 0}
         </select>
       </label>
       <label class="fld" style="margin:0;min-width:150px">
+        <span class="lab">Stop source</span>
+        <select id="btStop">
+          <option value="td">TD risk stop</option>
+          <option value="atr">ATR (1.5× / 14)</option>
+        </select>
+      </label>
+      <label class="fld" style="margin:0;min-width:130px">
+        <span class="lab">Target (R multiple)</span>
+        <input id="btTargetR" value="2" inputmode="decimal" />
+      </label>
+      <label class="fld" style="margin:0;min-width:150px">
         <span class="lab">Fees / slippage (bps)</span>
         <input id="btFees" value="0" inputmode="decimal" />
       </label>
-      <div class="hint" style="margin:0;flex:1;min-width:220px">Goes long on buy triggers; exits on sell triggers, the TD stop, or the 2R target. Starting capital = wallet balance. Long/flat, stocks only — mirrors the agentic beta. Commission is $0; <b>bps</b> models slippage per fill (buys fill higher, sells lower).</div>
+      <div class="hint" style="margin:0;flex:1;min-width:220px">Goes long on buy triggers; exits on sell triggers, the chosen stop, or the R-multiple target. Starting capital = wallet balance. Long/flat, stocks only — mirrors the agentic beta. Commission is $0; <b>bps</b> models slippage per fill (buys fill higher, sells lower).</div>
     </div>
     <div id="btStats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:11px;margin:16px 0 6px"></div>
+    <div class="dlbtns">
+      <button class="btn btn-ghost" id="dlTradesCsv">Trades CSV</button>
+      <button class="btn btn-ghost" id="dlTradesJson">Trades JSON</button>
+      <button class="btn btn-ghost" id="dlEquityCsv">Equity CSV</button>
+    </div>
+    <div class="subtbl-h"><div class="t">Equity &amp; benchmark</div></div>
     <div class="scrollx"><div id="btCurve"></div></div>
+    <div class="subtbl-h"><div class="t">Drawdown</div></div>
+    <div class="scrollx"><div id="btDD"></div></div>
     <div id="btTrades"></div>
+    <div class="subtbl-h" id="btYearH" style="display:none"><div class="t">Yearly returns</div></div>
+    <div id="btYearly"></div>
   </div>
 
   <details open>
@@ -243,6 +301,7 @@ details .body ol{margin:8px 0 8px 20px} details .body li{margin:5px 0}
   </details>
 </div>
 
+<div id="chartTip"></div>
 <script>
 "use strict";
 
@@ -260,6 +319,12 @@ details .body ol{margin:8px 0 8px 20px} details .body li{margin:5px 0}
 // recycle rule resets the count when momentum re-accelerates in the trade
 // direction; 18 (two full 9-setups) is the conventional default threshold.
 const RECYCLE_THRESHOLD = 18;
+
+// Min/max over an inclusive index window [a,b] of a numeric array — a tiny,
+// allocation-free replacement for `Math.min(...arr.slice(a,b+1))`. Identical
+// numeric result; just no intermediate array + no spread. (engine perf)
+function minWin(arr,a,b){ let m=arr[a]; for(let i=a+1;i<=b;i++) if(arr[i]<m) m=arr[i]; return m; }
+function maxWin(arr,a,b){ let m=arr[a]; for(let i=a+1;i<=b;i++) if(arr[i]>m) m=arr[i]; return m; }
 
 function computeDeMark(bars){
   const n = bars.length;
@@ -305,10 +370,10 @@ function computeDeMark(bars){
     if(bs===9){                                   // buy setup complete (bars i-8..i)
       const lo=Math.min(l[i-1],l[i]), ref=Math.min(l[i-3],l[i-2]);
       const perfected = lo<=ref;
-      tdstSup = Math.min(...l.slice(i-8,i+1));     // support line under a buy setup
+      tdstSup = minWin(l,i-8,i);     // support line under a buy setup
       // TDST resistance of the buy setup = highest high of the 9 setup bars.
       // A buy Countdown is cancelled by a close above this level (P1-2).
-      const tdstResBuy = Math.max(...h.slice(i-8,i+1));
+      const tdstResBuy = maxWin(h,i-8,i);
       ann[i].setupFlag = {dir:'buy', perfected, tdst:tdstResBuy, run:bsRun};
       const sig = mkSignal('BUY_SETUP', i, bars[i], perfected, riskLevels('buy', bars, i-8, i));
       sig.perfRef = ref;                           // for deferred perfection
@@ -318,10 +383,10 @@ function computeDeMark(bars){
     if(ss===9){                                   // sell setup complete
       const hi=Math.max(h[i-1],h[i]), ref=Math.max(h[i-3],h[i-2]);
       const perfected = hi>=ref;
-      tdstRes = Math.max(...h.slice(i-8,i+1));      // resistance line over a sell setup
+      tdstRes = maxWin(h,i-8,i);      // resistance line over a sell setup
       // TDST support of the sell setup = lowest low of the 9 setup bars.
       // A sell Countdown is cancelled by a close below this level (P1-2).
-      const tdstSupSell = Math.min(...l.slice(i-8,i+1));
+      const tdstSupSell = minWin(l,i-8,i);
       ann[i].setupFlag = {dir:'sell', perfected, tdst:tdstSupSell, run:ssRun};
       const sig = mkSignal('SELL_SETUP', i, bars[i], perfected, riskLevels('sell', bars, i-8, i));
       sig.perfRef = ref;
@@ -493,6 +558,119 @@ function mkSignal(type, idx, bar, perfected, risk){
   return {type, side, label:labelMap[type], idx, date:bar.t, price:bar.c, perfected, risk};
 }
 
+/* ============================================================
+   Pure data-quality + export + analytics helpers (unit-tested).
+   These take plain inputs and return plain values — no DOM — so the
+   test harness can slice and exercise them directly.
+   ============================================================ */
+
+// Inspect a normalized, ascending bar array and report count, date range, and
+// human warnings for large gaps / irregular spacing. Returns {count, first,
+// last, datesParsed, medianGapDays, maxGapDays, warnings:[...]}.
+function dataQuality(bars){
+  const count = bars.length;
+  const first = count ? bars[0].t : null;
+  const last  = count ? bars[count-1].t : null;
+  const warnings = [];
+  const ms = bars.map(b=>parseBarDate(b.t));
+  const datesParsed = ms.every(isFinite) && count>1;
+  let medianGapDays=null, maxGapDays=null;
+  if(datesParsed){
+    const gaps=[];
+    for(let i=1;i<ms.length;i++) gaps.push((ms[i]-ms[i-1])/86400000);
+    const sorted=gaps.slice().sort((a,b)=>a-b);
+    medianGapDays = sorted.length ? sorted[Math.floor(sorted.length/2)] : null;
+    maxGapDays = sorted.length ? sorted[sorted.length-1] : null;
+    // A daily series should step ~1–4 calendar days (weekends/holidays). Flag a
+    // gap that is both absolutely large and an outlier vs the median spacing.
+    if(maxGapDays!=null && medianGapDays!=null && maxGapDays>14 && maxGapDays>medianGapDays*5){
+      warnings.push('Large date gap detected (~'+Math.round(maxGapDays)+' days) — the series may have a hole.');
+    }
+    // Irregular spacing: many bars deviating far from the median step.
+    if(medianGapDays!=null && medianGapDays>0){
+      const irregular = gaps.filter(g=>g>medianGapDays*3).length;
+      if(irregular>=Math.max(3, gaps.length*0.1))
+        warnings.push('Irregular bar spacing — '+irregular+' gaps are far larger than the typical step.');
+    }
+    if(ms.some((m,i)=>i>0 && m<ms[i-1]))
+      warnings.push('Dates are not strictly increasing.');
+  } else if(count>1){
+    warnings.push('Dates could not be parsed — gap checks skipped.');
+  }
+  return {count, first, last, datesParsed, medianGapDays, maxGapDays, warnings};
+}
+
+// CSV-escape a single field (quote when it contains a comma, quote, or newline).
+function csvField(v){
+  const s = v==null ? '' : String(v);
+  return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
+}
+// Trade log → CSV string. Stable, explicit column order.
+function tradesToCSV(trades){
+  const cols=['entryDate','entryPx','exitDate','exitPx','shares','reason','pnl','pnlPct','holdDays'];
+  const head=cols.join(',');
+  const rows=(trades||[]).map(t=>cols.map(k=>csvField(t[k])).join(','));
+  return [head,...rows].join('\n');
+}
+// Equity curve → CSV string ({t,value} points).
+function equityToCSV(equity){
+  const head='date,equity';
+  const rows=(equity||[]).map(e=>csvField(e.t)+','+csvField(e.value));
+  return [head,...rows].join('\n');
+}
+
+// Drawdown series from an equity curve: percent below the running peak at each
+// point (0..100, always >= 0). Degrades to [] for empty input.
+function drawdownSeries(equity){
+  let peak=-Infinity;
+  return (equity||[]).map(e=>{
+    if(e.value>peak) peak=e.value;
+    const dd = peak>0 ? (peak-e.value)/peak*100 : 0;
+    return {t:e.t, dd: dd>0?dd:0};
+  });
+}
+
+// Calendar-period returns of an equity curve, bucketed by 'year' (default) or
+// 'month' (YYYY-MM). Each bucket's return = lastValue/firstValue - 1, in %.
+// Skips points with unparseable dates. Returns [{period, pct, start, end}].
+function periodReturns(equity, grain){
+  grain = grain||'year';
+  const buckets=new Map();
+  for(const e of (equity||[])){
+    const ms=parseBarDate(e.t);
+    if(!isFinite(ms)) continue;
+    const d=new Date(ms);
+    const key = grain==='month'
+      ? d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')
+      : String(d.getUTCFullYear());
+    if(!buckets.has(key)) buckets.set(key,{period:key, start:e.value, end:e.value});
+    buckets.get(key).end=e.value;
+  }
+  return [...buckets.values()].map(b=>({
+    period:b.period,
+    pct: b.start>0 ? (b.end-b.start)/b.start*100 : 0,
+    start:b.start, end:b.end
+  }));
+}
+
+// ATR(period) using Wilder smoothing over true ranges; index-aligned to bars
+// (entries before `period` are null). Pure — used by the optional ATR stop.
+function atrSeries(bars, period){
+  period = period||14;
+  const n=bars.length, out=new Array(n).fill(null);
+  if(n<2) return out;
+  const tr=new Array(n).fill(0);
+  for(let i=0;i<n;i++){
+    const cur=bars[i], pc=i>0?bars[i-1].c:cur.c;
+    tr[i]=Math.max(cur.h,pc)-Math.min(cur.l,pc);
+  }
+  if(n<=period) return out;
+  let sum=0; for(let i=1;i<=period;i++) sum+=tr[i];
+  let atr=sum/period; out[period]=atr;
+  for(let i=period+1;i<n;i++){ atr=(atr*(period-1)+tr[i])/period; out[i]=atr; }
+  return out;
+}
+
 /* ============================================================ State ============================================================ */
 const state = { bars:[], result:null, intents:[] };
 
@@ -584,13 +762,13 @@ function parseCSV(raw){
 }
 
 /* ============================================================ Chart ============================================================ */
-function renderChart(bars, ann){
-  if(!bars.length){ document.getElementById('chart').innerHTML=''; return; }
+function renderChart(bars, ann, trades){
+  if(!bars.length){ return; }
   const view = bars.slice(-90);                 // show recent window
   const off = bars.length - view.length;
-  const cw = 13, gap = 4, padL=52, padR=14, padT=22, padB=26;
+  const cw = 13, gap = 4, padL=52, padR=14, padT=22, padB=40;
   const W = padL + padR + view.length*(cw+gap);
-  const H = 430, plotH = H - padT - padB;
+  const H = 444, plotH = H - padT - padB;
   let hi=-Infinity, lo=Infinity;
   view.forEach(b=>{ hi=Math.max(hi,b.h); lo=Math.min(lo,b.l); });
   const pad=(hi-lo)*0.08; hi+=pad; lo-=pad;
@@ -603,6 +781,15 @@ function renderChart(bars, ann){
     const p = lo + (hi-lo)*g/4, y=Y(p);
     s+=`<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="rgba(138,155,181,0.10)"/>`;
     s+=`<text x="${padL-7}" y="${y+3}" fill="#8a9bb5" font-size="9" text-anchor="end">${p.toFixed(2)}</text>`;
+  }
+  // x-axis date ticks (~6 evenly-spaced labels along the visible window)
+  const axisY = padT+plotH;
+  const nTicks = Math.min(6, view.length);
+  for(let t=0;t<nTicks;t++){
+    const i = nTicks===1 ? 0 : Math.round(t*(view.length-1)/(nTicks-1));
+    const x = X(i)+cw/2;
+    s+=`<line x1="${x}" y1="${axisY}" x2="${x}" y2="${axisY+4}" stroke="rgba(138,155,181,0.30)"/>`;
+    s+=`<text x="${x}" y="${axisY+15}" fill="#8a9bb5" font-size="8.5" text-anchor="middle">${String(view[i].t).slice(0,10)}</text>`;
   }
   // TDST lines (latest active)
   const last = ann[bars.length-1];
@@ -644,8 +831,51 @@ function renderChart(bars, ann){
     if(a.sellCD===13){ s+=`<text x="${xc}" y="${yH-16}" fill="#ef4444" font-size="10" font-weight="600" text-anchor="middle">13</text>`;
       s+=`<polygon points="${xc-4},${yH-14} ${xc+4},${yH-14} ${xc},${yH-8}" fill="#ef4444"/>`; }
   });
+
+  // per-trade entry/exit markers (triangles at the bar's price level)
+  if(trades && trades.length){
+    const byDate={}; view.forEach((b,i)=>{ byDate[String(b.t).slice(0,10)]=i; });
+    trades.forEach(t=>{
+      const ei=byDate[String(t.entryDate).slice(0,10)];
+      const xi=byDate[String(t.exitDate).slice(0,10)];
+      if(ei!=null){ const x=X(ei)+cw/2, y=Y(t.entryPx);
+        s+=`<polygon points="${x-4},${y+9} ${x+4},${y+9} ${x},${y+3}" fill="#3ecf8e" opacity="0.95"/>`; }
+      if(xi!=null){ const x=X(xi)+cw/2, y=Y(t.exitPx); const col=t.pnl>=0?'#3ecf8e':'#ef4444';
+        s+=`<polygon points="${x-4},${y-9} ${x+4},${y-9} ${x},${y-3}" fill="${col}" opacity="0.95"/>`; }
+    });
+  }
+
+  // invisible hover columns for the tooltip
+  view.forEach((b,i)=>{
+    const gi=off+i, a=ann[gi], x=X(i);
+    const tnum = a.buyCD===13?'CD13 buy':a.sellCD===13?'CD13 sell':a.buySetup===9?'Setup9 buy':a.sellSetup===9?'Setup9 sell':a.buySetup?('buy '+a.buySetup):a.sellSetup?('sell '+a.sellSetup):'';
+    const payload = encodeURIComponent(JSON.stringify({t:b.t,o:b.o,h:b.h,l:b.l,c:b.c,td:tnum}));
+    s+=`<rect class="hov" data-bar="${payload}" x="${x-gap/2}" y="${padT}" width="${cw+gap}" height="${plotH}" fill="transparent"/>`;
+  });
   s+=`</svg>`;
-  document.getElementById('chart').innerHTML = s;
+  const host=document.getElementById('chart');
+  host.innerHTML = s;
+  attachChartHover(host);
+}
+
+// Attach tooltip behavior to the hover overlay rects.
+function attachChartHover(host){
+  const tip=document.getElementById('chartTip');
+  if(!tip) return;
+  host.querySelectorAll('rect.hov').forEach(r=>{
+    r.addEventListener('mousemove', ev=>{
+      let d; try{ d=JSON.parse(decodeURIComponent(r.getAttribute('data-bar'))); }catch(e){ return; }
+      tip.innerHTML = `<div class="d">${d.t}</div>`+
+        `<div class="row">O <b>${(+d.o).toFixed(2)}</b>  H <b>${(+d.h).toFixed(2)}</b></div>`+
+        `<div class="row">L <b>${(+d.l).toFixed(2)}</b>  C <b>${(+d.c).toFixed(2)}</b></div>`+
+        (d.td?`<div class="row">TD <b>${d.td}</b></div>`:'');
+      tip.style.opacity='1';
+      const ox=ev.clientX+14, oy=ev.clientY+14;
+      tip.style.left=Math.min(ox, window.innerWidth-180)+'px';
+      tip.style.top=Math.min(oy, window.innerHeight-90)+'px';
+    });
+    r.addEventListener('mouseleave', ()=>{ tip.style.opacity='0'; });
+  });
 }
 
 /* ============================================================ Signal table ============================================================ */
@@ -804,7 +1034,21 @@ function backtest(bars, signals, opts){
       if(s.side==='buy' && shares===0){
         const fill=buyFill(b.c);
         const q=Math.floor(cash/fill);
-        if(q>0){ shares=q; entryPx=fill; cash-=q*fill; stop=s.risk.stop; target=s.risk.target; entryDate=b.t; entryIdx=i; }
+        if(q>0){
+          shares=q; entryPx=fill; cash-=q*fill; entryDate=b.t; entryIdx=i;
+          // Default behavior (no opts.stopSource / opts.targetR) uses the signal's
+          // own TD stop & target unchanged — preserves existing engine output.
+          let st=s.risk.stop, tg=s.risk.target;
+          if(opts.stopSource==='atr' && opts.atr && isFinite(opts.atr[i])){
+            const cand=+(b.c - opts.atr[i]*1.5).toFixed(2);
+            if(cand>0 && cand<b.c) st=cand;             // only if it is a valid long stop
+          }
+          if(opts.targetR!=null){
+            const rps=b.c-st;
+            if(rps>0) tg=+(b.c + rps*opts.targetR).toFixed(2);
+          }
+          stop=st; target=tg;
+        }
       } else if(s.side==='sell' && shares>0){
         const fill=sellFill(b.c);
         cash += shares*fill;
@@ -897,10 +1141,17 @@ function mkTrade(ed,ep,xd,xp,q,reason,holdDays){
           holdDays: holdDays||0};
 }
 
+let _lastBt=null;   // cache last backtest for export buttons
 function renderBacktest(bars, signals){
+  const stopSrc=document.getElementById('btStop').value;
+  let targetR=num('btTargetR'); if(!(targetR>0)) targetR=2;
   const opts={ capital: num('wallet')||10000, useSetups: document.getElementById('btTrigger').value==='all',
-               feesBps: num('btFees') };
+               feesBps: num('btFees'), stopSource:stopSrc, targetR,
+               atr: stopSrc==='atr' ? atrSeries(bars,14) : null };
   const bt = backtest(bars, signals, opts);
+  _lastBt = bt;
+  // re-render the price chart now that we have trade markers
+  if(state.result) renderChart(bars, state.result.ann, bt.trades);
   const s = bt.stats;
   const sgn = v => (v>=0?'green':'red');
   const card = (k,v,cls='') => `<div class="stat"><div class="k">${k}</div><div class="v sm ${cls}">${v}</div></div>`;
@@ -927,7 +1178,56 @@ function renderBacktest(bars, signals){
     fMoney('Largest win', s.largestWin, 'green') +
     fMoney('Largest loss', s.largestLoss, 'red');
   renderEquityCurve(bt.equity, opts.capital, bars);
+  renderDrawdown(bt.equity);
   renderTrades(bt.trades);
+  renderYearly(bt.equity);
+}
+
+function renderDrawdown(equity){
+  const el=document.getElementById('btDD');
+  const dd=drawdownSeries(equity);
+  if(dd.length<2){ el.innerHTML='<div class="empty">—</div>'; return; }
+  const W=Math.max(640, dd.length*6+70), H=110, padL=54, padR=14, padT=12, padB=18;
+  const plotH=H-padT-padB;
+  const maxDD=Math.max(0.0001, ...dd.map(d=>d.dd));
+  const X=i=>padL+(W-padL-padR)*i/(dd.length-1);
+  const Y=v=>padT+plotH*(v/maxDD);     // 0 at top, deepest at bottom
+  let path=dd.map((d,i)=>`${i?'L':'M'}${X(i).toFixed(1)} ${Y(d.dd).toFixed(1)}`).join(' ');
+  const area=`M${X(0).toFixed(1)} ${padT} `+path.replace('M','L').slice(1)+` L${X(dd.length-1).toFixed(1)} ${padT} Z`;
+  let svg=`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" font-family="var(--mono)">`;
+  for(let g=0;g<=2;g++){ const v=maxDD*g/2, y=Y(v);
+    svg+=`<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="rgba(138,155,181,0.10)"/>`;
+    svg+=`<text x="${padL-7}" y="${y+3}" fill="#8a9bb5" font-size="9" text-anchor="end">-${v.toFixed(1)}%</text>`;
+  }
+  svg+=`<path d="${area}" fill="rgba(239,68,68,0.14)"/>`;
+  svg+=`<path d="${path}" fill="none" stroke="#ef4444" stroke-width="1.4"/>`;
+  svg+=`</svg>`;
+  el.innerHTML=svg;
+}
+
+function renderYearly(equity){
+  const head=document.getElementById('btYearH');
+  const el=document.getElementById('btYearly');
+  const grain = periodReturns(equity,'year').length>1 ? 'year' : 'month';
+  const rows=periodReturns(equity, grain);
+  if(rows.length<2){ head.style.display='none'; el.innerHTML=''; return; }
+  head.style.display='flex';
+  head.querySelector('.t').textContent = (grain==='year'?'Yearly':'Monthly')+' returns';
+  const cells=rows.map(r=>{
+    const cls=r.pct>=0?'green':'red';
+    return `<tr><td>${r.period}</td><td class="${cls}">${r.pct>=0?'+':''}${r.pct.toFixed(1)}%</td></tr>`;
+  }).join('');
+  el.innerHTML=`<table class="tbl"><thead><tr><th>Period</th><th>Return</th></tr></thead><tbody>${cells}</tbody></table>`;
+}
+
+function download(filename, text, mime){
+  try{
+    const blob=new Blob([text],{type:mime||'text/plain'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url; a.download=filename; document.body.appendChild(a); a.click();
+    setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); },0);
+  }catch(e){ showNotice('<b>Export failed.</b> '+escapeHtml(e.message),'warnc'); }
 }
 
 function renderEquityCurve(equity, capital, bars){
@@ -1002,41 +1302,88 @@ function renderStats(symbol, bars, r){
   document.getElementById('chartTtl').textContent = `${symbol} · daily · ${bars[0].t} → ${last.t}`;
 }
 
+/* ============================================================ Notices / banner UI ============================================================ */
+function showNotice(msg, kind){
+  const el=document.getElementById('inputNotice');
+  if(!msg){ el.className='notice err'; el.textContent=''; return; }
+  el.className='notice show '+(kind||'err');
+  el.innerHTML=msg;
+}
+function clearNotice(){ showNotice(''); }
+
+function renderDQ(symbol, bars){
+  const el=document.getElementById('dqBanner');
+  if(!bars||!bars.length){ el.className='dq'; el.innerHTML=''; return; }
+  const q=dataQuality(bars);
+  const range = q.first && q.last ? (q.first+' → '+q.last) : '—';
+  const gap = q.medianGapDays!=null ? '~'+(+q.medianGapDays.toFixed(1))+'d' : '—';
+  let html = `<div class="item"><b>${q.count}</b> bars</div>`+
+             `<div class="item">${range}</div>`+
+             `<div class="item">median step <b>${gap}</b></div>`;
+  for(const w of q.warnings) html += `<div class="flag">⚠ ${w}</div>`;
+  el.className='dq show';
+  el.innerHTML=html;
+}
+
 /* ============================================================ Orchestration ============================================================ */
+// MEMOIZATION (engine performance): computeDeMark only re-runs when the bar
+// SERIES actually changes. We key the cache on a cheap signature (length + first
+// & last bar). Wallet / risk / param / fee changes call rebuildDerived(), which
+// recomputes intents + backtest only, NOT the TD engine.
+let _tdCacheKey=null, _tdCache=null;
+function barsKey(bars){
+  if(!bars||!bars.length) return 'empty';
+  const f=bars[0], l=bars[bars.length-1];
+  return bars.length+'|'+f.t+'|'+f.o+'|'+f.c+'|'+l.t+'|'+l.o+'|'+l.c;
+}
+function computeDeMarkCached(bars){
+  const k=barsKey(bars);
+  if(k===_tdCacheKey && _tdCache) return _tdCache;
+  _tdCacheKey=k; _tdCache=computeDeMark(bars);
+  return _tdCache;
+}
+
+let _curSymbol='—';
 function run(parsed){
   state.bars = parsed.bars;
-  const r = computeDeMark(parsed.bars);
+  _curSymbol = parsed.symbol;
+  const r = computeDeMarkCached(parsed.bars);   // memoized TD engine
   state.result = r;
-  state.intents = buildIntents(parsed.symbol, r.signals, parsed.bars);
+  document.getElementById('chartEmpty') && (document.getElementById('chartEmpty').style.display='none');
+  renderDQ(parsed.symbol, parsed.bars);
   renderStats(parsed.symbol, parsed.bars, r);
   renderChart(parsed.bars, r.ann);
   renderSignals(r.signals);
+  rebuildDerived();                             // intents + backtest
+}
+// Recompute only the wallet/risk/param/fee-dependent outputs.
+function rebuildDerived(){
+  if(!state.result) return;
+  state.intents = buildIntents(_curSymbol, state.result.signals, state.bars);
   renderIntents();
-  renderBacktest(parsed.bars, r.signals);
+  renderBacktest(state.bars, state.result.signals);
 }
 
 document.getElementById('loadBtn').addEventListener('click', ()=>{
   const raw = document.getElementById('barsInput').value.trim();
-  if(!raw){ alert('Paste OHLC JSON, or click "Load demo data".'); return; }
-  try{ run(parseBars(raw)); saveState(); }
-  catch(e){ alert(e.message); }
+  if(!raw){ showNotice('<b>Nothing to load.</b> Paste OHLC JSON or CSV, or click “Load demo data”.'); return; }
+  try{ clearNotice(); run(parseBars(raw)); saveState(); }
+  catch(e){ showNotice('<b>Could not load data.</b> '+escapeHtml(e.message)); }
 });
 ['wallet','risk','symbol'].forEach(id=>{
   document.getElementById(id).addEventListener('change', ()=>{
-    if(state.result){
-      state.intents = buildIntents(document.getElementById('symbol').value, state.result.signals, state.bars);
-      renderIntents();
-      renderBacktest(state.bars, state.result.signals);
-    }
+    if(id==='symbol') _curSymbol=document.getElementById('symbol').value;
+    rebuildDerived();
     saveState();
   });
 });
-['btTrigger','btFees'].forEach(id=>{
+['btTrigger','btFees','btStop','btTargetR'].forEach(id=>{
   document.getElementById(id).addEventListener('change', ()=>{
     if(state.result) renderBacktest(state.bars, state.result.signals);
     saveState();
   });
 });
+function escapeHtml(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 document.getElementById('copyBtn').addEventListener('click', ()=>{
   navigator.clipboard.writeText(document.getElementById('intentOut').textContent)
@@ -1055,7 +1402,8 @@ document.getElementById('promptBtn').addEventListener('click', ()=>{
 });
 
 document.getElementById('execBtn').addEventListener('click', ()=>{
-  if(!state.intents.length){ alert('No actionable intents yet — load data with a perfected setup or completed countdown.'); return; }
+  if(!state.intents.length){ showNotice('<b>No actionable intents yet.</b> Load data with a recent perfected setup or completed countdown first.', 'warnc'); return; }
+  clearNotice();
   const sym = document.getElementById('symbol').value;
   const p = `You are connected to Robinhood Agentic Trading via MCP (${MCP_URL}), acting only on my dedicated agent wallet. This desk trades STOCKS LONG/FLAT ONLY — never open or hold a short.\n\n`+
     `I have REVIEWED and APPROVED the DeMark Sequential order intents below. Place each one EXACTLY as specified with the Robinhood MCP place_order tool. Do not resize, add, reorder, or invent orders, and never exceed the wallet's buying power.\n\n`+
@@ -1068,6 +1416,24 @@ document.getElementById('execBtn').addEventListener('click', ()=>{
 });
 
 function flash(id,on,off){ const b=document.getElementById(id); b.textContent=on; setTimeout(()=>b.textContent=off,1400); }
+
+/* ---- Export buttons: trade log & equity curve (client-side Blob download) ---- */
+function exportGuard(){
+  if(!_lastBt){ showNotice('<b>Run a backtest first.</b> Load data, then export.','warnc'); return false; }
+  return true;
+}
+document.getElementById('dlTradesCsv').addEventListener('click', ()=>{
+  if(!exportGuard()) return;
+  download((_curSymbol||'demark')+'-trades.csv', tradesToCSV(_lastBt.trades), 'text/csv');
+});
+document.getElementById('dlTradesJson').addEventListener('click', ()=>{
+  if(!exportGuard()) return;
+  download((_curSymbol||'demark')+'-trades.json', JSON.stringify(_lastBt.trades,null,2), 'application/json');
+});
+document.getElementById('dlEquityCsv').addEventListener('click', ()=>{
+  if(!exportGuard()) return;
+  download((_curSymbol||'demark')+'-equity.csv', equityToCSV(_lastBt.equity), 'text/csv');
+});
 
 /* ---- Demo data: seeded random walk that yields setups/countdowns ---- */
 document.getElementById('sampleBtn').addEventListener('click', ()=>{
@@ -1108,6 +1474,8 @@ function saveState(){
       risk:     document.getElementById('risk').value,
       btTrigger:document.getElementById('btTrigger').value,
       btFees:   document.getElementById('btFees').value,
+      btStop:   document.getElementById('btStop').value,
+      btTargetR:document.getElementById('btTargetR').value,
       bars:     document.getElementById('barsInput').value
     };
     localStorage.setItem(LS_KEY, JSON.stringify(data));
@@ -1122,7 +1490,9 @@ function restoreState(){
   set('wallet', data.wallet);
   set('risk',   data.risk);
   set('btFees', data.btFees);
+  set('btTargetR', data.btTargetR);
   if(data.btTrigger) document.getElementById('btTrigger').value=data.btTrigger;
+  if(data.btStop) document.getElementById('btStop').value=data.btStop;
   if(data.bars){
     document.getElementById('barsInput').value=data.bars;
     try{ run(parseBars(data.bars)); }   // re-run if saved data is present
