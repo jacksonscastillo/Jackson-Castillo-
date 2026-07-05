@@ -1331,6 +1331,7 @@ let _refreshing=false;
 async function arenaRefresh(){
   if(!HAS_ARENA || _refreshing) return;
   _refreshing=true;
+  let data=null;
   try{
     const res=await fetch(REST+"?select=*", { headers:SB_HEADERS, cache:"no-store" });
     if(!res.ok){
@@ -1338,13 +1339,20 @@ async function arenaRefresh(){
       connError("HTTP "+res.status+(d?" — "+d:""));
       setOnline(false); _refreshing=false; return;
     }
-    const data=await res.json();
+    data=await res.json();
     setOnline(true);
+  }catch(e){
+    connError("NETWORK/CORS: "+((e&&e.message)||e));
+    setOnline(false); _refreshing=false; return;
+  }
+  /* Network call succeeded, so we ARE online. Rendering runs in its own try
+     so a display bug can never flip the board back to OFFLINE. */
+  try{
     ARENA.rows=sortRows(data||[]);
     updateRank(true);
     paintStandings();
     maybeAutoWinner();
-  }catch(e){ connError("NETWORK/CORS: "+((e&&e.message)||e)); setOnline(false); }
+  }catch(e){ try{ console.error("[granum render]", e); }catch(_){} }
   _refreshing=false;
 }
 function connError(msg){
