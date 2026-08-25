@@ -5,3 +5,8 @@
 node_modules/
 .DS_Store
 *.log
+
+# Personal financial data — budget.html reads these from your machine and keeps
+# them in browser storage. They must never be committed.
+transactions*.csv
+*-transactions.csv
