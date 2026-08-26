@@ -1,0 +1,1706 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Budget Optimizer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+
+:root {
+  --bg:#0a0d14;
+  --surface:#0f1217;
+  --card:#141820;
+  --card-2:#191e28;
+  --border:rgba(120,140,180,0.12);
+  --border-strong:rgba(120,140,180,0.22);
+  --text:#c8d0da;
+  --text-bright:#e4ecf4;
+  --text-muted:rgba(200,208,218,0.55);
+  --grid:rgba(120,140,180,0.10);
+
+  /* Categorical series palette — validated for CVD + contrast against the
+     #141820 card surface (adjacent CVD dE 8.4, normal-vision dE 19.3, all
+     slots >= 3:1). Assign in fixed slot order; never cycle past slot 8. */
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
+  --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+
+  /* Sequential (magnitude) — one hue, light to dark. */
+  --seq:#3987e5;
+
+  /* Status — reserved, never used as a series color. */
+  --good:#0ca30c; --warn:#fab219; --serious:#ec835a; --critical:#d03b3b;
+}
+
+html,body { height:100%; }
+body {
+  background:var(--bg); color:var(--text);
+  font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  line-height:1.55; -webkit-font-smoothing:antialiased;
+}
+
+/* ---------------------------------------------------------------- chrome */
+nav {
+  position:sticky; top:0; z-index:100;
+  height:50px; background:var(--surface); border-bottom:1px solid var(--border);
+  display:flex; align-items:center; padding:0 16px; gap:16px;
+}
+.nav-brand { display:flex; align-items:center; gap:8px; font-weight:700; font-size:13px;
+  letter-spacing:.08em; text-transform:uppercase; color:var(--text-bright); text-decoration:none; }
+.nav-dot { width:8px; height:8px; border-radius:50%; background:var(--s1); }
+.nav-links { display:flex; gap:4px; margin-left:auto; flex-wrap:wrap; }
+.nav-links a { color:var(--text-muted); text-decoration:none; font-size:12.5px; font-weight:500;
+  padding:5px 10px; border-radius:6px; }
+.nav-links a:hover { color:var(--text-bright); background:var(--card); }
+.nav-links a.active { color:var(--text-bright); background:var(--card); }
+
+.wrap { max-width:1180px; margin:0 auto; padding:24px 20px 80px; }
+
+h1 { font-size:26px; font-weight:800; color:var(--text-bright); letter-spacing:-.02em; }
+h2 { font-size:16px; font-weight:700; color:var(--text-bright); letter-spacing:-.01em; }
+h3 { font-size:13px; font-weight:600; color:var(--text-bright); }
+.sub { color:var(--text-muted); font-size:13.5px; margin-top:4px; }
+
+/* ---------------------------------------------------------------- loader */
+.drop {
+  border:1.5px dashed var(--border-strong); border-radius:14px; background:var(--card);
+  padding:48px 32px; text-align:center; transition:border-color .15s, background .15s;
+}
+.drop.over { border-color:var(--s1); background:var(--card-2); }
+.drop h2 { margin-bottom:8px; }
+.drop p { color:var(--text-muted); font-size:13.5px; max-width:560px; margin:0 auto 20px; }
+
+.btn {
+  display:inline-flex; align-items:center; gap:7px; font-family:inherit; font-size:13px;
+  font-weight:600; padding:9px 16px; border-radius:8px; border:1px solid var(--border-strong);
+  background:var(--card-2); color:var(--text-bright); cursor:pointer; text-decoration:none;
+}
+.btn:hover { background:#20263180; border-color:var(--s1); }
+.btn-primary { background:var(--s1); border-color:var(--s1); color:#fff; }
+.btn-primary:hover { background:#2f76cd; border-color:#2f76cd; }
+.btn-sm { font-size:12px; padding:6px 11px; }
+.btn-ghost { background:transparent; }
+
+/* ---------------------------------------------------------------- layout */
+.kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(178px,1fr)); gap:12px; margin:20px 0; }
+.kpi { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px 16px; }
+.kpi .label { font-size:11px; text-transform:uppercase; letter-spacing:.07em; color:var(--text-muted); font-weight:600; }
+.kpi .value { font-size:24px; font-weight:700; color:var(--text-bright); letter-spacing:-.02em;
+  margin-top:3px; overflow-wrap:anywhere; }
+/* Text values (a category name) run long where dollar figures do not. */
+.kpi .value.text { font-size:17px; line-height:1.25; }
+.kpi .foot { font-size:11.5px; color:var(--text-muted); margin-top:2px; }
+.kpi .foot.up { color:var(--critical); }
+.kpi .foot.down { color:var(--good); }
+
+.tabs { display:flex; gap:2px; border-bottom:1px solid var(--border); margin:22px 0 20px; overflow-x:auto; }
+.tab { font-family:inherit; font-size:13px; font-weight:600; color:var(--text-muted);
+  background:none; border:none; border-bottom:2px solid transparent; padding:9px 14px;
+  cursor:pointer; white-space:nowrap; }
+.tab:hover { color:var(--text); }
+.tab.active { color:var(--text-bright); border-bottom-color:var(--s1); }
+
+.card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:18px; margin-bottom:16px; }
+.card-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:4px; flex-wrap:wrap; }
+.card-note { font-size:12.5px; color:var(--text-muted); margin-bottom:14px; }
+.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+@media (max-width:820px){ .grid-2 { grid-template-columns:1fr; } }
+
+/* ---------------------------------------------------------------- charts */
+.chart-wrap { position:relative; }
+.chart-wrap svg { display:block; width:100%; height:auto; overflow:visible; }
+.legend { display:flex; flex-wrap:wrap; gap:14px; margin-top:12px; font-size:12px; color:var(--text-muted); }
+.legend .item { display:flex; align-items:center; gap:6px; }
+.legend .swatch { width:10px; height:10px; border-radius:3px; flex:none; }
+.tip {
+  position:absolute; pointer-events:none; opacity:0; transition:opacity .1s;
+  background:#0b0e14; border:1px solid var(--border-strong); border-radius:8px;
+  padding:8px 10px; font-size:12px; color:var(--text-bright); min-width:130px;
+  box-shadow:0 8px 24px rgba(0,0,0,.5); z-index:20; line-height:1.45;
+}
+.tip .t-title { font-weight:700; margin-bottom:4px; }
+.tip .t-row { display:flex; justify-content:space-between; gap:14px; color:var(--text); }
+.tip .t-row b { color:var(--text-bright); font-variant-numeric:tabular-nums; }
+.tip .t-sub { color:var(--text-muted); font-size:11px; margin-top:3px; }
+
+/* ---------------------------------------------------------------- tables */
+table { width:100%; border-collapse:collapse; font-size:13px; }
+th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.06em;
+  color:var(--text-muted); font-weight:600; padding:8px 10px; border-bottom:1px solid var(--border); white-space:nowrap; }
+th.num, td.num { text-align:right; font-variant-numeric:tabular-nums; }
+td { padding:9px 10px; border-bottom:1px solid var(--grid); color:var(--text); vertical-align:middle; }
+tbody tr:hover td { background:var(--card-2); }
+td.name { color:var(--text-bright); font-weight:500; }
+.table-scroll { overflow-x:auto; }
+
+.chip { display:inline-block; font-size:10.5px; font-weight:700; letter-spacing:.04em;
+  text-transform:uppercase; padding:2px 7px; border-radius:5px; border:1px solid; white-space:nowrap; }
+.chip.good { color:var(--good); border-color:rgba(12,163,12,.4); background:rgba(12,163,12,.1); }
+.chip.warn { color:var(--warn); border-color:rgba(250,178,25,.4); background:rgba(250,178,25,.1); }
+.chip.crit { color:var(--critical); border-color:rgba(208,59,59,.45); background:rgba(208,59,59,.12); }
+.chip.mute { color:var(--text-muted); border-color:var(--border-strong); background:transparent; }
+
+.banner { border-radius:10px; padding:12px 14px; font-size:13px; display:flex; gap:10px;
+  align-items:flex-start; margin-bottom:16px; border:1px solid; }
+.banner.warn { background:rgba(250,178,25,.07); border-color:rgba(250,178,25,.35); color:var(--text); }
+.banner.info { background:rgba(57,135,229,.07); border-color:rgba(57,135,229,.32); color:var(--text); }
+.banner b { color:var(--text-bright); }
+.banner .ico { font-size:15px; line-height:1.3; flex:none; }
+
+/* ---------------------------------------------------------------- recs */
+.rec { background:var(--card); border:1px solid var(--border); border-radius:12px;
+  padding:16px 18px; margin-bottom:12px; }
+.rec.top { border-color:rgba(57,135,229,.4); }
+.rec-head { display:flex; align-items:flex-start; gap:14px; justify-content:space-between; flex-wrap:wrap; }
+.rec-title { font-size:15px; font-weight:700; color:var(--text-bright); letter-spacing:-.01em; }
+.rec-meta { display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }
+.rec-save { text-align:right; flex:none; }
+.rec-save .n { font-size:21px; font-weight:800; color:var(--good); letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums; }
+.rec-save .l { font-size:10.5px; text-transform:uppercase; letter-spacing:.07em; color:var(--text-muted); font-weight:600; }
+.rec-why { font-size:13px; color:var(--text); margin:11px 0 0; }
+.rec-ev { margin:10px 0 0; padding:10px 12px; background:var(--bg); border-radius:8px;
+  border:1px solid var(--grid); font-size:12.5px; }
+.rec-ev li { list-style:none; padding:2px 0; color:var(--text-muted); }
+.rec-ev li b { color:var(--text); font-variant-numeric:tabular-nums; font-weight:600; }
+.rec-slider { display:flex; align-items:center; gap:12px; margin-top:13px; padding-top:13px;
+  border-top:1px solid var(--grid); font-size:12px; color:var(--text-muted); }
+.rec-slider input[type=range] { flex:1; accent-color:var(--s1); max-width:340px; }
+.rec-slider .pct { font-variant-numeric:tabular-nums; color:var(--text-bright); font-weight:700;
+  min-width:38px; text-align:right; }
+
+.total-bar { position:sticky; bottom:0; background:linear-gradient(to top,var(--surface) 72%,transparent);
+  padding:14px 0 4px; margin-top:6px; }
+.total-inner { background:var(--card-2); border:1px solid var(--border-strong); border-radius:12px;
+  padding:14px 18px; display:flex; align-items:center; gap:18px; flex-wrap:wrap; }
+.total-inner .big { font-size:26px; font-weight:800; color:var(--good); letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums; }
+.total-inner .lbl { font-size:11px; text-transform:uppercase; letter-spacing:.07em;
+  color:var(--text-muted); font-weight:600; }
+.proj { margin-left:auto; display:flex; gap:20px; flex-wrap:wrap; }
+.proj div { text-align:right; }
+.proj .n { font-size:15px; font-weight:700; color:var(--text-bright); font-variant-numeric:tabular-nums; }
+
+/* ---------------------------------------------------------------- inputs */
+.controls { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:14px; }
+input[type=text], select {
+  font-family:inherit; font-size:13px; background:var(--card-2); color:var(--text-bright);
+  border:1px solid var(--border-strong); border-radius:8px; padding:7px 10px; outline:none;
+}
+input[type=text]:focus, select:focus { border-color:var(--s1); }
+.muted { color:var(--text-muted); }
+.mono { font-variant-numeric:tabular-nums; }
+td.mono { white-space:nowrap; }
+.hide { display:none !important; }
+.right { text-align:right; }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="home.html" class="nav-brand"><span class="nav-dot"></span> Financial Tools</a>
+  <div class="nav-links">
+    <a href="index.html">Volatility Buffer</a>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="financial-freedom.html">Financial Freedom</a>
+    <a href="budget.html" class="active">Budget Optimizer</a>
+  </div>
+</nav>
+
+<div class="wrap">
+
+  <!-- ============================================================ loader -->
+  <div id="loader">
+    <h1>Budget Optimizer</h1>
+    <p class="sub">Drop a transaction export and get a spending breakdown, a recurring-charge
+      audit, and a ranked list of places to cut — with the dollars attached.</p>
+
+    <div class="drop" id="drop" style="margin-top:22px">
+      <h2>Drop your transactions CSV here</h2>
+      <p>Everything is parsed and stored in your own browser. Nothing is uploaded, and no
+        network request is made with your data. Works with exports that have
+        <span class="mono">Date</span>, <span class="mono">Description</span>,
+        <span class="mono">Category</span>, <span class="mono">Amount</span> columns
+        (Monarch, Empower, Mint, Copilot, most bank exports).</p>
+      <button class="btn btn-primary" id="pick">Choose CSV file</button>
+      <input type="file" id="file" accept=".csv,text/csv" class="hide">
+      <div id="loadErr" style="margin-top:14px"></div>
+    </div>
+  </div>
+
+  <!-- ============================================================== app -->
+  <div id="app" class="hide">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+      <div>
+        <h1>Budget Optimizer</h1>
+        <p class="sub" id="rangeLine"></p>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-sm btn-ghost" id="reload">Load different CSV</button>
+        <button class="btn btn-sm btn-ghost" id="clear">Clear stored data</button>
+      </div>
+    </div>
+
+    <div id="banners"></div>
+    <div class="kpis" id="kpis"></div>
+
+    <div class="tabs" id="tabs"></div>
+    <div id="view"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ==================================================================== *
+ *  ENGINE — pure functions. No DOM access below this line until the
+ *  RENDER section. tests/budget.test.mjs slices these out by name and
+ *  runs them directly against the source shipped in this page.
+ * ==================================================================== */
+
+/** Money formatter. `cents` keeps decimals for small figures. */
+function money(n, cents) {
+  const v = Math.abs(n);
+  const s = v.toLocaleString("en-US", {
+    minimumFractionDigits: cents ? 2 : 0,
+    maximumFractionDigits: cents ? 2 : 0,
+  });
+  return (n < 0 ? "-$" : "$") + s;
+}
+
+/** Parse "- $1,234.56", "($5.00)", "$1,234.56", "-1234.56" -> signed number. */
+function parseAmount(raw) {
+  let s = String(raw == null ? "" : raw).trim();
+  if (!s) return NaN;
+  let neg = false;
+  if (/^\(.*\)$/.test(s)) { neg = true; s = s.slice(1, -1); }
+  s = s.replace(/[$\s,]/g, "");
+  if (s.startsWith("-")) { neg = true; s = s.slice(1); }
+  if (s.startsWith("+")) s = s.slice(1);
+  if (s === "" || !/^\d*\.?\d+$/.test(s)) return NaN;
+  const n = parseFloat(s);
+  return neg ? -n : n;
+}
+
+/** RFC-4180-ish CSV reader: quoted fields, escaped quotes, CRLF, BOM. */
+function parseCSV(text) {
+  let src = String(text || "");
+  if (src.charCodeAt(0) === 0xfeff) src = src.slice(1);
+  const rows = [];
+  let row = [], field = "", inQ = false, i = 0;
+  while (i < src.length) {
+    const c = src[i];
+    if (inQ) {
+      if (c === '"') {
+        if (src[i + 1] === '"') { field += '"'; i += 2; continue; }
+        inQ = false; i++; continue;
+      }
+      field += c; i++; continue;
+    }
+    if (c === '"') { inQ = true; i++; continue; }
+    if (c === ",") { row.push(field); field = ""; i++; continue; }
+    if (c === "\r") { i++; continue; }
+    if (c === "\n") { row.push(field); rows.push(row); row = []; field = ""; i++; continue; }
+    field += c; i++;
+  }
+  if (field !== "" || row.length) { row.push(field); rows.push(row); }
+  return rows.filter((r) => r.length > 1 || (r.length === 1 && r[0].trim() !== ""));
+}
+
+/** Normalize a header cell for fuzzy column matching. */
+function headerKey(h) {
+  return String(h || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+/**
+ * Map a header row onto the fields we need. Returns {date, desc, amount, ...}
+ * as column indices; -1 when a column is absent.
+ */
+function mapColumns(header) {
+  const want = {
+    date:     ["date", "transactiondate", "posteddate", "postdate", "posting date"],
+    desc:     ["description", "originaldescription", "merchant", "name", "payee", "details"],
+    account:  ["associatedaccount", "account", "accountname", "accountnumber"],
+    category: ["category", "categoryname"],
+    type:     ["type", "transactiontype"],
+    amount:   ["amountusd", "amount", "amountusd$", "transactionamount", "debitcredit"],
+  };
+  const keys = header.map(headerKey);
+  const out = {};
+  for (const field in want) {
+    out[field] = -1;
+    for (const cand of want[field]) {
+      const at = keys.indexOf(cand);
+      if (at !== -1) { out[field] = at; break; }
+    }
+  }
+  // Last resort: a column whose name merely contains the word.
+  for (const field of ["date", "desc", "amount"]) {
+    if (out[field] !== -1) continue;
+    const probe = field === "desc" ? "desc" : field;
+    const at = keys.findIndex((k) => k.includes(probe));
+    if (at !== -1) out[field] = at;
+  }
+  return out;
+}
+
+/** Parse a date cell into {iso, time} or null. Accepts ISO and US m/d/y. */
+function parseDate(raw) {
+  const s = String(raw || "").trim();
+  let y, m, d;
+  let mt = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (mt) { y = +mt[1]; m = +mt[2]; d = +mt[3]; }
+  else {
+    mt = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})/);
+    if (!mt) return null;
+    m = +mt[1]; d = +mt[2]; y = +mt[3];
+    if (y < 100) y += y < 70 ? 2000 : 1900;
+  }
+  if (!(m >= 1 && m <= 12 && d >= 1 && d <= 31)) return null;
+  const pad = (n) => String(n).padStart(2, "0");
+  return { iso: y + "-" + pad(m) + "-" + pad(d), time: Date.UTC(y, m - 1, d), day: d };
+}
+
+/** City/region fragments that get glued onto merchant names in bank feeds. */
+const CITY_RX = /(LOS ANGELES|SANTA MONICA|CULVER CITY|BEVERLY HILLS|WEST HOLLYWOOD|SHERMAN OAKS|MARINA DEL REY|SAN FRANCISCO|NEW YORK|LAS VEGAS|SAN DIEGO|MANHATTAN BEACH|PLAYA VISTA|VENICE CA|BURBANK|PASADENA|GLENDALE|MIAMI|CHICAGO|SEATTLE|AUSTIN|DENVER|HOUSTON|ATLANTA|BOSTON|LONDON|PARIS)/;
+
+/**
+ * Collapse a raw bank description to a stable merchant key: strip payment
+ * processor prefixes, store numbers, masked digits, trailing city/state.
+ * Grouping aid only — imperfect on mangled feeds, never used for math on
+ * a single transaction.
+ */
+function normalizeMerchant(desc) {
+  let s = String(desc || "").toUpperCase().trim();
+  s = s.replace(/^(TST\s*\*|SQ\s*\*|SP\s+|PY\s*\*|PAYPAL\s*\*|IC\s*\*|WWW\.|POS DEBIT |DEBIT CARD PURCHASE |CHECKCARD |RECURRING PAYMENT |PURCHASE AUTHORIZED ON )/i, "");
+  s = s.replace(/\bID:?\s*\S+/g, " ");
+  s = s.replace(/#\s*\d+/g, " ");
+  s = s.replace(/\bX{2,}[A-Z0-9]*\b/g, " ");
+  s = s.replace(/\b\d{3,}[A-Z0-9]*\b/g, " ");
+  const city = s.match(CITY_RX);
+  if (city && city.index >= 3) s = s.slice(0, city.index);
+  s = s.replace(/\s+[A-Z]{2}\s*$/, "");
+  s = s.replace(/[^A-Z0-9& ]+/g, " ").replace(/\s+/g, " ").trim();
+  if (!s) return "Unknown";
+  return s.slice(0, 30).split(" ").map((w) =>
+    w.length <= 2 || /^\d+$/.test(w) ? w : w[0] + w.slice(1).toLowerCase()
+  ).join(" ");
+}
+
+/** Categories that move money between your own accounts — never "spending". */
+const INTERNAL_CATS = /^(transfers?|credit card payments?|securities trades?|buy|sell|investments?|savings transfers?|loan payments? \(principal\))$/i;
+const INTERNAL_DESC = /\b(transfer to|transfer from|payment thank you|autopay payment|online payment|balance transfer to|journal to|tfr |acat)\b/i;
+
+/**
+ * Bucket a transaction: "spend" (money leaving for goods/services),
+ * "income" (money arriving from outside), or "internal" (self-transfers,
+ * trades, card payments — excluded from every spending figure).
+ */
+function classifyTxn(t) {
+  const type = String(t.type || "").toLowerCase();
+  if (type === "transfer") return "internal";
+  if (INTERNAL_CATS.test(t.category || "")) return "internal";
+  if (type === "income") return t.amount > 0 ? "income" : "internal";
+  if (INTERNAL_DESC.test(t.desc || "")) return "internal";
+  if (type === "discretionary" || type === "fixed" || type === "expense") return "spend";
+  // No usable Type column: fall back to sign.
+  return t.amount < 0 ? "spend" : "income";
+}
+
+/** Read a CSV export into normalized transactions plus any parse warnings. */
+function parseTransactions(text) {
+  const rows = parseCSV(text);
+  if (rows.length < 2) throw new Error("That file has no data rows.");
+  const cols = mapColumns(rows[0]);
+  if (cols.date === -1 || cols.amount === -1 || cols.desc === -1) {
+    throw new Error(
+      "Could not find Date, Description and Amount columns. Found: " +
+      rows[0].join(", ")
+    );
+  }
+  const txns = [];
+  let skipped = 0;
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    const d = parseDate(r[cols.date]);
+    const amt = parseAmount(r[cols.amount]);
+    if (!d || !isFinite(amt)) { skipped++; continue; }
+    const t = {
+      date: d.iso,
+      time: d.time,
+      day: d.day,
+      mo: d.iso.slice(0, 7),
+      desc: String(r[cols.desc] || "").trim(),
+      account: cols.account === -1 ? "" : String(r[cols.account] || "").trim(),
+      category: cols.category === -1 ? "Uncategorized" : (String(r[cols.category] || "").trim() || "Uncategorized"),
+      type: cols.type === -1 ? "" : String(r[cols.type] || "").trim(),
+      amount: amt,
+    };
+    t.merchant = normalizeMerchant(t.desc);
+    t.bucket = classifyTxn(t);
+    txns.push(t);
+  }
+  if (!txns.length) throw new Error("No rows had a readable date and amount.");
+  txns.sort((a, b) => a.time - b.time || a.desc.localeCompare(b.desc));
+  return { txns, skipped, hasType: cols.type !== -1 };
+}
+
+/* ---------------------------------------------------------------- stats */
+
+function median(sorted) {
+  if (!sorted.length) return 0;
+  const a = sorted.slice().sort((x, y) => x - y);
+  const m = a.length >> 1;
+  return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
+}
+
+function daysInMonth(mo) {
+  const y = +mo.slice(0, 4), m = +mo.slice(5, 7);
+  return new Date(Date.UTC(y, m, 0)).getUTCDate();
+}
+
+/** Every month key between the first and last transaction, gaps included. */
+function monthSpan(txns) {
+  const first = txns[0].mo, last = txns[txns.length - 1].mo;
+  const out = [];
+  let y = +first.slice(0, 4), m = +first.slice(5, 7);
+  const ey = +last.slice(0, 4), em = +last.slice(5, 7);
+  while (y < ey || (y === ey && m <= em)) {
+    out.push(y + "-" + String(m).padStart(2, "0"));
+    m++; if (m > 12) { m = 1; y++; }
+  }
+  return out;
+}
+
+/**
+ * Months with full coverage. A partial first or last month would drag every
+ * per-month average down, so they are excluded from rate math (but stay
+ * visible in the charts).
+ */
+function fullMonths(txns) {
+  const all = monthSpan(txns);
+  if (all.length <= 2) return all;
+  const firstDay = txns[0].day;
+  const lastT = txns[txns.length - 1];
+  const out = all.slice();
+  if (firstDay > 3) out.shift();
+  if (lastT.day < daysInMonth(lastT.mo) - 2) out.pop();
+  return out.length ? out : all;
+}
+
+/** Sum spending (positive number) over a transaction list, net of refunds. */
+function netSpend(list) {
+  let s = 0;
+  for (const t of list) if (t.bucket === "spend") s -= t.amount;
+  return s;
+}
+
+/** Group spend by a key function -> sorted [{key, total, n, perMonth, txns}]. */
+function groupSpend(spend, keyFn, monthCount) {
+  const map = new Map();
+  for (const t of spend) {
+    const k = keyFn(t);
+    let g = map.get(k);
+    if (!g) { g = { key: k, total: 0, n: 0, txns: [] }; map.set(k, g); }
+    g.total -= t.amount;
+    g.n++;
+    g.txns.push(t);
+  }
+  const out = [...map.values()];
+  for (const g of out) g.perMonth = g.total / monthCount;
+  return out.sort((a, b) => b.total - a.total);
+}
+
+/** Per-month totals for a transaction list, aligned to `months`. */
+function monthlySeries(list, months) {
+  const idx = new Map(months.map((m, i) => [m, i]));
+  const out = months.map(() => 0);
+  for (const t of list) {
+    const i = idx.get(t.mo);
+    if (i !== undefined) out[i] -= t.amount;
+  }
+  return out;
+}
+
+/** Label a median inter-charge gap in days. */
+function cadenceOf(gapDays) {
+  if (gapDays <= 9)  return { label: "weekly",    perYear: 52,  regular: false };
+  if (gapDays <= 18) return { label: "biweekly",  perYear: 26,  regular: true };
+  if (gapDays <= 45) return { label: "monthly",   perYear: 12,  regular: true };
+  if (gapDays <= 115) return { label: "quarterly", perYear: 4,  regular: true };
+  if (gapDays <= 400) return { label: "annual",    perYear: 1,  regular: true };
+  return { label: "irregular", perYear: 0, regular: false };
+}
+
+/**
+ * Find merchants you pay again and again. Splits them into two kinds:
+ *   subscription — steady amount on a steady cadence (cancellable line item)
+ *   habit        — frequent but variable (a behaviour, not a contract)
+ * `stale` flags a formerly-monthly charge that has not appeared recently.
+ */
+function detectRecurring(spend, months, lastTime) {
+  const map = new Map();
+  for (const t of spend) {
+    let g = map.get(t.merchant);
+    if (!g) { g = []; map.set(t.merchant, g); }
+    g.push(t);
+  }
+  const out = [];
+  for (const [merchant, list] of map) {
+    if (list.length < 3) continue;
+    const monthsSeen = new Set(list.map((t) => t.mo)).size;
+    if (monthsSeen < 3) continue;
+
+    const amts = list.map((t) => Math.abs(t.amount));
+    const med = median(amts);
+    if (med <= 0) continue;
+    const spreadAmt = amts.reduce((s, a) => s + Math.abs(a - med), 0) / amts.length / med;
+
+    const times = list.map((t) => t.time).sort((a, b) => a - b);
+    const gaps = [];
+    for (let i = 1; i < times.length; i++) gaps.push((times[i] - times[i - 1]) / 86400000);
+    const medGap = median(gaps);
+    const spreadGap = gaps.length
+      ? gaps.reduce((s, g) => s + Math.abs(g - medGap), 0) / gaps.length / Math.max(medGap, 1)
+      : 1;
+    const cad = cadenceOf(medGap);
+
+    const total = amts.reduce((a, b) => a + b, 0);
+    const isSub = spreadAmt < 0.12 && cad.regular && spreadGap < 0.5;
+    const sinceLast = (lastTime - times[times.length - 1]) / 86400000;
+
+    out.push({
+      merchant,
+      category: modeOf(list.map((t) => t.category)),
+      n: list.length,
+      monthsSeen,
+      median: med,
+      total,
+      perMonth: total / months.length,
+      cadence: cad.label,
+      spreadAmt,
+      kind: isSub ? "subscription" : "habit",
+      lastDate: list.reduce((a, t) => (t.time > a.time ? t : a), list[0]).date,
+      stale: isSub && cad.label === "monthly" && sinceLast > 60,
+    });
+  }
+  return out.sort((a, b) => b.perMonth - a.perMonth);
+}
+
+/** Most common value in a list. */
+function modeOf(vals) {
+  const c = new Map();
+  let best = vals[0], bestN = 0;
+  for (const v of vals) {
+    const n = (c.get(v) || 0) + 1;
+    c.set(v, n);
+    if (n > bestN) { bestN = n; best = v; }
+  }
+  return best;
+}
+
+/* Word-boundary anchored so "COFFEE" never reads as a fee. */
+const FEE_PATTERNS = [
+  { kind: "Card annual fee",      rx: /\b(annual fee|membership fee|renewal membership fee)\b/i },
+  { kind: "Interest",             rx: /\b(interest charge|finance charge|purchase interest)\b/i },
+  { kind: "Balance transfer fee", rx: /\b(bal(ance)? trans(fer)? fee)\b/i },
+  { kind: "ATM fee",              rx: /\b(atm fee|non[- ]?\w* atm fee|withdrawal fee|surcharge)\b/i },
+  { kind: "Late / returned",      rx: /\b(late fee|past due fee|returned check|nsf|overdraft)\b/i },
+  { kind: "Foreign transaction",  rx: /\b(foreign transaction fee|fx fee|international fee)\b/i },
+  { kind: "Service fee",          rx: /\b(service charge|maintenance fee|transaction fee|convenience fee|processing fee|delivery fee)\b/i },
+];
+
+/** Everything you paid that bought nothing, bucketed by kind. */
+function auditFees(spend, monthCount) {
+  const items = [];
+  for (const t of spend) {
+    let kind = null;
+    for (const p of FEE_PATTERNS) if (p.rx.test(t.desc)) { kind = p.kind; break; }
+    if (!kind && /service charges?\/fees/i.test(t.category)) kind = "Service fee";
+    if (!kind) continue;
+    items.push({ kind, txn: t, amount: -t.amount });
+  }
+  const byKind = new Map();
+  let total = 0;
+  for (const it of items) {
+    if (it.amount <= 0) continue;
+    total += it.amount;
+    let g = byKind.get(it.kind);
+    if (!g) { g = { kind: it.kind, total: 0, n: 0, examples: [] }; byKind.set(it.kind, g); }
+    g.total += it.amount; g.n++;
+    if (g.examples.length < 3) g.examples.push(it.txn);
+  }
+  return {
+    total,
+    perMonth: total / monthCount,
+    byKind: [...byKind.values()].sort((a, b) => b.total - a.total),
+    items: items.filter((i) => i.amount > 0).sort((a, b) => b.amount - a.amount),
+  };
+}
+
+/** Categories whose recent run-rate has jumped versus their own baseline. */
+function detectSpikes(spend, months, window) {
+  const w = Math.min(window || 3, Math.max(1, months.length - 2));
+  if (months.length < w + 2) return [];
+  const recent = new Set(months.slice(-w));
+  const base = new Set(months.slice(0, -w));
+  const agg = new Map();
+  for (const t of spend) {
+    const bucket = recent.has(t.mo) ? "r" : base.has(t.mo) ? "b" : null;
+    if (!bucket) continue;
+    let g = agg.get(t.category);
+    if (!g) { g = { r: 0, b: 0 }; agg.set(t.category, g); }
+    g[bucket] -= t.amount;
+  }
+  const out = [];
+  for (const [category, g] of agg) {
+    const recentPM = g.r / w;
+    const basePM = g.b / (months.length - w);
+    const delta = recentPM - basePM;
+    if (delta >= 75 && basePM > 0 && delta / basePM >= 0.25) {
+      out.push({ category, recentPM, basePM, delta, pct: delta / basePM });
+    }
+  }
+  return out.sort((a, b) => b.delta - a.delta);
+}
+
+const DELIVERY_RX = /\b(uber ?eats|doordash|door dash|grubhub|postmates|seamless|instacart|gopuff|go ?puff|caviar|deliveroo|favor delivery|shipt)\b/i;
+
+/* Categories that are protection, obligation or investment rather than
+   lifestyle. "Spend less" is not honest advice about these, so they never
+   become a cut recommendation — they still appear in every table. */
+const PROTECTED_CATS = /insurance|healthcare|medical|utilities|rent|mortgage|tax|tuition|education|childcare|loan|debt|savings|investment/i;
+
+/* Categories where paying several providers at once is a real overlap you can
+   consolidate. Two gyms is a duplicate; two gas stations is just driving. */
+const MEMBERSHIP_CATS = /personal care|dues|subscription|online service|entertainment|fitness|gym|software|streaming|media/i;
+
+/** Build the whole analysis model from a transaction list. */
+function analyze(txns, cfg) {
+  const opts = Object.assign(
+    { deliveryPremium: 0.30, spikeWindow: 3, categoryShare: 0.4 }, cfg || {});
+  const allMonths = monthSpan(txns);
+  const months = fullMonths(txns);
+  const inScope = new Set(months);
+  const mc = months.length;
+
+  const spend = txns.filter((t) => t.bucket === "spend" && inScope.has(t.mo));
+  const income = txns.filter((t) => t.bucket === "income" && inScope.has(t.mo));
+  const spendAll = txns.filter((t) => t.bucket === "spend");
+
+  const totalSpend = netSpend(spend);
+  const totalIncome = income.reduce((s, t) => s + t.amount, 0);
+
+  const byCategory = groupSpend(spend, (t) => t.category, mc);
+  const byMerchant = groupSpend(spend, (t) => t.merchant, mc);
+  const byAccount = groupSpend(spend, (t) => t.account || "(no account)", mc);
+  const recurring = detectRecurring(spend, months, txns[txns.length - 1].time);
+  const fees = auditFees(spend, mc);
+  const spikes = detectSpikes(spend, months, opts.spikeWindow);
+
+  const monthlySpend = monthlySeries(spendAll, allMonths);
+  const monthlyIncome = monthlySeries(
+    txns.filter((t) => t.bucket === "income").map((t) => ({ ...t, amount: -t.amount })),
+    allMonths
+  );
+
+  const delivery = spend.filter((t) => DELIVERY_RX.test(t.desc));
+  const smallTickets = spend.filter((t) => -t.amount > 0 && -t.amount < 15);
+
+  const model = {
+    txns, months, allMonths, monthCount: mc,
+    spend, income, totalSpend, totalIncome,
+    perMonth: totalSpend / mc,
+    incomePerMonth: totalIncome / mc,
+    byCategory, byMerchant, byAccount,
+    recurring, fees, spikes,
+    monthlySpend, monthlyIncome,
+    delivery: {
+      txns: delivery, total: netSpend(delivery), perMonth: netSpend(delivery) / mc,
+      category: delivery.length ? modeOf(delivery.map((t) => t.category)) : null,
+    },
+    smallTickets: { n: smallTickets.length, total: netSpend(smallTickets), txns: smallTickets },
+    incomeComplete: totalIncome >= totalSpend * 0.75,
+    opts,
+  };
+  model.recommendations = buildRecommendations(model, opts);
+  return model;
+}
+
+/* ------------------------------------------------------------- optimizer */
+
+/**
+ * Several rules can point at the same category — a "cut dining" item and a
+ * "delivery markup" item are partly the same dollars. Each scoped rule is
+ * allowed a share of its category, biggest claim served first, so the total
+ * at the bottom of the page stays a number you could actually realize.
+ */
+function capOverlap(recs, m, shareOfCategory) {
+  const annualByCat = new Map(m.byCategory.map((c) => [c.key, c.perMonth * 12]));
+  const claimed = new Map();
+  const out = [];
+  for (const r of recs) {
+    if (!r.scope) { out.push(r); continue; }
+    const budget = (annualByCat.get(r.scope) || Infinity) * shareOfCategory;
+    const room = Math.max(0, budget - (claimed.get(r.scope) || 0));
+    if (room < 100) continue;
+    if (r.annual > room) {
+      const shared = (claimed.get(r.scope) || 0) > 0;
+      r.annual = room;
+      r.assumption = (r.assumption ? r.assumption + " " : "") +
+        (shared
+          ? "Trimmed so it does not double-count the other " + r.scope + " items above."
+          : "Trimmed to " + Math.round(shareOfCategory * 100) + "% of " + r.scope +
+            " — cutting more than that is a bigger change than one line item.");
+    }
+    claimed.set(r.scope, (claimed.get(r.scope) || 0) + r.annual);
+    out.push(r);
+  }
+  return out;
+}
+
+/**
+ * Turn the model into ranked, dollar-quantified actions. Every `annual`
+ * figure traces back to transactions in the file; the assumptions that are
+ * estimates rather than observations are named in `assumption`. A `scope` of
+ * a category name means the claim competes with other claims on that
+ * category (see capOverlap).
+ */
+function buildRecommendations(m, opts) {
+  const recs = [];
+  const mc = m.monthCount;
+  const yr = (totalOverWindow) => (totalOverWindow / mc) * 12;
+
+  /* 1 — Fees and interest. Pure leakage. */
+  if (m.fees.total > 0) {
+    recs.push({
+      id: "fees",
+      title: "Stop paying fees and interest",
+      tag: "Fees",
+      effort: "Low",
+      annual: yr(m.fees.total),
+      defaultAdopt: 0.8,
+      why: "Fees buy nothing. Card annual fees can be downgraded to a no-fee product or offset " +
+           "by credits you actually use, out-of-network ATM charges disappear by using in-network " +
+           "machines, and interest plus balance-transfer fees only exist while a balance revolves.",
+      evidence: m.fees.byKind.filter((k) => k.total >= 1).slice(0, 6).map((k) =>
+        k.kind + " — <b>" + money(k.total) + "</b> across " + k.n + " charge" + (k.n === 1 ? "" : "s")),
+      assumption: "Assumes 80% is avoidable; annual card fees you genuinely earn back in credits are not.",
+    });
+  }
+
+  /* 2 — Delivery markup. */
+  if (m.delivery.perMonth >= 40) {
+    const prem = opts.deliveryPremium;
+    recs.push({
+      id: "delivery",
+      title: "Cut the delivery-app markup",
+      tag: "Food",
+      effort: "Medium",
+      scope: m.delivery.category,
+      annual: yr(m.delivery.total) * prem,
+      defaultAdopt: 0.6,
+      why: "Delivery apps cost more than the same food does at the counter: inflated menu prices " +
+           "plus service, delivery and small-order fees, before tip. Ordering the same meals for " +
+           "pickup keeps the food and drops the surcharge.",
+      evidence: [
+        "<b>" + money(m.delivery.total) + "</b> through delivery apps over " + mc + " months (" +
+          money(m.delivery.perMonth) + "/mo across " + m.delivery.txns.length + " orders)",
+        "Average order <b>" + money(m.delivery.total / Math.max(m.delivery.txns.length, 1), true) + "</b>",
+      ],
+      assumption: "Assumes a " + Math.round(prem * 100) + "% all-in premium versus pickup — the usual range is 25–40%.",
+    });
+  }
+
+  /* 3 — Trim the largest discretionary category. */
+  const trimmable = m.byCategory.filter((c) => !PROTECTED_CATS.test(c.key));
+  const top = trimmable[0];
+  if (top && top.perMonth >= 150) {
+    const share = top.total / m.totalSpend;
+    const tickets = top.txns.map((t) => -t.amount).sort((a, b) => b - a);
+    const big = tickets.filter((v) => v >= 100);
+    recs.push({
+      id: "topcat",
+      title: "Bring " + top.key + " down to a set monthly number",
+      tag: "Habit",
+      effort: "Medium",
+      scope: top.key,
+      annual: top.perMonth * 12 * 0.25,
+      defaultAdopt: 0.7,
+      why: top.key + " is your largest controllable category at " + money(top.perMonth) + "/mo, " +
+           Math.round(share * 100) + "% of everything you spend. A fixed monthly allowance — " +
+           "checked weekly, not at month end — is what turns this from a total into a budget.",
+      evidence: [
+        "<b>" + money(top.total) + "</b> over " + mc + " months across <b>" + top.n + "</b> transactions (" +
+          (top.n / mc).toFixed(1) + "/mo, " + money(top.total / top.n, true) + " average)",
+        big.length
+          ? "<b>" + big.length + "</b> charges of $100+ account for <b>" +
+            money(big.reduce((a, b) => a + b, 0)) + "</b> — " +
+            Math.round(100 * big.reduce((a, b) => a + b, 0) / top.total) + "% of the category"
+          : "No single charge over $100 — this category is built entirely from small ones",
+      ],
+      assumption: "Modelled as a 25% reduction, i.e. a " + money(top.perMonth * 0.75) + "/mo cap.",
+    });
+  }
+
+  /* 4 — Several providers billing for the same kind of service. Restricted to
+     membership-shaped categories: two gyms is a duplicate you can consolidate,
+     two gas stations or two restaurants is not. */
+  const consolidatable = m.recurring.filter((r) =>
+    !PROTECTED_CATS.test(r.category) &&
+    (r.kind === "subscription" || (MEMBERSHIP_CATS.test(r.category) && r.monthsSeen >= 4)));
+  const byCat = new Map();
+  for (const s of consolidatable) {
+    if (!byCat.has(s.category)) byCat.set(s.category, []);
+    byCat.get(s.category).push(s);
+  }
+  for (const [category, list] of byCat) {
+    const dupes = list.slice().sort((a, b) => b.perMonth - a.perMonth).filter((r) => r.perMonth >= 40);
+    if (dupes.length < 2) continue;
+    const drop = dupes.slice(1).reduce((s, r) => s + r.perMonth, 0);
+    if (drop < 25) continue;
+    recs.push({
+      id: "dupe-" + category,
+      title: "Overlapping " + category.toLowerCase() + " memberships",
+      tag: "Subscriptions",
+      effort: "Low",
+      scope: category,
+      annual: drop * 12,
+      defaultAdopt: 0.5,
+      why: "You are paying " + dupes.length + " separate providers in " + category + " on a repeating " +
+           "basis. Where they cover the same need, keeping the one you actually use and dropping the " +
+           "rest costs you nothing you consume.",
+      evidence: dupes.map((r) =>
+        r.merchant + " — <b>" + money(r.perMonth) + "/mo</b> (" + money(r.total) + " total, " +
+        r.n + " charges, last " + r.lastDate + ")"),
+      assumption: "Savings assume you keep the largest and drop the rest — check they really do overlap first.",
+    });
+  }
+
+  /* 5 — Subscription audit. */
+  const realSubs = m.recurring.filter((r) => r.kind === "subscription");
+  const subTotal = realSubs.reduce((s, r) => s + r.perMonth, 0);
+  if (subTotal >= 50) {
+    const stale = realSubs.filter((r) => r.stale);
+    recs.push({
+      id: "subs",
+      title: "Audit " + realSubs.length + " recurring charges",
+      tag: "Subscriptions",
+      effort: "Low",
+      annual: subTotal * 12 * 0.2,
+      defaultAdopt: 0.5,
+      why: "Steady-amount, steady-cadence charges total " + money(subTotal) + "/mo — " +
+           money(subTotal * 12) + " a year committed before you decide anything. Cancelling the " +
+           "bottom fifth is usually painless because you had forgotten they were running.",
+      evidence: realSubs.slice(0, 6).map((r) =>
+        r.merchant + " — <b>" + money(r.median, true) + "</b> " + r.cadence +
+        " (" + money(r.perMonth) + "/mo)" + (r.stale ? " · not seen since " + r.lastDate : "")),
+      assumption: stale.length
+        ? stale.length + " charge(s) have gone quiet — confirm they were actually cancelled."
+        : "Modelled as cancelling 20% of the recurring load.",
+    });
+  }
+
+  /* 6 — Small-ticket leakage, outside whatever the category rule already claimed. */
+  const smallRest = m.smallTickets.txns.filter((t) =>
+    (!top || t.category !== top.key) && !PROTECTED_CATS.test(t.category));
+  const smallTotal = netSpend(smallRest);
+  if (smallTotal / mc >= 100) {
+    recs.push({
+      id: "small",
+      title: "Small charges add up to a real number",
+      tag: "Habit",
+      effort: "Medium",
+      annual: yr(smallTotal) * 0.3,
+      defaultAdopt: 0.4,
+      why: "Individually invisible, collectively not. These are the charges no budget review ever " +
+           "catches because none of them looks like a decision.",
+      evidence: [
+        "<b>" + smallRest.length + "</b> charges under $15 totalling <b>" + money(smallTotal) +
+          "</b> (" + money(smallTotal / mc) + "/mo, " +
+          (smallRest.length / mc).toFixed(0) + " per month)" +
+          (top ? ", outside " + top.key : ""),
+      ],
+      assumption: "Modelled as removing 30% of them.",
+    });
+  }
+
+  /* 7 — Categories running hot versus their own history, where cutting is a
+     sensible response and no other rule already owns the category. */
+  const spikeRecs = m.spikes.filter((s) =>
+    !PROTECTED_CATS.test(s.category) && (!top || s.category !== top.key));
+  for (const s of spikeRecs.slice(0, 2)) {
+    recs.push({
+      id: "spike-" + s.category,
+      title: s.category + " is running " + Math.round(s.pct * 100) + "% above its own baseline",
+      tag: "Trend",
+      effort: "Low",
+      scope: s.category,
+      annual: s.delta * 12,
+      defaultAdopt: 0.5,
+      why: "The recent months are materially above what this category used to cost you. Either " +
+           "something structural changed — a new commitment, a price increase — or it drifted. " +
+           "Worth knowing which before it becomes the new normal.",
+      evidence: [
+        "Last " + m.opts.spikeWindow + " months: <b>" + money(s.recentPM) + "/mo</b> versus <b>" +
+          money(s.basePM) + "/mo</b> before that",
+        "Difference: <b>" + money(s.delta) + "/mo</b>",
+      ],
+      assumption: "Savings assume returning to the earlier baseline.",
+    });
+  }
+
+  /* 8 — Revolving debt signal. */
+  const carry = m.fees.byKind.filter((k) => /interest|balance transfer/i.test(k.kind));
+  if (carry.length) {
+    const carryTotal = carry.reduce((s, k) => s + k.total, 0);
+    recs.push({
+      id: "debt",
+      title: "You are carrying a card balance",
+      tag: "Debt",
+      effort: "High",
+      annual: yr(carryTotal),
+      defaultAdopt: 1,
+      why: "Interest charges and balance-transfer fees only appear when a balance revolves. " +
+           "This is the highest-guaranteed-return item on the list: paying it down returns the " +
+           "card's APR, risk-free, which almost certainly beats what the same dollars earn invested.",
+      evidence: carry.map((k) => k.kind + " — <b>" + money(k.total) + "</b> (" + k.n + " charge" + (k.n === 1 ? "" : "s") + ")"),
+      assumption: "Clearing the balance removes the carry cost entirely; the transfer promo window is finite.",
+    });
+  }
+
+  // Rank first so the largest claim on a category gets first call on it, then
+  // re-rank because capping changes the numbers.
+  return capOverlap(recs.sort((a, b) => b.annual - a.annual), m, opts.categoryShare)
+    .sort((a, b) => b.annual - a.annual);
+}
+
+/** Future value of investing `monthly` at `rate` for `years`. */
+function futureValue(monthly, years, rate) {
+  const r = rate / 12, n = years * 12;
+  return r === 0 ? monthly * n : monthly * ((Math.pow(1 + r, n) - 1) / r);
+}
+
+/* ==================================================================== *
+ *  CHARTS — each returns an SVG string. The caller injects it and
+ *  wires hover via attachHover().
+ * ==================================================================== */
+
+const CH = { w: 720, h: 220, padL: 52, padR: 12, padT: 14, padB: 26 };
+
+function esc(s) {
+  return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+
+/** Nice round axis maximum above `v`. */
+function niceMax(v) {
+  if (v <= 0) return 1;
+  const mag = Math.pow(10, Math.floor(Math.log10(v)));
+  const n = v / mag;
+  const step = n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10;
+  return step * mag;
+}
+
+function axisLabel(v) {
+  if (v >= 1000) return "$" + (v / 1000).toFixed(v % 1000 === 0 ? 0 : 1) + "k";
+  return "$" + Math.round(v);
+}
+
+function moLabel(mo) {
+  const M = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  return M[+mo.slice(5, 7) - 1] + " " + mo.slice(2, 4);
+}
+
+/**
+ * Vertical bars over months, with a dashed average reference line.
+ * Bars carry 4px rounded tops anchored to the baseline and a 2px gap.
+ */
+function monthBarsSVG(values, labels, opts) {
+  const o = Object.assign({}, CH, opts || {});
+  const iw = o.w - o.padL - o.padR, ih = o.h - o.padT - o.padB;
+  const max = niceMax(Math.max(...values, 1));
+  const y = (v) => o.padT + ih - (v / max) * ih;
+  const slot = iw / values.length;
+  const bw = Math.max(3, slot - 3);
+  const avg = values.reduce((a, b) => a + b, 0) / values.length;
+
+  let g = "";
+  for (let i = 0; i <= 4; i++) {
+    const v = (max / 4) * i, yy = y(v);
+    g += `<line x1="${o.padL}" y1="${yy}" x2="${o.w - o.padR}" y2="${yy}" stroke="var(--grid)" stroke-width="1"/>` +
+         `<text x="${o.padL - 8}" y="${yy + 4}" text-anchor="end" font-size="10" fill="var(--text-muted)">${axisLabel(v)}</text>`;
+  }
+
+  let bars = "", hits = "";
+  values.forEach((v, i) => {
+    const x = o.padL + slot * i + (slot - bw) / 2;
+    const yy = y(v), h = Math.max(0, o.padT + ih - yy);
+    const r = Math.min(4, h, bw / 2);
+    const d = h <= 0 ? "" :
+      `M${x} ${yy + h} L${x} ${yy + r} Q${x} ${yy} ${x + r} ${yy} L${x + bw - r} ${yy} Q${x + bw} ${yy} ${x + bw} ${yy + r} L${x + bw} ${yy + h} Z`;
+    if (d) bars += `<path d="${d}" fill="var(--seq)" opacity="${o.dim && o.dim.includes(i) ? 0.42 : 0.92}"/>`;
+    hits += `<rect class="hit" data-i="${i}" x="${o.padL + slot * i}" y="${o.padT}" width="${slot}" height="${ih}" fill="transparent"/>`;
+  });
+
+  const ya = y(avg);
+  const ref = `<line x1="${o.padL}" y1="${ya}" x2="${o.w - o.padR}" y2="${ya}" stroke="var(--s4)" stroke-width="2" stroke-dasharray="5 4"/>` +
+    `<text x="${o.w - o.padR}" y="${ya - 6}" text-anchor="end" font-size="10.5" font-weight="600" fill="var(--s4)">avg ${axisLabel(avg)}</text>`;
+
+  let xl = "";
+  const every = Math.ceil(values.length / 14);
+  labels.forEach((l, i) => {
+    if (i % every) return;
+    xl += `<text x="${o.padL + slot * i + slot / 2}" y="${o.h - 8}" text-anchor="middle" font-size="10" fill="var(--text-muted)">${esc(l)}</text>`;
+  });
+
+  return `<svg viewBox="0 0 ${o.w} ${o.h}" role="img" aria-label="Monthly spending">${g}${bars}${ref}${xl}${hits}</svg>`;
+}
+
+/**
+ * Horizontal magnitude bars — one hue (magnitude, not identity), direct
+ * labelled with value and share, 4px rounded data-end.
+ */
+function hBarsSVG(items, opts) {
+  const o = Object.assign({ w: 720, rowH: 30, labelW: 190, valueW: 134, subW: 76, padR: 4 }, opts || {});
+  const h = items.length * o.rowH + 6;
+  const max = Math.max(...items.map((i) => i.value), 1);
+  const barX = o.labelW + 8;
+  const barW = o.w - barX - o.valueW - o.padR;
+
+  let out = "";
+  items.forEach((it, i) => {
+    const y = i * o.rowH + 4;
+    const bh = o.rowH - 12;
+    const w = Math.max(2, (it.value / max) * barW);
+    const r = Math.min(4, w / 2, bh / 2);
+    const cy = y + bh / 2;
+    const d = `M${barX} ${y} L${barX + w - r} ${y} Q${barX + w} ${y} ${barX + w} ${y + r} ` +
+              `L${barX + w} ${y + bh - r} Q${barX + w} ${y + bh} ${barX + w - r} ${y + bh} L${barX} ${y + bh} Z`;
+    out +=
+      `<text x="0" y="${cy + 4}" font-size="12" fill="var(--text-bright)">${esc(it.label.length > 26 ? it.label.slice(0, 25) + "…" : it.label)}</text>` +
+      `<path d="${d}" fill="var(--seq)" opacity="${0.95 - i * 0.045}"/>` +
+      `<text x="${o.w - o.padR}" y="${cy + 4}" text-anchor="end" font-size="12" font-weight="600" fill="var(--text-bright)" style="font-variant-numeric:tabular-nums">${esc(it.valueLabel)}</text>` +
+      (it.subLabel
+        ? `<text x="${o.w - o.padR - o.subW}" y="${cy + 4}" text-anchor="end" font-size="11" fill="var(--text-muted)" style="font-variant-numeric:tabular-nums">${esc(it.subLabel)}</text>`
+        : "") +
+      `<rect class="hit" data-i="${i}" x="0" y="${y - 4}" width="${o.w}" height="${o.rowH}" fill="transparent"/>`;
+  });
+  return `<svg viewBox="0 0 ${o.w} ${h}" role="img" aria-label="Breakdown">${out}</svg>`;
+}
+
+/** Tiny 2px trend line for a table row. */
+function sparkSVG(values, opts) {
+  const o = Object.assign({ w: 84, h: 22 }, opts || {});
+  if (values.length < 2) return "";
+  const max = Math.max(...values, 1), min = 0;
+  const x = (i) => (i / (values.length - 1)) * (o.w - 2) + 1;
+  const y = (v) => o.h - 2 - ((v - min) / (max - min || 1)) * (o.h - 4);
+  const d = values.map((v, i) => (i ? "L" : "M") + x(i).toFixed(1) + " " + y(v).toFixed(1)).join(" ");
+  const last = values[values.length - 1];
+  return `<svg viewBox="0 0 ${o.w} ${o.h}" width="${o.w}" height="${o.h}" aria-hidden="true">` +
+    `<path d="${d}" fill="none" stroke="var(--s1)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>` +
+    `<circle cx="${x(values.length - 1).toFixed(1)}" cy="${y(last).toFixed(1)}" r="2.6" fill="var(--s1)" stroke="var(--card)" stroke-width="2"/></svg>`;
+}
+
+/* ==================================================================== *
+ *  RENDER
+ * ==================================================================== */
+
+const LS_KEY = "budget-optimizer/csv";
+const state = { model: null, tab: "overview", adopt: {}, q: "", cat: "", sort: "date" };
+
+const $ = (s, r) => (r || document).querySelector(s);
+const el = (id) => document.getElementById(id);
+
+/* --------------------------------------------------------------- loading */
+
+function showError(msg) {
+  el("loadErr").innerHTML =
+    `<div class="banner warn" style="text-align:left"><span class="ico">!</span><div>${esc(msg)}</div></div>`;
+}
+
+function loadText(text) {
+  let parsed;
+  try {
+    parsed = parseTransactions(text);
+  } catch (e) {
+    showError(e.message);
+    return;
+  }
+  try {
+    localStorage.setItem(LS_KEY, text);
+  } catch (e) {
+    /* Over quota — the session still works, it just will not persist. */
+  }
+  state.model = analyze(parsed.txns);
+  state.model.skipped = parsed.skipped;
+  state.adopt = {};
+  for (const r of state.model.recommendations) state.adopt[r.id] = r.defaultAdopt;
+  el("loader").classList.add("hide");
+  el("app").classList.remove("hide");
+  render();
+}
+
+function initLoader() {
+  const drop = el("drop"), input = el("file");
+  el("pick").onclick = () => input.click();
+  input.onchange = () => {
+    const f = input.files && input.files[0];
+    if (!f) return;
+    const fr = new FileReader();
+    fr.onload = () => loadText(String(fr.result));
+    fr.onerror = () => showError("Could not read that file.");
+    fr.readAsText(f);
+  };
+  ["dragenter", "dragover"].forEach((ev) =>
+    drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("over"); }));
+  ["dragleave", "drop"].forEach((ev) =>
+    drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
+  drop.addEventListener("drop", (e) => {
+    const f = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (!f) return;
+    const fr = new FileReader();
+    fr.onload = () => loadText(String(fr.result));
+    fr.readAsText(f);
+  });
+
+  el("reload").onclick = () => {
+    el("app").classList.add("hide");
+    el("loader").classList.remove("hide");
+    el("loadErr").innerHTML = "";
+  };
+  el("clear").onclick = () => {
+    localStorage.removeItem(LS_KEY);
+    state.model = null;
+    el("app").classList.add("hide");
+    el("loader").classList.remove("hide");
+    el("loadErr").innerHTML = "";
+  };
+
+  const saved = localStorage.getItem(LS_KEY);
+  if (saved) loadText(saved);
+}
+
+/* ----------------------------------------------------------------- tabs */
+
+const TABS = [
+  ["overview", "Overview"],
+  ["optimize", "Where to cut"],
+  ["categories", "Categories"],
+  ["merchants", "Merchants"],
+  ["recurring", "Recurring"],
+  ["fees", "Fees"],
+  ["txns", "Transactions"],
+];
+
+function render() {
+  const m = state.model;
+  if (!m) return;
+
+  el("rangeLine").textContent =
+    m.txns.length.toLocaleString() + " transactions · " + m.txns[0].date + " to " +
+    m.txns[m.txns.length - 1].date + " · rates computed over " + m.monthCount +
+    " complete months (" + moLabel(m.months[0]) + "–" + moLabel(m.months[m.monthCount - 1]) + ")";
+
+  renderBanners(m);
+  renderKPIs(m);
+
+  el("tabs").innerHTML = TABS.map(([id, label]) =>
+    `<button class="tab${state.tab === id ? " active" : ""}" data-tab="${id}">${label}</button>`).join("");
+  el("tabs").querySelectorAll(".tab").forEach((b) => {
+    b.onclick = () => { state.tab = b.dataset.tab; render(); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  });
+
+  const view = el("view");
+  ({
+    overview: renderOverview,
+    optimize: renderOptimize,
+    categories: renderCategories,
+    merchants: renderMerchants,
+    recurring: renderRecurring,
+    fees: renderFees,
+    txns: renderTxns,
+  })[state.tab](view, m);
+}
+
+function renderBanners(m) {
+  const b = [];
+  if (!m.incomeComplete) {
+    b.push(`<div class="banner warn"><span class="ico">!</span><div>
+      <b>Income in this export looks incomplete.</b> It records ${money(m.incomePerMonth)}/mo of income
+      against ${money(m.perMonth)}/mo of spending — only ${Math.round(100 * m.totalIncome / m.totalSpend)}%
+      coverage. That usually means a paycheck lands in an account that was not exported. Savings-rate
+      figures are therefore suppressed; every spending number below is still exact.</div></div>`);
+  }
+  if (m.skipped > 0) {
+    b.push(`<div class="banner info"><span class="ico">i</span><div>
+      ${m.skipped} row${m.skipped === 1 ? "" : "s"} skipped — no readable date or amount.</div></div>`);
+  }
+  el("banners").innerHTML = b.join("");
+}
+
+function renderKPIs(m) {
+  const recent = m.monthlySpend.slice(-4, -1);
+  const recentAvg = recent.reduce((a, b) => a + b, 0) / Math.max(recent.length, 1);
+  const delta = recentAvg - m.perMonth;
+  const topCat = m.byCategory[0];
+  const subTotal = m.recurring.filter((r) => r.kind === "subscription").reduce((s, r) => s + r.perMonth, 0);
+  const savings = m.recommendations.reduce((s, r) => s + r.annual * (state.adopt[r.id] || 0), 0);
+
+  const cards = [
+    ["Spending", money(m.perMonth) + "/mo", money(m.totalSpend) + " over " + m.monthCount + " months"],
+    ["Recent 3-month rate", money(recentAvg) + "/mo",
+      (delta >= 0 ? "&uarr; " : "&darr; ") + money(Math.abs(delta)) + "/mo vs average",
+      delta >= 0 ? "up" : "down"],
+    ["Largest category", topCat ? topCat.key : "—",
+      topCat ? money(topCat.perMonth) + "/mo · " + Math.round(100 * topCat.total / m.totalSpend) + "% of spend" : "",
+      "", "text"],
+    ["Recurring commitments", money(subTotal) + "/mo",
+      money(subTotal * 12) + "/yr locked in before any decision"],
+    ["Fees paid", money(m.fees.total), money(m.fees.perMonth) + "/mo — bought nothing"],
+    ["Identified savings", money(savings) + "/yr", m.recommendations.length + " actions, at current sliders"],
+  ];
+  // A category name is one long token ("Restaurants/Dining"); give the browser
+  // a break opportunity after the slash so it wraps at the seam, not mid-word.
+  const breakable = (v) => String(v).replace(/\//g, "/\u200b");
+  el("kpis").innerHTML = cards.map(([l, v, f, cls, vcls]) =>
+    `<div class="kpi"><div class="label">${l}</div><div class="value ${vcls || ""}">${vcls === "text" ? breakable(v) : v}</div>
+     <div class="foot ${cls || ""}">${f}</div></div>`).join("");
+}
+
+/* --------------------------------------------------------------- hover */
+
+/**
+ * Wire the invisible .hit rects in a chart to a tooltip.
+ * `content(i)` returns tooltip HTML for the hovered index.
+ */
+function attachHover(wrap, content) {
+  const svg = $("svg", wrap);
+  if (!svg) return;
+  const tip = document.createElement("div");
+  tip.className = "tip";
+  wrap.appendChild(tip);
+  svg.querySelectorAll(".hit").forEach((hit) => {
+    hit.style.cursor = "default";
+    hit.addEventListener("mousemove", (e) => {
+      const html = content(+hit.dataset.i);
+      if (!html) { tip.style.opacity = 0; return; }
+      tip.innerHTML = html;
+      tip.style.opacity = 1;
+      const box = wrap.getBoundingClientRect();
+      let x = e.clientX - box.left + 14;
+      const y = e.clientY - box.top + 12;
+      if (x + tip.offsetWidth > box.width) x = e.clientX - box.left - tip.offsetWidth - 14;
+      tip.style.left = Math.max(0, x) + "px";
+      tip.style.top = y + "px";
+    });
+    hit.addEventListener("mouseleave", () => { tip.style.opacity = 0; });
+  });
+}
+
+/* ------------------------------------------------------------- overview */
+
+function renderOverview(view, m) {
+  const cats = m.byCategory.slice(0, 12).map((c) => ({
+    label: c.key,
+    value: c.perMonth,
+    valueLabel: money(c.perMonth) + "/mo",
+    subLabel: Math.round(100 * c.total / m.totalSpend) + "%",
+    ref: c,
+  }));
+
+  view.innerHTML = `
+    <div class="card">
+      <div class="card-head"><h2>Spending by month</h2>
+        <span class="muted" style="font-size:12px">All months shown; partial months at the edges are excluded from rates</span></div>
+      <div class="card-note">Total spending per month, refunds netted out. Transfers, card payments and
+        securities trades are excluded — they move money, they do not spend it.</div>
+      <div class="chart-wrap" id="c-months"></div>
+      <div class="legend">
+        <div class="item"><span class="swatch" style="background:var(--seq)"></span> Monthly spending</div>
+        <div class="item"><span class="swatch" style="background:var(--s4)"></span> Average across the window</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Where the money goes</h2>
+        <span class="muted" style="font-size:12px">Average per complete month</span></div>
+      <div class="card-note">Top 12 categories of ${m.byCategory.length}.</div>
+      <div class="chart-wrap" id="c-cats"></div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h2>Biggest single charges</h2>
+        <div class="card-note">The decisions with the most leverage per unit of effort.</div>
+        <div class="table-scroll"><table><thead><tr>
+          <th>Date</th><th>Merchant</th><th>Category</th><th class="num">Amount</th>
+        </tr></thead><tbody>
+        ${m.spend.slice().sort((a, b) => a.amount - b.amount).slice(0, 10).map((t) =>
+          `<tr><td class="mono muted">${t.date}</td><td class="name">${esc(t.merchant)}</td>
+           <td class="muted">${esc(t.category)}</td><td class="num">${money(-t.amount)}</td></tr>`).join("")}
+        </tbody></table></div>
+      </div>
+
+      <div class="card">
+        <h2>Spending by account</h2>
+        <div class="card-note">Which card or account each dollar of spending ran through.</div>
+        <div class="table-scroll"><table><thead><tr>
+          <th>Account</th><th class="num">Per month</th><th class="num">Txns</th><th class="num">Share</th>
+        </tr></thead><tbody>
+        ${m.byAccount.slice(0, 10).map((a) =>
+          `<tr><td class="name">${esc(a.key)}</td><td class="num">${money(a.perMonth)}</td>
+           <td class="num muted">${a.n}</td><td class="num muted">${Math.round(100 * a.total / m.totalSpend)}%</td></tr>`).join("")}
+        </tbody></table></div>
+      </div>
+    </div>`;
+
+  const wm = el("c-months");
+  wm.innerHTML = monthBarsSVG(m.monthlySpend, m.allMonths.map(moLabel), {
+    dim: m.allMonths.map((mo, i) => (m.months.includes(mo) ? -1 : i)).filter((i) => i >= 0),
+  });
+  attachHover(wm, (i) => {
+    const mo = m.allMonths[i];
+    const inWindow = m.months.includes(mo);
+    const top = m.spend.filter((t) => t.mo === mo);
+    const byCat = groupSpend(top, (t) => t.category, 1).slice(0, 3);
+    return `<div class="t-title">${moLabel(mo)}</div>` +
+      `<div class="t-row"><span>Spending</span><b>${money(m.monthlySpend[i])}</b></div>` +
+      byCat.map((c) => `<div class="t-row"><span>${esc(c.key)}</span><b>${money(c.total)}</b></div>`).join("") +
+      (inWindow ? "" : `<div class="t-sub">Partial month — excluded from averages</div>`);
+  });
+
+  const wc = el("c-cats");
+  wc.innerHTML = hBarsSVG(cats);
+  attachHover(wc, (i) => {
+    const c = cats[i].ref;
+    return `<div class="t-title">${esc(c.key)}</div>` +
+      `<div class="t-row"><span>Per month</span><b>${money(c.perMonth)}</b></div>` +
+      `<div class="t-row"><span>Total</span><b>${money(c.total)}</b></div>` +
+      `<div class="t-row"><span>Transactions</span><b>${c.n}</b></div>` +
+      `<div class="t-row"><span>Average</span><b>${money(c.total / c.n, true)}</b></div>`;
+  });
+}
+
+/* ------------------------------------------------------------- optimize */
+
+function renderOptimize(view, m) {
+  if (!m.recommendations.length) {
+    view.innerHTML = `<div class="card"><h2>Nothing obvious to cut</h2>
+      <div class="card-note">No fees, no runaway categories, no duplicate subscriptions. That is a good problem.</div></div>`;
+    return;
+  }
+
+  view.innerHTML = `
+    <div class="banner info"><span class="ico">i</span><div>
+      Each item is measured from your own transactions. Drag the slider to say how much of it you would
+      actually do — the total at the bottom follows. Figures marked <i>assumes</i> are the only estimates
+      here; everything else is counted.</div></div>
+    ${m.recommendations.map((r, i) => `
+      <div class="rec${i === 0 ? " top" : ""}">
+        <div class="rec-head">
+          <div style="flex:1;min-width:260px">
+            <div class="rec-title">${esc(r.title)}</div>
+            <div class="rec-meta">
+              <span class="chip mute">${esc(r.tag)}</span>
+              <span class="chip ${r.effort === "Low" ? "good" : r.effort === "Medium" ? "warn" : "crit"}">${r.effort} effort</span>
+            </div>
+          </div>
+          <div class="rec-save">
+            <div class="n">${money(r.annual)}</div>
+            <div class="l">per year on the table</div>
+          </div>
+        </div>
+        <p class="rec-why">${r.why}</p>
+        <ul class="rec-ev">${r.evidence.map((e) => `<li>${e}</li>`).join("")}
+          ${r.assumption ? `<li style="margin-top:6px;font-style:italic;opacity:.85">${esc(r.assumption)}</li>` : ""}</ul>
+        <div class="rec-slider">
+          <span>How much of this will you do?</span>
+          <input type="range" min="0" max="100" step="5" value="${Math.round((state.adopt[r.id] || 0) * 100)}" data-rec="${esc(r.id)}">
+          <span class="pct" id="rp-${esc(r.id)}">${Math.round((state.adopt[r.id] || 0) * 100)}%</span>
+          <span class="muted">&rarr; counting <b style="color:var(--good)" id="rn-${esc(r.id)}">${money(r.annual * (state.adopt[r.id] || 0))}</b>/yr</span>
+        </div>
+      </div>`).join("")}
+
+    <div class="total-bar"><div class="total-inner">
+      <div><div class="lbl">Total identified</div><div class="big" id="totSave">$0</div></div>
+      <div><div class="lbl">Per month</div><div class="big" style="font-size:19px;color:var(--text-bright)" id="totMo">$0</div></div>
+      <div class="proj">
+        <div><div class="lbl">Invested 10 yrs</div><div class="n" id="fv10">$0</div></div>
+        <div><div class="lbl">20 yrs</div><div class="n" id="fv20">$0</div></div>
+        <div><div class="lbl">30 yrs</div><div class="n" id="fv30">$0</div></div>
+      </div>
+    </div>
+    <div class="card-note" style="margin:8px 2px 0">Projection invests the freed-up cash monthly at 8% nominal.
+      Illustrative — not a forecast, and it ignores tax.</div></div>`;
+
+  view.querySelectorAll("input[type=range]").forEach((s) => {
+    s.oninput = () => {
+      const id = s.dataset.rec;
+      state.adopt[id] = +s.value / 100;
+      const r = m.recommendations.find((x) => x.id === id);
+      el("rp-" + id).textContent = s.value + "%";
+      el("rn-" + id).textContent = money(r.annual * state.adopt[id]);
+      updateTotals(m);
+      renderKPIs(m);
+    };
+  });
+  updateTotals(m);
+}
+
+function updateTotals(m) {
+  const total = m.recommendations.reduce((s, r) => s + r.annual * (state.adopt[r.id] || 0), 0);
+  const mo = total / 12;
+  el("totSave").textContent = money(total);
+  el("totMo").textContent = money(mo);
+  el("fv10").textContent = money(futureValue(mo, 10, 0.08));
+  el("fv20").textContent = money(futureValue(mo, 20, 0.08));
+  el("fv30").textContent = money(futureValue(mo, 30, 0.08));
+}
+
+/* ----------------------------------------------------------- categories */
+
+function renderCategories(view, m) {
+  const rows = m.byCategory.map((c) => {
+    const series = monthlySeries(c.txns, m.months);
+    return { c, series };
+  });
+
+  view.innerHTML = `
+    <div class="card">
+      <div class="card-head"><h2>Every category</h2>
+        <span class="muted" style="font-size:12px">${m.byCategory.length} categories · ${m.monthCount}-month window</span></div>
+      <div class="card-note">Trend is the per-month path across the window. Sorted by total.</div>
+      <div class="table-scroll"><table><thead><tr>
+        <th>Category</th><th class="num">Per month</th><th class="num">Total</th>
+        <th class="num">Txns</th><th class="num">Avg</th><th class="num">Share</th><th>Trend</th>
+      </tr></thead><tbody>
+      ${rows.map(({ c, series }) => `<tr>
+        <td class="name">${esc(c.key)}</td>
+        <td class="num">${money(c.perMonth)}</td>
+        <td class="num muted">${money(c.total)}</td>
+        <td class="num muted">${c.n}</td>
+        <td class="num muted">${money(c.total / c.n, true)}</td>
+        <td class="num muted">${(100 * c.total / m.totalSpend).toFixed(1)}%</td>
+        <td>${sparkSVG(series)}</td></tr>`).join("")}
+      </tbody></table></div>
+    </div>
+
+    ${m.spikes.length ? `<div class="card">
+      <h2>Categories running above their own baseline</h2>
+      <div class="card-note">Last ${m.opts.spikeWindow} months versus everything before them.</div>
+      <div class="table-scroll"><table><thead><tr>
+        <th>Category</th><th class="num">Recent</th><th class="num">Baseline</th>
+        <th class="num">Change</th><th class="num">Annualized</th>
+      </tr></thead><tbody>
+      ${m.spikes.map((s) => `<tr>
+        <td class="name">${esc(s.category)}</td>
+        <td class="num">${money(s.recentPM)}/mo</td>
+        <td class="num muted">${money(s.basePM)}/mo</td>
+        <td class="num" style="color:var(--critical)">+${money(s.delta)}/mo (+${Math.round(s.pct * 100)}%)</td>
+        <td class="num">${money(s.delta * 12)}</td></tr>`).join("")}
+      </tbody></table></div></div>` : ""}`;
+}
+
+/* ------------------------------------------------------------ merchants */
+
+function renderMerchants(view, m) {
+  const top = m.byMerchant.slice(0, 30);
+  const bars = top.slice(0, 15).map((g) => ({
+    label: g.key, value: g.perMonth,
+    valueLabel: money(g.perMonth) + "/mo",
+    subLabel: g.n + "×", ref: g,
+  }));
+
+  view.innerHTML = `
+    <div class="card">
+      <div class="card-head"><h2>Top merchants</h2>
+        <span class="muted" style="font-size:12px">Average per complete month</span></div>
+      <div class="card-note">Names are normalized — store numbers, city suffixes and payment-processor
+        prefixes are stripped so the same merchant groups together.</div>
+      <div class="chart-wrap" id="c-merch"></div>
+    </div>
+    <div class="card">
+      <h2>Merchant detail</h2>
+      <div class="card-note">Top 30 by total spend.</div>
+      <div class="table-scroll"><table><thead><tr>
+        <th>Merchant</th><th>Category</th><th class="num">Per month</th><th class="num">Total</th>
+        <th class="num">Txns</th><th class="num">Avg</th><th class="num">Largest</th>
+      </tr></thead><tbody>
+      ${top.map((g) => {
+        const amts = g.txns.map((t) => -t.amount);
+        return `<tr>
+          <td class="name">${esc(g.key)}</td>
+          <td class="muted">${esc(modeOf(g.txns.map((t) => t.category)))}</td>
+          <td class="num">${money(g.perMonth)}</td>
+          <td class="num muted">${money(g.total)}</td>
+          <td class="num muted">${g.n}</td>
+          <td class="num muted">${money(g.total / g.n, true)}</td>
+          <td class="num muted">${money(Math.max(...amts), true)}</td></tr>`;
+      }).join("")}
+      </tbody></table></div>
+    </div>`;
+
+  const w = el("c-merch");
+  w.innerHTML = hBarsSVG(bars);
+  attachHover(w, (i) => {
+    const g = bars[i].ref;
+    return `<div class="t-title">${esc(g.key)}</div>` +
+      `<div class="t-row"><span>Per month</span><b>${money(g.perMonth)}</b></div>` +
+      `<div class="t-row"><span>Total</span><b>${money(g.total)}</b></div>` +
+      `<div class="t-row"><span>Visits</span><b>${g.n}</b></div>` +
+      `<div class="t-row"><span>Average</span><b>${money(g.total / g.n, true)}</b></div>`;
+  });
+}
+
+/* ------------------------------------------------------------ recurring */
+
+function renderRecurring(view, m) {
+  const subs = m.recurring.filter((r) => r.kind === "subscription");
+  const habits = m.recurring.filter((r) => r.kind === "habit").slice(0, 25);
+  const subTotal = subs.reduce((s, r) => s + r.perMonth, 0);
+
+  const rowsFor = (list) => list.map((r) => `<tr>
+    <td class="name">${esc(r.merchant)}</td>
+    <td class="muted">${esc(r.category)}</td>
+    <td class="num">${money(r.median, true)}</td>
+    <td class="muted">${r.cadence}</td>
+    <td class="num">${money(r.perMonth)}</td>
+    <td class="num">${money(r.perMonth * 12)}</td>
+    <td class="num muted">${r.n}</td>
+    <td class="mono muted">${r.lastDate}</td>
+    <td>${r.stale ? '<span class="chip warn">gone quiet</span>'
+        : r.kind === "subscription" ? '<span class="chip mute">steady</span>'
+        : '<span class="chip mute">variable</span>'}</td></tr>`).join("");
+
+  view.innerHTML = `
+    <div class="card">
+      <div class="card-head"><h2>Subscriptions and fixed commitments</h2>
+        <span style="font-size:13px;color:var(--text-bright);font-weight:700">
+          ${money(subTotal)}/mo · ${money(subTotal * 12)}/yr</span></div>
+      <div class="card-note">Merchants charging a steady amount on a steady cadence in at least three
+        months. This is the money that leaves whether you think about it or not.</div>
+      <div class="table-scroll"><table><thead><tr>
+        <th>Merchant</th><th>Category</th><th class="num">Typical</th><th>Cadence</th>
+        <th class="num">Per month</th><th class="num">Per year</th><th class="num">Charges</th>
+        <th>Last seen</th><th>Status</th>
+      </tr></thead><tbody>${subs.length ? rowsFor(subs)
+        : `<tr><td colspan="9" class="muted">No steady-cadence charges detected.</td></tr>`}</tbody></table></div>
+    </div>
+
+    <div class="card">
+      <h2>Recurring but variable</h2>
+      <div class="card-note">Places you go back to constantly where the amount moves around. Not
+        contracts you can cancel — habits you can change. Usually the bigger number of the two.</div>
+      <div class="table-scroll"><table><thead><tr>
+        <th>Merchant</th><th>Category</th><th class="num">Typical</th><th>Cadence</th>
+        <th class="num">Per month</th><th class="num">Per year</th><th class="num">Charges</th>
+        <th>Last seen</th><th>Status</th>
+      </tr></thead><tbody>${rowsFor(habits)}</tbody></table></div>
+    </div>`;
+}
+
+/* ----------------------------------------------------------------- fees */
+
+function renderFees(view, m) {
+  if (!m.fees.total) {
+    view.innerHTML = `<div class="card"><h2>No fees found</h2>
+      <div class="card-note">Nothing in this export matches a fee or interest pattern.</div></div>`;
+    return;
+  }
+  view.innerHTML = `
+    <div class="card">
+      <div class="card-head"><h2>Fees and interest</h2>
+        <span style="font-size:13px;color:var(--critical);font-weight:700">
+          ${money(m.fees.total)} · ${money(m.fees.perMonth)}/mo · ${money(m.fees.perMonth * 12)}/yr</span></div>
+      <div class="card-note">Charges that bought no goods or services. Nearly all of it is avoidable
+        by switching products, using in-network machines, or not carrying a balance.</div>
+      <div class="table-scroll"><table><thead><tr>
+        <th>Kind</th><th class="num">Total</th><th class="num">Charges</th>
+        <th class="num">Annualized</th><th>Examples</th>
+      </tr></thead><tbody>
+      ${m.fees.byKind.map((k) => `<tr>
+        <td class="name">${esc(k.kind)}</td>
+        <td class="num">${money(k.total)}</td>
+        <td class="num muted">${k.n}</td>
+        <td class="num">${money(k.total / m.monthCount * 12)}</td>
+        <td class="muted" style="font-size:12px">${k.examples.map((t) => esc(t.desc.slice(0, 28))).join(" · ")}</td>
+      </tr>`).join("")}
+      </tbody></table></div>
+    </div>
+    <div class="card">
+      <h2>Every fee charged</h2>
+      <div class="table-scroll"><table><thead><tr>
+        <th>Date</th><th>Description</th><th>Kind</th><th>Account</th><th class="num">Amount</th>
+      </tr></thead><tbody>
+      ${m.fees.items.map((i) => `<tr>
+        <td class="mono muted">${i.txn.date}</td>
+        <td class="name">${esc(i.txn.desc)}</td>
+        <td class="muted">${esc(i.kind)}</td>
+        <td class="muted" style="font-size:12px">${esc(i.txn.account)}</td>
+        <td class="num">${money(i.amount, true)}</td></tr>`).join("")}
+      </tbody></table></div>
+    </div>`;
+}
+
+/* --------------------------------------------------------- transactions */
+
+function renderTxns(view, m) {
+  const cats = [...new Set(m.txns.map((t) => t.category))].sort();
+  view.innerHTML = `
+    <div class="card">
+      <h2>All transactions</h2>
+      <div class="card-note">The underlying data, exactly as parsed. Use this to check any figure above.</div>
+      <div class="controls">
+        <input type="text" id="q" placeholder="Search description or merchant" value="${esc(state.q)}" style="min-width:260px">
+        <select id="catf"><option value="">All categories</option>
+          ${cats.map((c) => `<option value="${esc(c)}"${state.cat === c ? " selected" : ""}>${esc(c)}</option>`).join("")}</select>
+        <select id="sortf">
+          <option value="date"${state.sort === "date" ? " selected" : ""}>Newest first</option>
+          <option value="amount"${state.sort === "amount" ? " selected" : ""}>Largest spend first</option>
+        </select>
+        <span class="muted" id="count"></span>
+      </div>
+      <div class="table-scroll"><table><thead><tr>
+        <th>Date</th><th>Description</th><th>Merchant</th><th>Category</th>
+        <th>Account</th><th>Bucket</th><th class="num">Amount</th>
+      </tr></thead><tbody id="tbody"></tbody></table></div>
+      <div style="margin-top:12px"><button class="btn btn-sm" id="more">Show more</button></div>
+    </div>`;
+
+  let limit = 200;
+  const draw = () => {
+    const q = state.q.toLowerCase();
+    let list = m.txns.filter((t) =>
+      (!state.cat || t.category === state.cat) &&
+      (!q || t.desc.toLowerCase().includes(q) || t.merchant.toLowerCase().includes(q)));
+    list = state.sort === "amount"
+      ? list.slice().sort((a, b) => a.amount - b.amount)
+      : list.slice().reverse();
+    el("count").textContent = list.length.toLocaleString() + " matching";
+    el("tbody").innerHTML = list.slice(0, limit).map((t) => `<tr>
+      <td class="mono muted">${t.date}</td>
+      <td class="name">${esc(t.desc)}</td>
+      <td class="muted">${esc(t.merchant)}</td>
+      <td class="muted">${esc(t.category)}</td>
+      <td class="muted" style="font-size:12px">${esc(t.account)}</td>
+      <td><span class="chip mute">${t.bucket}</span></td>
+      <td class="num" style="color:${t.amount < 0 ? "var(--text-bright)" : "var(--good)"}">${money(t.amount, true)}</td>
+    </tr>`).join("");
+    el("more").classList.toggle("hide", list.length <= limit);
+  };
+  el("q").oninput = (e) => { state.q = e.target.value; limit = 200; draw(); };
+  el("catf").onchange = (e) => { state.cat = e.target.value; limit = 200; draw(); };
+  el("sortf").onchange = (e) => { state.sort = e.target.value; draw(); };
+  el("more").onclick = () => { limit += 500; draw(); };
+  draw();
+}
+
+/* ---------------------------------------------------------------- boot */
+if (typeof document !== "undefined" && document.getElementById("drop")) initLoader();
+</script>
+</body>
+</html>

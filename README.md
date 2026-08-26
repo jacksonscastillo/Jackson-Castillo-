@@ -4,6 +4,65 @@ A sophisticated fund analysis tool that evaluates and recommends mutual funds ba
 
 ---
 
+## Budget Optimizer (`budget.html`)
+
+A zero-build, single-file spending analyzer. Drop in a transaction CSV export and it
+breaks down where the money goes, finds the recurring charges, audits fees, and ranks
+what it would be worth to change. Open the file directly in a browser — no server, no
+build step, no dependencies.
+
+**Your data stays yours.** The CSV is parsed in the page and kept in that browser's
+`localStorage`. Nothing is uploaded and no request is made with your transactions. Use
+*Clear stored data* to remove it.
+
+### What it reads
+
+Any export with Date, Description, Amount columns — Monarch, Empower, Mint, Copilot and
+most direct bank exports. Column names are matched fuzzily; `Associated Account`,
+`Category` and `Type` are used when present. Amounts parse in `- $1,234.56`, `($5.00)`
+and bare-number forms.
+
+### What it does
+
+- **Excludes internal movement.** Transfers between your own accounts, credit-card
+  payments and securities trades are money moving, not money spent, and never appear in
+  a spending figure.
+- **Uses complete months only.** A partial month at either end of the export would drag
+  every per-month average down, so rates are computed over full months. Partial months
+  still show in the chart, dimmed.
+- **Separates subscriptions from habits.** A steady amount on a steady cadence is a
+  contract you can cancel. A merchant you visit constantly for varying amounts is a
+  behaviour you can change. They get different tables because they need different
+  decisions. Charges that were monthly and then stopped are flagged *gone quiet* —
+  confirm they were actually cancelled.
+- **Audits fees.** Card annual fees, interest, balance-transfer fees, out-of-network ATM
+  charges and service fees, bucketed by kind. Patterns are word-anchored, so "COFFEE" is
+  not read as a fee.
+- **Ranks cuts with dollars attached.** Every recommendation cites the transactions
+  behind it. Estimates are labelled as estimates; everything else is counted. A slider
+  per item sets how much of it you would actually do, and the total follows.
+
+### Two things it deliberately will not do
+
+- **It never tells you to cut protection.** Insurance, healthcare, tuition, housing and
+  debt principal are reported and charted, and a spike in them is flagged as information
+  — but they never become a "savings opportunity".
+- **It never double-counts.** Several rules can point at the same category — a
+  cut-dining item and a delivery-markup item are partly the same dollars. Claims on one
+  category are capped at a share of that category, largest first, so the headline total
+  is a number you could actually realize.
+
+If recorded income does not cover recorded spending, the page says so and suppresses
+savings-rate figures rather than reporting a wrong one — usually it means a paycheck
+lands in an account that was not part of the export.
+
+### Tests
+
+`node --test tests/budget.test.mjs` — the engine functions are sliced out of the page's
+`<script>` block and run directly, so the tests exercise the exact source that ships.
+
+---
+
 ## DeMark Sequential — Robinhood Agentic Desk (`demark-trading.html`)
 
 A zero-build, single-file tool that runs the **TD (DeMark) Sequential** indicator on
