@@ -36,6 +36,8 @@ Card System. Everything below is a term of art and must be used exactly:
 
 ## What it must do
 
+0. **Hand out the link.** A share control that copies the page URL, because the
+   link is how the office joins.
 1. **Log a day** in two taps. Two counters — fact finders set, qualified suspects
    obtained — with big steppers, progress rings, and immediate feedback the
    moment the day is kept.
@@ -49,22 +51,29 @@ Card System. Everything below is a term of art and must be used exactly:
 
 ## Technical requirements
 
-- **One self-contained HTML file.** No build step, no framework, no external JS.
-  Google Fonts is the only outside resource.
-- **Shared across phones** through the artifact `db` capability, one document per
-  person under `charts/`, live via `onSnapshot` so a box someone else fills shows
-  up on everyone's phone within seconds — no polling, no refresh button needed.
+- **One self-contained, standalone HTML file** that opens from a plain URL — it
+  ships on this repo's GitHub Pages site, and the office gets that link. No build
+  step, no framework, no external JS. Google Fonts is the only outside resource.
+  Not a Claude artifact.
+- **Shared across phones** through the same Supabase project the dashboard and
+  the Granum game already use, one row per person in `two_by_four_cards`. Talk to
+  PostgREST with the browser's own `fetch` and the public anon key, exactly as
+  `granum-game.html` does: no SDK for a content blocker to break, and no realtime
+  WebSocket, which Safari and office wifi often drop. Poll to stay live. Ship a
+  one-time `two-by-four-schema.sql` alongside it.
 - **Robust when the network isn't.** Render from a local cache instantly on open;
-  keep working and keep logging when `claude.use("db")` resolves `null` or a
-  write fails; merge remote and local day-by-day on the newer timestamp so two
-  phones logging the same person never lose an entry; debounce writes; retry with
-  backoff; show sync state honestly instead of pretending.
+  keep working and keep logging when the board is unreachable; merge remote and
+  local day-by-day on the newer timestamp so two phones logging the same person
+  never lose an entry; debounce writes; retry connection failures with backoff
+  but never retry a request the server rejected outright; show sync state
+  honestly instead of pretending.
 - **Built for a phone.** Safe-area insets, 16px inputs so iOS doesn't zoom,
   `touch-action: manipulation`, no horizontal scroll at 320px, real 44px+ touch
   targets, haptics, and a bottom tab bar that clears the home indicator.
 - **Identity** is a name plus a 4-digit PIN, hashed with SHA-256. Say plainly in
-  the app that this keeps charts from being opened by accident and is not a
-  security lock.
+  the app that this keeps cards from being opened by accident and is not a
+  security lock — the page is on the open web, the link is what keeps it private,
+  and only activity counts belong in it, never client names.
 
 ## Design direction
 

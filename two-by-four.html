@@ -1,9 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
 <!--
   Two by Four — Fixed Activity Commitment card, shared by the office.
-  Published as a Claude Artifact with the `db` capability; this file is the
-  artifact body (the host supplies doctype, head and viewport).
+  A standalone page. Open it from GitHub Pages on any phone; the office shares
+  one board through Supabase. Run two-by-four-schema.sql once to set it up.
   Build brief: two-by-four-prompt.md
 -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#4E6C9E">
+<meta name="description" content="Set two fact finders, obtain four qualified suspects, fill a box. The office fills its cards together.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Two by Four">
 <title>Two by Four</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -483,6 +494,8 @@ textarea.csvbox{width:100%;height:150px;font-family:var(--mono);font-size:11.5px
   #sky i{animation:none}
 }
 </style>
+</head>
+<body>
 
 <div id="sky" aria-hidden="true"><i class="g1"></i><i class="g2"></i><i class="g3"></i></div>
 
@@ -697,29 +710,71 @@ var Local={
   del:function(k){ try{localStorage.removeItem(k)}catch(e){} }
 };
 
+/* The office board lives in the same Supabase project the dashboard and the
+   Granum game use. Run two-by-four-schema.sql once in the SQL editor.
+   We talk to PostgREST with the browser's own fetch: no SDK to download, so a
+   content blocker cannot break it, and no realtime WebSocket, which Safari and
+   corporate wifi often drop. Polling keeps the board live instead. */
+var SUPABASE_URL  = "https://hbnndxrmggvbhcedilpn.supabase.co";
+var SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhibm5keHJtZ2d2YmhjZWRpbHBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5MTgzMjcsImV4cCI6MjA5NDQ5NDMyN30.r6_1yVZ_x1clNPJEPsyQ5IwLWLWO6p4PIOP_gQoaZEQ";
+var TABLE = "two_by_four_cards";
+var REST  = SUPABASE_URL + "/rest/v1/" + TABLE;
+/* This project's PostgREST defaults to the "api" schema but the table lives in
+   "public", so every request names the schema explicitly. PostgREST ignores
+   whichever profile header does not apply to the method. */
+var SB_HEADERS = {"apikey":SUPABASE_ANON, "Authorization":"Bearer "+SUPABASE_ANON,
+  "Content-Type":"application/json", "Accept-Profile":"public", "Content-Profile":"public"};
+var POLL_MS = 10000, FETCH_TIMEOUT = 9000;
+
+function rowToUser(r){
+  var days={};
+  try{ days = (typeof r.days==='string') ? JSON.parse(r.days) : (r.days||{}); }catch(e){ days={}; }
+  if(!days||typeof days!=='object') days={};
+  return {id:r.card_id, name:r.name, team:r.team||'', role:r.role==='manager'?'manager':'advisor',
+    joined:r.joined||todayStr(), pinHash:r.pin_hash||'', pinAlg:r.pin_alg||'',
+    days:days, resetAt:+r.reset_at||0, updated:r.updated_at?Date.parse(r.updated_at):0};
+}
+function userToRow(u){
+  return {card_id:u.id, name:u.name, team:u.team||'', role:u.role||'advisor',
+    joined:u.joined||todayStr(), pin_hash:u.pinHash||'', pin_alg:u.pinAlg||'',
+    days:u.days||{}, reset_at:u.resetAt||0, updated_at:new Date().toISOString()};
+}
+
 var Cloud={
-  db:null, ready:false, unsub:null,
-  async connect(){
+  online:false, poll:null, has:(typeof fetch==='function'),
+  async req(path,opts){
+    var ctrl = (typeof AbortController!=='undefined') ? new AbortController() : null;
+    var timer = ctrl ? setTimeout(function(){ try{ctrl.abort()}catch(e){} }, FETCH_TIMEOUT) : null;
     try{
-      if(typeof claude==='undefined'||!claude||typeof claude.use!=='function') return false;
-      this.db=await claude.use('db');
-    }catch(e){ this.db=null; }
-    this.ready=!!this.db;
-    return this.ready;
+      var res = await fetch(REST+path, Object.assign({cache:'no-store',
+        signal: ctrl?ctrl.signal:undefined}, opts||{}));
+      if(!res.ok){
+        var body=''; try{ body=(await res.text()).slice(0,220) }catch(e){}
+        var err=new Error('HTTP '+res.status+(body?' — '+body:''));
+        err.status=res.status; throw err;
+      }
+      return res;
+    } finally { if(timer) clearTimeout(timer); }
   },
-  col(){ return this.db.collection('charts'); },
-  async put(u){ await this.col().doc(u.id).set(u); },
-  async remove(id){ await this.col().doc(id).delete(); },
-  watch(onRows,onErr){
-    if(!this.ready) return;
-    if(this.unsub){ try{this.unsub()}catch(e){} }
-    this.unsub=this.col().onSnapshot(function(snap){
-      var out=[];
-      snap.docs.forEach(function(d){
-        var v=d.data(); if(v&&v.id&&v.name) out.push(v);
-      });
-      onRows(out);
-    }, onErr);
+  async fetchAll(){
+    var res=await this.req('?select=*',{headers:SB_HEADERS});
+    var data=await res.json();
+    return (data||[]).filter(function(r){ return r&&r.card_id&&r.name }).map(rowToUser);
+  },
+  async fetchOne(id){
+    var res=await this.req('?select=*&card_id=eq.'+encodeURIComponent(id),{headers:SB_HEADERS});
+    var data=await res.json();
+    return (data&&data[0]) ? rowToUser(data[0]) : null;
+  },
+  async put(u){
+    await this.req('?on_conflict=card_id',{
+      method:'POST',
+      headers:Object.assign({},SB_HEADERS,{'Prefer':'resolution=merge-duplicates, return=minimal'}),
+      body:JSON.stringify(userToRow(u))
+    });
+  },
+  async remove(id){
+    await this.req('?card_id=eq.'+encodeURIComponent(id),{method:'DELETE',headers:SB_HEADERS});
   }
 };
 
@@ -785,33 +840,52 @@ function adoptRows(rows,announce){
   }
 }
 
+var _firstPull=true, _pulling=false;
+async function refresh(manual){
+  if(!Cloud.has||_pulling) return;
+  _pulling=true;
+  try{
+    var rows=await Cloud.fetchAll();
+    Cloud.online=true; hideBanner();
+    adoptRows(rows,!_firstPull);
+    _firstPull=false;
+    if(!State.dirty&&!State.saving) setSync('ok','Live');
+    if(manual) toast('Board updated');
+  }catch(e){
+    Cloud.online=false;
+    setSync('off','Offline');
+    showBanner('Cannot reach the office board. Everything you log is kept on this phone and syncs when the connection is back.');
+    if(manual) toast('Still cannot reach the board.');
+  } finally {
+    _pulling=false;
+    try{ render() }catch(e){}
+  }
+}
+function startPoll(){
+  clearInterval(Cloud.poll);
+  Cloud.poll=setInterval(function(){
+    if(document.visibilityState!=='visible') return;
+    if(State.dirty||State.saving) return;
+    refresh(false);
+  }, POLL_MS);
+}
 async function boot(){
   State.prefs=Object.assign(State.prefs, Local.get(LS.prefs,{})||{});
-  var cached=Local.get(LS.cache,[])||[];
-  adoptRows(cached,false);
+  adoptRows(Local.get(LS.cache,[])||[], false);
   var meRef=Local.get(LS.me,null);
   if(meRef&&meRef.id&&State.users[meRef.id]) State.me=State.users[meRef.id];
   State.booting=false;
   setSync('busy','Connecting');
   render();
 
-  var ok=await Cloud.connect();
-  if(!ok){
+  if(!Cloud.has){
     setSync('off','On this phone');
-    showBanner('Not connected to the office. Everything you log is kept on this phone and will not show in the standings.');
+    showBanner('This browser cannot reach the office board. Everything you log is kept on this phone only.');
     render();
     return;
   }
-  var first=true;
-  Cloud.watch(function(rows){
-    adoptRows(rows,!first);
-    first=false;
-    if(!State.dirty&&!State.saving) setSync('ok','Synced');
-    render();
-  }, function(e){
-    setSync('off', e&&e.code==='revoked'?'No access':'Sync paused');
-    render();
-  });
+  await refresh(false);
+  startPoll();
 }
 
 var saveTimer=null;
@@ -824,12 +898,13 @@ function scheduleSave(){
 async function saveMe(attempt){
   if(!State.me) return;
   cacheUsers();
-  if(!Cloud.ready){ State.dirty=false; setSync('off','On this phone'); return; }
+  if(!Cloud.has){ State.dirty=false; setSync('off','On this phone'); return; }
   State.saving=true;
   try{
-    var snap=await Cloud.col().doc(State.me.id).get();
-    var remote=snap.exists?snap.data():null;
-    if(remote&&remote.days){
+    /* Read the row back first so a day logged on another phone survives this
+       write. Days merge one at a time on the newer timestamp, never wholesale. */
+    var remote=await Cloud.fetchOne(State.me.id);
+    if(remote){
       var resetAt=Math.max(State.me.resetAt||0, remote.resetAt||0);
       State.me.days=mergeDays(remote.days,State.me.days,resetAt);
       if(resetAt) State.me.resetAt=resetAt;
@@ -839,21 +914,25 @@ async function saveMe(attempt){
     State.me.updated=Date.now();
     await Cloud.put(State.me);
     State.users[State.me.id]=State.me;
-    State.dirty=false; setSync('ok','Synced');
-    cacheUsers();
+    State.dirty=false; Cloud.online=true; hideBanner();
+    setSync('ok','Live'); cacheUsers();
   }catch(e){
-    var code=e&&e.code;
-    if(code==='invalid_argument'||code==='quota_exceeded'||code==='revoked'||code==='not_granted'){
+    /* 4xx other than 401/403 means the request itself is wrong, so retrying
+       cannot help. Anything else is treated as a connection problem. */
+    var st=e&&e.status;
+    var permanent = st && st>=400 && st<500 && st!==401 && st!==403 && st!==408 && st!==429;
+    if(permanent){
       State.dirty=false; setSync('off','Not saved');
-      toast(code==='quota_exceeded'?'The office card store is full. Ask management to remove old charts.'
-                                   :'Could not save to the office. Your entries are safe on this phone.');
+      toast('The board rejected that save. Your entries are safe on this phone.');
+      try{ console.error('[two by four save]', e.message) }catch(_){}
     } else if(attempt<3){
-      setTimeout(function(){saveMe(attempt+1)}, 1200*Math.pow(2,attempt));
+      setTimeout(function(){ saveMe(attempt+1) }, 1200*Math.pow(2,attempt));
     } else {
-      setSync('off','Not saved');
-      toast('Still cannot reach the office. Your entries are safe on this phone.');
+      Cloud.online=false; setSync('off','Offline');
+      showBanner('Cannot reach the office board. Everything you log is kept on this phone and syncs when the connection is back.');
+      toast('Saved on this phone. It will reach the board when you are back online.');
     }
-  } finally { State.saving=false; render(); }
+  } finally { State.saving=false; try{ render() }catch(e){} }
 }
 function savePrefs(){ Local.set(LS.prefs,State.prefs); }
 
@@ -971,7 +1050,7 @@ function viewOnboarding(){
   }
   return '<section class="sheet"><div class="eyebrow">Fixed activity commitment</div>'+
     '<h1 class="ob-title">Two by four</h1>'+
-    '<p class="ob-lede">Set two fact finders. Obtain four qualified suspects. Do both in a day and one box on your card is stamped with the date. There are two hundred boxes and the whole office is filling them at once.</p>'+
+    '<p class="ob-lede">Set two fact finders. Obtain four qualified suspects. Do both in a day and one box on your card is stamped with the date. There are two hundred boxes, and everyone who opens this link is filling theirs at the same time.</p>'+
     '<div class="ob-card"><div class="ob-grid" aria-hidden="true">'+demo+'</div>'+
       '<div class="ob-cap"><span>200 working days</span><span>example card</span></div></div>'+
     form+'</section>'+
@@ -1013,7 +1092,8 @@ async function createUser(){
   State.users[id]=user; State.me=user; State.view='today'; State.ob=null;
   Local.set(LS.me,{id:id}); cacheUsers();
   render(); toast('Your card is ready.');
-  if(Cloud.ready){ try{ await Cloud.put(user); setSync('ok','Synced'); }catch(e){ setSync('off','Not saved'); } }
+  if(Cloud.has){ try{ await Cloud.put(user); Cloud.online=true; setSync('ok','Live'); }
+                 catch(e){ setSync('off','Offline'); } }
 }
 async function openExisting(){
   var ob=State.ob; ob.err='';
@@ -1132,7 +1212,7 @@ function officePulse(){
   if(!meIn) dots+='<i class="me"></i>';
   var total=board.length+(meIn?0:1);
   return '<section class="sheet night"><div class="split"><div class="eyebrow">Office today</div>'+
-    '<span class="muted" style="font-size:11.5px">'+(Cloud.ready?'Live':'Not connected')+'</span></div>'+
+    '<button class="link" data-act="refresh">'+(Cloud.online?'Refresh':'Reconnect')+'</button></div>'+
     '<div class="pulse"><div class="pulse-dots">'+dots+'</div>'+
     '<div class="pulse-text">'+keptN+' of '+total+' kept</div></div>'+
     '<div class="gap-line">'+gapLine(board)+'</div></section>';
@@ -1219,13 +1299,14 @@ function viewRace(){
     : 'Boxes stamped on the two hundred day card.';
   return '<section class="sheet night">'+
     '<div class="split"><h1 style="font-size:27px">Standings</h1>'+
-    '<span class="muted" style="font-size:11.5px">'+(Cloud.ready?'Live':'Not connected')+'</span></div>'+
+    '<span class="muted" style="font-size:11.5px">'+(Cloud.online?'Live':'Offline')+'</span></div>'+
     '<div class="gap-line">'+gapLine(leaderboard(allUsers(),today,'boxes'))+'</div>'+
     '<div class="seg">'+seg+'</div>'+
     '<div class="lanes">'+(lanes||'<p class="help mt16">No one has filled a box yet. Yours could be first.</p>')+'</div>'+
     '<p class="help mt16">'+note+'</p>'+
     '<div class="split mt16"><button class="btn small" data-act="copyStandings">Copy standings</button>'+
-    '<span class="muted" style="font-size:11.5px">Tap a name for their card</span></div></section>';
+    '<button class="btn small" data-act="share">Share the link</button></div>'+
+    '<p class="muted mt10" style="font-size:11.5px">Tap a name for their card.</p></section>';
 }
 function copyStandings(){
   var today=todayStr(), board=leaderboard(allUsers(),today,'boxes');
@@ -1234,6 +1315,15 @@ function copyStandings(){
     lines.push(r.rank+'. '+r.user.name+' — '+plural(r.value,'box','boxes')+', streak '+r.stats.streak+', '+r.stats.rate.pct+'%');
   });
   copyText(lines.join('\n'),'Standings copied');
+}
+function shareLink(){
+  var url=location.origin+location.pathname;
+  if(navigator.share){
+    navigator.share({title:'Two by Four', text:'Our office card. Two fact finders, four qualified suspects, one box a day.', url:url})
+      .catch(function(){ copyText(url,'Link copied') });
+    return;
+  }
+  copyText(url,'Link copied');
 }
 function copyText(text,okMsg){
   var fallback=function(){
@@ -1269,6 +1359,8 @@ function viewOffice(){
           '<div class="nums"><div>'+r.stats.boxes+'<small>Boxes</small></div>'+
           '<div>'+r.stats.streak+'<small>Streak</small></div></div></div>';
       }).join('')||'<p class="help mt16">No cards yet.</p>')+'</div>'+
+      '<div class="split mt16"><span class="help">Everyone opens the same link.</span>'+
+      '<button class="btn small" data-act="share">Share the link</button></div>'+
       '<div class="rule"></div>'+
       '<div class="field"><label>Management code</label><input id="mgmtCode" inputmode="numeric" placeholder="Code" autocomplete="off"></div>'+
       '<div class="err" id="mgmtErr"></div>'+
@@ -1317,7 +1409,8 @@ function viewOffice(){
              'Activity points this month:  '+fmtPts(mp)+' of '+(MONTH_EFFICIENCY*rows.length)+'\n'+
              'Projected clients at 10:3:1: '+Math.floor(rows.reduce(function(a,r){return a+r.stats.all.qs},0)/10);
   return '<section class="sheet"><div class="split"><h1 style="font-size:27px">Management</h1>'+
-    '<div style="display:flex;gap:14px"><button class="link" data-act="export">Export CSV</button></div></div>'+
+    '<div style="display:flex;gap:14px"><button class="link" data-act="share">Share link</button>'+
+    '<button class="link" data-act="export">Export CSV</button></div></div>'+
     '<div class="tiles">'+
       '<div class="tile"><b>'+rows.length+'</b><span>Cards</span></div>'+
       '<div class="tile"><b>'+keptN+'</b><span>Kept today</span></div>'+
@@ -1392,10 +1485,10 @@ async function saveResetPin(id){
   if(!/^\d{4}$/.test(pin)){ $('#pinErr').textContent='PIN must be four digits.'; return; }
   var latest=State.users[id]; if(!latest)return;
   try{
-    if(Cloud.ready){ var snap=await Cloud.col().doc(id).get(); if(snap.exists) latest=snap.data(); }
+    if(Cloud.has){ var fresh=await Cloud.fetchOne(id); if(fresh) latest=fresh; }
     var ph=await hashPin(pin,id);
     latest.pinHash=ph.hash; latest.pinAlg=ph.alg; latest.updated=Date.now();
-    if(Cloud.ready) await Cloud.put(latest);
+    if(Cloud.has) await Cloud.put(latest);
     State.users[id]=latest; cacheUsers();
     closeModal(); toast('PIN updated for '+latest.name);
   }catch(e){ $('#pinErr').textContent='Could not save. Try again.'; }
@@ -1403,7 +1496,7 @@ async function saveResetPin(id){
 async function removeUser(id){
   var u=State.users[id]; if(!u)return;
   try{
-    if(Cloud.ready) await Cloud.remove(id);
+    if(Cloud.has) await Cloud.remove(id);
     delete State.users[id]; cacheUsers(); render(); toast(u.name+' removed');
   }catch(e){ toast('Could not remove that card.'); }
 }
@@ -1445,9 +1538,9 @@ function viewMe(){
     '<p class="help mt10">The Fixed Activity Commitment Chart asks for one commitment you fully control, kept for two hundred working days. Activity × (Validation + Good Attitudes) = Results: activity you control produces validation, validation produces a good attitude, and the attitude produces results.</p>'+
     '<p class="help mt10">Here the commitment is set '+TARGET.ff+' fact finders and obtain '+TARGET.qs+
       ' qualified suspects. Do both and the day is stamped. Do one and the box stays open.</p>'+
-    '<p class="help mt10">Your PIN keeps a card from being opened by someone else by accident. It is not a security lock, and anyone in the office who opens this link can see every card.</p>'+
+    '<p class="help mt10">Your PIN keeps a card from being opened by someone else by accident. It is not a security lock. The page is on the open web, so treat the link as the thing that keeps this private: anyone who has it can see every card in the office. Log activity counts here, never client names.</p>'+
     '<div class="rule"></div><div class="split">'+
-      '<span class="muted" style="font-size:11.5px">'+(Cloud.ready?'Shared with everyone on this link':'Kept on this phone only')+'</span>'+
+      '<span class="muted" style="font-size:11.5px">'+(Cloud.online?'Shared with everyone on this link':'Kept on this phone only')+'</span>'+
       '<button class="btn small danger" data-act="resetCard">Reset my card</button></div></section>';
 }
 function openDefs(){
@@ -1515,6 +1608,7 @@ function toast(msg,ms){
     setTimeout(function(){t.remove()},320); }, ms||2800);
 }
 function showBanner(text){ var b=$('#banner'); b.textContent=text; b.style.display='block'; }
+function hideBanner(){ var b=$('#banner'); if(b) b.style.display='none'; }
 function setSync(state,text){
   State.sync=state;
   var el=$('#sync'); if(!el)return;
@@ -1619,6 +1713,8 @@ document.addEventListener('click',async function(e){
     case 'metric': State.metric=d.m; render(); break;
     case 'user': openUserDetail(d.id); break;
     case 'copyStandings': copyStandings(); break;
+    case 'share': shareLink(); break;
+    case 'refresh': refresh(true); break;
     case 'closeModal': closeModal(); break;
     case 'toggleSound': State.prefs.sound=!State.prefs.sound; savePrefs(); render();
       if(State.prefs.sound) Sfx.tick(); break;
@@ -1676,3 +1772,5 @@ window.addEventListener('beforeunload',function(){ if(State.dirty) cacheUsers();
 
 boot();
 </script>
+</body>
+</html>

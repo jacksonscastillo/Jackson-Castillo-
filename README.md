@@ -135,19 +135,36 @@ kept day stamped, plus the 30-box vacation and training grids), **Standings**
 **Office** (management view behind a code — who logged today, who hasn't,
 streaks, rates, weekly totals, CSV export, PIN reset), and **Me**.
 
-Unlike the other pages here, this one is not opened from the filesystem. It is
-published as a Claude Artifact with the `db` capability, which is what lets a
-whole office share one set of cards, so the file is written as an artifact body —
-the host supplies the doctype, head, and viewport. Everything else is
-self-contained: no build step, no framework, no external JavaScript.
+Like the other pages here it is one standalone HTML file with no build step, no
+framework, and no external JavaScript. It ships on this repo's GitHub Pages site;
+the office opens the same URL on their phones.
 
-- One document per person under `charts/`, live via `onSnapshot`, so a box
-  someone fills shows up on everyone else's phone within seconds.
-- Renders from a local cache instantly on open, keeps working when the shared
-  store is unavailable, and merges remote and local day by day on the newer
-  timestamp so two phones logging the same person never lose an entry.
-- Identity is a name plus a 4-digit PIN hashed with SHA-256. The PIN keeps a card
-  from being opened by accident; it is not a security lock, and the app says so.
+### Setup
+
+Run [`two-by-four-schema.sql`](two-by-four-schema.sql) once in the Supabase SQL
+editor — the same project the dashboard and the Granum game use. That creates
+`two_by_four_cards` with its policies and grants. Nothing else to configure.
+
+### How the sharing works
+
+- One row per person, the whole card held as a `days` JSON object keyed by date.
+- The page talks to PostgREST with the browser's own `fetch` and the public anon
+  key, the same approach `granum-game.html` uses: no SDK for a content blocker to
+  break, and no realtime WebSocket, which Safari and office wifi often drop. The
+  board stays live by polling every 10 seconds while the tab is visible.
+- It renders from a local cache instantly on open, keeps working and keeps
+  logging when the board is unreachable, and merges remote and local day by day
+  on the newer timestamp so two phones logging the same person never lose an
+  entry. Writes are debounced, connection failures retry with backoff, and a
+  request the server rejects outright is not retried.
+
+### What not to put in it
+
+Identity is a name plus a 4-digit PIN hashed with SHA-256. The PIN keeps a card
+from being opened by someone else by accident; it is not a security lock and is
+not enforced server-side. The page is on the open web and the anon key ships in
+it, so the URL is what keeps the board private. Activity counts only — never
+client names or contact details.
 
 The brief it was built from is in [`two-by-four-prompt.md`](two-by-four-prompt.md).
 
