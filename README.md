@@ -120,6 +120,37 @@ npm test        # or: node --test
 
 CI runs the same suite on every push and pull request (`.github/workflows/test.yml`).
 
+## Two by Four — Fixed Activity Commitment card (`two-by-four.html`)
+
+A shared daily-activity tracker for the whole office, built to run on everyone's
+phone from one link. It implements O. Alfred Granum's Fixed Activity Commitment
+Chart from the One Card System: **set 2 fact finders and obtain 4 qualified
+suspects** in a day, and one box of a 200-box card is stamped with the date.
+Do one of the two and the box stays open.
+
+Five views: **Today** (two counters with rings and steppers, seven-day back-fill,
+vacation and training days that protect a streak), **Card** (the 200 boxes, each
+kept day stamped, plus the 30-box vacation and training grids), **Standings**
+(live leaderboard by boxes, streak, kept rate, or monthly activity points),
+**Office** (management view behind a code — who logged today, who hasn't,
+streaks, rates, weekly totals, CSV export, PIN reset), and **Me**.
+
+Unlike the other pages here, this one is not opened from the filesystem. It is
+published as a Claude Artifact with the `db` capability, which is what lets a
+whole office share one set of cards, so the file is written as an artifact body —
+the host supplies the doctype, head, and viewport. Everything else is
+self-contained: no build step, no framework, no external JavaScript.
+
+- One document per person under `charts/`, live via `onSnapshot`, so a box
+  someone fills shows up on everyone else's phone within seconds.
+- Renders from a local cache instantly on open, keeps working when the shared
+  store is unavailable, and merges remote and local day by day on the newer
+  timestamp so two phones logging the same person never lose an entry.
+- Identity is a name plus a 4-digit PIN hashed with SHA-256. The PIN keeps a card
+  from being opened by accident; it is not a security lock, and the app says so.
+
+The brief it was built from is in [`two-by-four-prompt.md`](two-by-four-prompt.md).
+
 ## Features
 
 - **Account Type Selection**: Toggle between Taxable Brokerage and Roth IRA accounts
