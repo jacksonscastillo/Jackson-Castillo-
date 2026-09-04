@@ -120,6 +120,63 @@ npm test        # or: node --test
 
 CI runs the same suite on every push and pull request (`.github/workflows/test.yml`).
 
+## Two by Four — Fixed Activity Commitment card (`two-by-four.html`)
+
+A shared daily-activity tracker for the whole office, built to run on everyone's
+phone from one link. It implements O. Alfred Granum's Fixed Activity Commitment
+Chart from the One Card System: **set 2 fact finders and obtain 4 qualified
+suspects** in a day, and one box of a 200-box card is stamped with the date.
+Do one of the two and the box stays open.
+
+Five views: **Today** (two counters with rings and steppers, seven-day back-fill,
+vacation and training days that protect a streak), **Card** (the 200 boxes, each
+kept day stamped, plus the 30-box vacation and training grids), **Standings**
+(live leaderboard by boxes, streak, kept rate, or monthly activity points),
+**Office** (management view behind a code — who logged today, who hasn't,
+streaks, rates, weekly totals, CSV export, PIN reset), and **Me**.
+
+Like the other pages here it is one standalone HTML file with no build step, no
+framework, and no external JavaScript. It ships on this repo's GitHub Pages site;
+the office opens the same URL on their phones.
+
+### Setup
+
+Run [`two-by-four-schema.sql`](two-by-four-schema.sql) once in the Supabase SQL
+editor — the same project the dashboard and the Granum game use. That creates
+`two_by_four_cards` with its policies and grants. Nothing else to configure.
+
+**If the project is paused, restore it first.** Supabase pauses free-plan
+projects after about a week of inactivity, and a paused project has no database
+to talk to — the SQL editor won't run and every phone shows "Offline". The
+dashboard shows a Restore button on the project card. This is also why the
+Granum game board goes dead after a quiet stretch; both apps share the project.
+Normal daily use keeps it awake on its own, since the page polls while anyone
+has it open. A quiet week does not, so if an unexplained dead board would kill
+the habit, that project wants the Pro plan, which does not auto-pause.
+
+### How the sharing works
+
+- One row per person, the whole card held as a `days` JSON object keyed by date.
+- The page talks to PostgREST with the browser's own `fetch` and the public anon
+  key, the same approach `granum-game.html` uses: no SDK for a content blocker to
+  break, and no realtime WebSocket, which Safari and office wifi often drop. The
+  board stays live by polling every 10 seconds while the tab is visible.
+- It renders from a local cache instantly on open, keeps working and keeps
+  logging when the board is unreachable, and merges remote and local day by day
+  on the newer timestamp so two phones logging the same person never lose an
+  entry. Writes are debounced, connection failures retry with backoff, and a
+  request the server rejects outright is not retried.
+
+### What not to put in it
+
+Identity is a name plus a 4-digit PIN hashed with SHA-256. The PIN keeps a card
+from being opened by someone else by accident; it is not a security lock and is
+not enforced server-side. The page is on the open web and the anon key ships in
+it, so the URL is what keeps the board private. Activity counts only — never
+client names or contact details.
+
+The brief it was built from is in [`two-by-four-prompt.md`](two-by-four-prompt.md).
+
 ## Features
 
 - **Account Type Selection**: Toggle between Taxable Brokerage and Roth IRA accounts
