@@ -42,6 +42,35 @@ and bare-number forms.
   behind it. Estimates are labelled as estimates; everything else is counted. A slider
   per item sets how much of it you would actually do, and the total follows.
 
+### Monthly tracking
+
+The **Monthly** tab is built for a recurring review. Each month sits against two
+baselines: the month immediately before it, and the running average of every month that
+preceded it. The running baseline never includes the month being judged, so an expensive
+month cannot flatter itself by raising its own bar. *What moved* attributes the change to
+individual categories, and *Category trend* is a month-by-month grid for spotting drift
+that no single month makes obvious.
+
+Re-export and drop the file in each month. Months are recomputed from the whole file, so
+a fresh export simply extends the history — there is nothing to reconcile.
+
+### Balances and net worth
+
+The same drop zone also takes an accounts/balances export (one row per account with a
+balance column). The **Balances** tab reports assets, what you owe, net worth, and how
+many months of current spending your actual cash would cover. Credit-card balances are
+read as liabilities even though exports state them as positive numbers, and any account
+your institution has flagged is surfaced rather than buried.
+
+Each balances file is stored as a dated snapshot, so dropping one a month builds a
+net-worth history in place. Re-uploading the same date replaces that snapshot instead of
+double-counting it. Balances and transactions are tracked independently — you can update
+one without re-adding the other.
+
+When balances are loaded, the debt recommendation is sized from the actual card balance
+at an assumed APR rather than from whatever interest happened to be charged during the
+window, which promotional rates can otherwise hide.
+
 ### Two things it deliberately will not do
 
 - **It never tells you to cut protection.** Insurance, healthcare, tuition, housing and
@@ -58,8 +87,9 @@ lands in an account that was not part of the export.
 
 ### Tests
 
-`node --test tests/budget.test.mjs` — the engine functions are sliced out of the page's
-`<script>` block and run directly, so the tests exercise the exact source that ships.
+`node --test` — the engine functions are sliced out of the page's `<script>` block and run
+directly, so the tests exercise the exact source that ships. Spending engine in
+`tests/budget.test.mjs`; monthly tracking and balances in `tests/budget-monthly.test.mjs`.
 
 ---
 

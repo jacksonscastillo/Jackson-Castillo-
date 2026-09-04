@@ -226,7 +226,7 @@ td.mono { white-space:nowrap; }
         <span class="mono">Category</span>, <span class="mono">Amount</span> columns
         (Monarch, Empower, Mint, Copilot, most bank exports).</p>
       <button class="btn btn-primary" id="pick">Choose CSV file</button>
-      <input type="file" id="file" accept=".csv,text/csv" class="hide">
+      <input type="file" id="file" accept=".csv,text/csv" class="hide" multiple>
       <div id="loadErr" style="margin-top:14px"></div>
     </div>
   </div>
@@ -347,12 +347,22 @@ function mapColumns(header) {
   return out;
 }
 
-/** Parse a date cell into {iso, time} or null. Accepts ISO and US m/d/y. */
+const MONTH_NAMES = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+
+/**
+ * Parse a date cell into {iso, time, day} or null. Accepts ISO, US m/d/y, and
+ * the "Sep 3, 2026" form that balances exports use.
+ */
 function parseDate(raw) {
   const s = String(raw || "").trim();
   let y, m, d;
   let mt = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
   if (mt) { y = +mt[1]; m = +mt[2]; d = +mt[3]; }
+  else if ((mt = s.match(/^([A-Za-z]{3,9})\.?\s+(\d{1,2}),?\s+(\d{4})/))) {
+    m = MONTH_NAMES.indexOf(mt[1].slice(0, 3).toLowerCase()) + 1;
+    if (m === 0) return null;
+    d = +mt[2]; y = +mt[3];
+  }
   else {
     mt = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})/);
     if (!mt) return null;
@@ -681,7 +691,7 @@ const MEMBERSHIP_CATS = /personal care|dues|subscription|online service|entertai
 /** Build the whole analysis model from a transaction list. */
 function analyze(txns, cfg) {
   const opts = Object.assign(
-    { deliveryPremium: 0.30, spikeWindow: 3, categoryShare: 0.4 }, cfg || {});
+    { deliveryPremium: 0.30, spikeWindow: 3, categoryShare: 0.4, cardApr: 0.22 }, cfg || {});
   const allMonths = monthSpan(txns);
   const months = fullMonths(txns);
   const inScope = new Set(months);
@@ -726,8 +736,212 @@ function analyze(txns, cfg) {
     incomeComplete: totalIncome >= totalSpend * 0.75,
     opts,
   };
+  model.accounts = opts.accounts || null;
+  model.monthly = monthlyBreakdown(model);
+  model.latestMonth = months[mc - 1];
+  model.movers = monthMovers(model.monthly, model.latestMonth);
   model.recommendations = buildRecommendations(model, opts);
   return model;
+}
+
+/* -------------------------------------------------------------- accounts */
+
+/** Account categories that are money you owe rather than money you have. */
+const LIABILITY_CATS = /credit card|loan|mortgage|line of credit|student|auto loan|debt/i;
+/** Accounts you can spend from today, without selling or borrowing anything. */
+const CASH_CATS = /bank account|cash|checking|savings/i;
+
+/**
+ * Tell an accounts/balances export from a transactions export, so one drop
+ * zone can take either. Accounts files have a balance column and no amount.
+ */
+function detectFileKind(text) {
+  const rows = parseCSV(text);
+  if (!rows.length) return "unknown";
+  const keys = rows[0].map(headerKey);
+  const hasBalance = keys.some((k) => k.includes("balance"));
+  const hasAccountName = keys.some((k) => k.includes("accountname") || k.includes("nickname"));
+  if (hasBalance && hasAccountName) return "accounts";
+  const cols = mapColumns(rows[0]);
+  if (cols.date !== -1 && cols.amount !== -1) return "transactions";
+  return hasBalance ? "accounts" : "unknown";
+}
+
+/** Read a balances export into normalized accounts. */
+function parseAccounts(text) {
+  const rows = parseCSV(text);
+  if (rows.length < 2) throw new Error("That balances file has no data rows.");
+  const keys = rows[0].map(headerKey);
+  const find = (...cands) => {
+    for (const c of cands) {
+      const i = keys.findIndex((k) => k === c);
+      if (i !== -1) return i;
+    }
+    for (const c of cands) {
+      const i = keys.findIndex((k) => k.includes(c));
+      if (i !== -1) return i;
+    }
+    return -1;
+  };
+  const col = {
+    name:     find("accountnamenickname", "accountname", "nickname", "name"),
+    inst:     find("institutionname", "institution"),
+    category: find("accountcategory", "category"),
+    type:     find("accounttype", "type"),
+    number:   find("accountnumber", "number"),
+    balance:  find("accountbalance", "balance"),
+    updated:  find("lastupdated", "updated", "asof"),
+    notes:    find("notes", "note"),
+  };
+  if (col.balance === -1) throw new Error("Could not find an Account Balance column.");
+
+  const accounts = [];
+  let asOf = "";
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    const at = (c) => (c === -1 ? "" : String(r[c] || "").trim());
+    const rawBal = at(col.balance);
+    if (!at(col.name) && !rawBal) continue;
+    const bal = parseAmount(rawBal);
+    const category = at(col.category) || "Other";
+    const updated = at(col.updated);
+    const d = parseDate(updated);
+    if (d && d.iso > asOf) asOf = d.iso;
+    accounts.push({
+      name: at(col.name) || "(unnamed)",
+      institution: at(col.inst),
+      category,
+      type: at(col.type),
+      number: at(col.number),
+      // A balances export states debt as a positive number; keep that and let
+      // `isLiability` carry the sign meaning.
+      balance: isFinite(bal) ? Math.abs(bal) : 0,
+      hasBalance: isFinite(bal),
+      updated,
+      notes: at(col.notes),
+      isLiability: LIABILITY_CATS.test(category) || LIABILITY_CATS.test(at(col.type)),
+      isCash: CASH_CATS.test(category) || CASH_CATS.test(at(col.type)),
+    });
+  }
+  if (!accounts.length) throw new Error("No readable account rows.");
+  return { accounts, asOf };
+}
+
+/** Roll accounts up into assets, liabilities, net worth and liquidity. */
+function analyzeAccounts(parsed) {
+  const list = parsed.accounts;
+  let assets = 0, liabilities = 0, cash = 0, cardDebt = 0;
+  for (const a of list) {
+    if (a.isLiability) {
+      liabilities += a.balance;
+      if (/credit card/i.test(a.category) || /credit card/i.test(a.type)) cardDebt += a.balance;
+    } else {
+      assets += a.balance;
+      if (a.isCash) cash += a.balance;
+    }
+  }
+  const byCategory = new Map();
+  for (const a of list) {
+    let g = byCategory.get(a.category);
+    if (!g) { g = { category: a.category, total: 0, n: 0, isLiability: a.isLiability }; byCategory.set(a.category, g); }
+    g.total += a.balance; g.n++;
+  }
+  return {
+    asOf: parsed.asOf,
+    accounts: list.slice().sort((x, y) => y.balance - x.balance),
+    assets, liabilities, cash, cardDebt,
+    netWorth: assets - liabilities,
+    // How many months of current spending the cash on hand would cover.
+    byCategory: [...byCategory.values()].sort((a, b) => b.total - a.total),
+    attention: list.filter((a) => /attention|past due|overdue/i.test(a.notes)),
+  };
+}
+
+/**
+ * One stored point in the month-over-month balance history. Keyed by the
+ * snapshot date so re-uploading the same export overwrites rather than
+ * duplicating.
+ */
+function buildSnapshot(acct) {
+  return {
+    asOf: acct.asOf,
+    netWorth: acct.netWorth,
+    assets: acct.assets,
+    liabilities: acct.liabilities,
+    cash: acct.cash,
+    cardDebt: acct.cardDebt,
+  };
+}
+
+/** Merge a snapshot into a history, replacing any entry with the same date. */
+function mergeSnapshot(history, snap) {
+  if (!snap || !snap.asOf) return history.slice();
+  const out = history.filter((h) => h.asOf !== snap.asOf);
+  out.push(snap);
+  return out.sort((a, b) => a.asOf.localeCompare(b.asOf));
+}
+
+/* --------------------------------------------------------- monthly track */
+
+/**
+ * Per-month spending with the comparisons that make a monthly review useful:
+ * change from the month before, and change from the trailing average of every
+ * month that preceded it (so the baseline is not polluted by the month being
+ * judged).
+ */
+function monthlyBreakdown(m) {
+  const idx = new Map(m.months.map((mo, i) => [mo, i]));
+  const totals = m.months.map(() => 0);
+  const counts = m.months.map(() => 0);
+  const cats = m.months.map(() => new Map());
+  for (const t of m.spend) {
+    const i = idx.get(t.mo);
+    if (i === undefined) return [];
+    totals[i] -= t.amount;
+    counts[i]++;
+    cats[i].set(t.category, (cats[i].get(t.category) || 0) - t.amount);
+  }
+  const out = [];
+  for (let i = 0; i < m.months.length; i++) {
+    const prior = totals.slice(0, i);
+    const baseline = prior.length ? prior.reduce((a, b) => a + b, 0) / prior.length : null;
+    let topCat = null, topVal = 0;
+    for (const [c, v] of cats[i]) if (v > topVal) { topVal = v; topCat = c; }
+    out.push({
+      month: m.months[i],
+      total: totals[i],
+      n: counts[i],
+      prevDelta: i > 0 ? totals[i] - totals[i - 1] : null,
+      baseline,
+      baselineDelta: baseline === null ? null : totals[i] - baseline,
+      topCategory: topCat,
+      topCategoryTotal: topVal,
+      categories: cats[i],
+    });
+  }
+  return out;
+}
+
+/**
+ * What actually moved in one month, versus the average of the months before
+ * it. This is the "why was this month different" answer.
+ */
+function monthMovers(breakdown, month) {
+  const i = breakdown.findIndex((b) => b.month === month);
+  if (i < 1) return [];
+  const prior = breakdown.slice(0, i);
+  const names = new Set();
+  for (const b of prior) for (const c of b.categories.keys()) names.add(c);
+  for (const c of breakdown[i].categories.keys()) names.add(c);
+  const out = [];
+  for (const c of names) {
+    const now = breakdown[i].categories.get(c) || 0;
+    const base = prior.reduce((s, b) => s + (b.categories.get(c) || 0), 0) / prior.length;
+    const delta = now - base;
+    if (Math.abs(delta) < 25) continue;
+    out.push({ category: c, now, baseline: base, delta, pct: base > 0 ? delta / base : null });
+  }
+  return out.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
 }
 
 /* ------------------------------------------------------------- optimizer */
@@ -953,22 +1167,52 @@ function buildRecommendations(m, opts) {
     });
   }
 
-  /* 8 — Revolving debt signal. */
+  /* 8 — Revolving debt. Sized from the actual balance when balances are
+     loaded, and from the observed carry cost otherwise. */
   const carry = m.fees.byKind.filter((k) => /interest|balance transfer/i.test(k.kind));
-  if (carry.length) {
+  const bal = m.accounts && m.accounts.cardDebt > 0 ? m.accounts : null;
+  if (carry.length || bal) {
     const carryTotal = carry.reduce((s, k) => s + k.total, 0);
+    const evidence = [];
+    let annual = yr(carryTotal);
+    let assumption = "Clearing the balance removes the carry cost entirely; any transfer promo window is finite.";
+
+    if (bal) {
+      // Interest at a typical card APR is what the balance costs to hold for
+      // a year — a far better estimate of the ongoing cost than fees that
+      // promotional rates are currently suppressing.
+      const apr = opts.cardApr;
+      annual = Math.max(annual, bal.cardDebt * apr);
+      evidence.push("Card balances total <b>" + money(bal.cardDebt) + "</b> against <b>" +
+        money(bal.cash) + "</b> of cash");
+      const worst = bal.accounts.filter((a) => a.isLiability).slice(0, 3);
+      for (const a of worst) {
+        evidence.push(a.name + " — <b>" + money(a.balance) + "</b>" +
+          (a.notes ? " · " + a.notes : ""));
+      }
+      assumption = "Annual cost estimated at " + Math.round(apr * 100) +
+        "% APR on the current balance. Promotional rates hide this until they expire.";
+    }
+    for (const k of carry) {
+      evidence.push(k.kind + " paid — <b>" + money(k.total) + "</b> (" + k.n +
+        " charge" + (k.n === 1 ? "" : "s") + ")");
+    }
+
     recs.push({
       id: "debt",
-      title: "You are carrying a card balance",
+      title: bal ? "Pay down " + money(bal.cardDebt) + " of card debt" : "You are carrying a card balance",
       tag: "Debt",
       effort: "High",
-      annual: yr(carryTotal),
+      annual,
       defaultAdopt: 1,
-      why: "Interest charges and balance-transfer fees only appear when a balance revolves. " +
-           "This is the highest-guaranteed-return item on the list: paying it down returns the " +
-           "card's APR, risk-free, which almost certainly beats what the same dollars earn invested.",
-      evidence: carry.map((k) => k.kind + " — <b>" + money(k.total) + "</b> (" + k.n + " charge" + (k.n === 1 ? "" : "s") + ")"),
-      assumption: "Clearing the balance removes the carry cost entirely; the transfer promo window is finite.",
+      why: "Interest and balance-transfer fees only exist while a balance revolves. This is the " +
+           "highest guaranteed return available to you: paying it down earns the card's APR, " +
+           "risk-free, which beats what the same dollars are expected to earn invested." +
+           (bal && bal.cash < bal.cardDebt * 0.1
+             ? " With cash this thin against the balance, an unexpected expense has nowhere to go but back onto a card."
+             : ""),
+      evidence,
+      assumption,
     });
   }
 
@@ -1110,7 +1354,17 @@ function sparkSVG(values, opts) {
  * ==================================================================== */
 
 const LS_KEY = "budget-optimizer/csv";
-const state = { model: null, tab: "overview", adopt: {}, q: "", cat: "", sort: "date" };
+const LS_ACCOUNTS = "budget-optimizer/accounts";
+const LS_SNAPSHOTS = "budget-optimizer/snapshots";
+const state = {
+  model: null, tab: "overview", adopt: {}, q: "", cat: "", sort: "date",
+  accountsText: null, snapshots: [],
+};
+
+/** localStorage is unavailable in some contexts; never let that break a render. */
+function lsGet(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+function lsSet(key, val) { try { localStorage.setItem(key, val); } catch (e) { /* quota or blocked */ } }
+function lsDel(key) { try { localStorage.removeItem(key); } catch (e) { /* blocked */ } }
 
 const $ = (s, r) => (r || document).querySelector(s);
 const el = (id) => document.getElementById(id);
@@ -1122,21 +1376,60 @@ function showError(msg) {
     `<div class="banner warn" style="text-align:left"><span class="ico">!</span><div>${esc(msg)}</div></div>`;
 }
 
-function loadText(text) {
+/**
+ * Take either kind of export. A balances file updates the account picture and
+ * appends to the month-over-month history; a transactions file replaces the
+ * spending data. Either one alone is enough to show something useful.
+ */
+function loadText(text, opts) {
+  const quiet = opts && opts.quiet;
+  const kind = detectFileKind(text);
+
+  if (kind === "accounts") {
+    let acct;
+    try {
+      acct = analyzeAccounts(parseAccounts(text));
+    } catch (e) {
+      if (!quiet) showError(e.message);
+      return false;
+    }
+    state.accountsText = text;
+    lsSet(LS_ACCOUNTS, text);
+    state.snapshots = mergeSnapshot(state.snapshots, buildSnapshot(acct));
+    lsSet(LS_SNAPSHOTS, JSON.stringify(state.snapshots));
+    if (!state.model) {
+      // Balances only, no spending yet — still worth showing.
+      if (!quiet) showError("Balances loaded. Add a transactions export to see spending.");
+      return true;
+    }
+    rebuild();
+    return true;
+  }
+
   let parsed;
   try {
     parsed = parseTransactions(text);
   } catch (e) {
-    showError(e.message);
-    return;
+    if (!quiet) showError(e.message);
+    return false;
   }
-  try {
-    localStorage.setItem(LS_KEY, text);
-  } catch (e) {
-    /* Over quota — the session still works, it just will not persist. */
+  lsSet(LS_KEY, text);
+  state.txns = parsed.txns;
+  state.skipped = parsed.skipped;
+  rebuild();
+  return true;
+}
+
+/** Re-run the analysis from whatever data is currently loaded. */
+function rebuild() {
+  if (!state.txns) return;
+  let accounts = null;
+  if (state.accountsText) {
+    try { accounts = analyzeAccounts(parseAccounts(state.accountsText)); } catch (e) { accounts = null; }
   }
-  state.model = analyze(parsed.txns);
-  state.model.skipped = parsed.skipped;
+  state.model = analyze(state.txns, { accounts });
+  state.model.skipped = state.skipped;
+  state.model.snapshots = state.snapshots;
   state.adopt = {};
   for (const r of state.model.recommendations) state.adopt[r.id] = r.defaultAdopt;
   el("loader").classList.add("hide");
@@ -1148,23 +1441,26 @@ function initLoader() {
   const drop = el("drop"), input = el("file");
   el("pick").onclick = () => input.click();
   input.onchange = () => {
-    const f = input.files && input.files[0];
-    if (!f) return;
-    const fr = new FileReader();
-    fr.onload = () => loadText(String(fr.result));
-    fr.onerror = () => showError("Could not read that file.");
-    fr.readAsText(f);
+    const files = input.files ? [...input.files] : [];
+    for (const f of files) {
+      const fr = new FileReader();
+      fr.onload = () => loadText(String(fr.result));
+      fr.onerror = () => showError("Could not read that file.");
+      fr.readAsText(f);
+    }
   };
   ["dragenter", "dragover"].forEach((ev) =>
     drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("over"); }));
   ["dragleave", "drop"].forEach((ev) =>
     drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
+  // Both exports can be dropped together; each is routed by its own shape.
   drop.addEventListener("drop", (e) => {
-    const f = e.dataTransfer.files && e.dataTransfer.files[0];
-    if (!f) return;
-    const fr = new FileReader();
-    fr.onload = () => loadText(String(fr.result));
-    fr.readAsText(f);
+    const files = e.dataTransfer.files ? [...e.dataTransfer.files] : [];
+    for (const f of files) {
+      const fr = new FileReader();
+      fr.onload = () => loadText(String(fr.result));
+      fr.readAsText(f);
+    }
   });
 
   el("reload").onclick = () => {
@@ -1173,22 +1469,31 @@ function initLoader() {
     el("loadErr").innerHTML = "";
   };
   el("clear").onclick = () => {
-    localStorage.removeItem(LS_KEY);
-    state.model = null;
+    if (!confirm("Remove the stored CSV, balances and month-over-month history from this browser?")) return;
+    lsDel(LS_KEY); lsDel(LS_ACCOUNTS); lsDel(LS_SNAPSHOTS);
+    state.model = null; state.txns = null; state.accountsText = null; state.snapshots = [];
     el("app").classList.add("hide");
     el("loader").classList.remove("hide");
     el("loadErr").innerHTML = "";
   };
 
-  const saved = localStorage.getItem(LS_KEY);
-  if (saved) loadText(saved);
+  try {
+    const snaps = lsGet(LS_SNAPSHOTS);
+    if (snaps) state.snapshots = JSON.parse(snaps) || [];
+  } catch (e) { state.snapshots = []; }
+  const savedAccounts = lsGet(LS_ACCOUNTS);
+  if (savedAccounts) loadText(savedAccounts, { quiet: true });
+  const saved = lsGet(LS_KEY);
+  if (saved) loadText(saved, { quiet: true });
 }
 
 /* ----------------------------------------------------------------- tabs */
 
 const TABS = [
   ["overview", "Overview"],
+  ["monthly", "Monthly"],
   ["optimize", "Where to cut"],
+  ["accounts", "Balances"],
   ["categories", "Categories"],
   ["merchants", "Merchants"],
   ["recurring", "Recurring"],
@@ -1217,6 +1522,8 @@ function render() {
   const view = el("view");
   ({
     overview: renderOverview,
+    monthly: renderMonthly,
+    accounts: renderAccounts,
     optimize: renderOptimize,
     categories: renderCategories,
     merchants: renderMerchants,
@@ -1383,6 +1690,180 @@ function renderOverview(view, m) {
       `<div class="t-row"><span>Transactions</span><b>${c.n}</b></div>` +
       `<div class="t-row"><span>Average</span><b>${money(c.total / c.n, true)}</b></div>`;
   });
+}
+
+/* -------------------------------------------------------------- monthly */
+
+/** Signed money with an explicit + so a rise reads as a rise. */
+function delta(n) { return (n > 0 ? "+" : n < 0 ? "−" : "") + money(Math.abs(n)); }
+function deltaClass(n, goodIsDown) {
+  if (Math.abs(n) < 1) return "";
+  const bad = goodIsDown ? n > 0 : n < 0;
+  return bad ? "up" : "down";
+}
+
+function renderMonthly(view, m) {
+  const rows = m.monthly;
+  const last = rows[rows.length - 1];
+  const movers = m.movers;
+  const cats = m.byCategory.slice(0, 8).map((c) => c.key);
+  const recent = rows.slice(-12);
+
+  view.innerHTML = `
+    <div class="card">
+      <div class="card-head"><h2>Month by month</h2>
+        <span class="muted" style="font-size:12px">Complete months only · newest last</span></div>
+      <div class="card-note">Each month against the one before it, and against the average of every
+        month that came before it. The running baseline never includes the month being judged, so a
+        bad month cannot flatter itself.</div>
+      <div class="table-scroll"><table><thead><tr>
+        <th>Month</th><th class="num">Spent</th><th class="num">vs prior month</th>
+        <th class="num">Running average</th><th class="num">vs average</th>
+        <th>Largest category</th><th class="num">Txns</th>
+      </tr></thead><tbody>
+      ${rows.map((r, i) => `<tr${i === rows.length - 1 ? ' style="background:var(--card-2)"' : ""}>
+        <td class="name">${moLabel(r.month)}${i === rows.length - 1 ? ' <span class="chip mute">latest</span>' : ""}</td>
+        <td class="num" style="font-weight:600">${money(r.total)}</td>
+        <td class="num ${r.prevDelta === null ? "" : deltaClass(r.prevDelta, true)}">${r.prevDelta === null ? "—" : delta(r.prevDelta)}</td>
+        <td class="num muted">${r.baseline === null ? "—" : money(r.baseline)}</td>
+        <td class="num ${r.baselineDelta === null ? "" : deltaClass(r.baselineDelta, true)}">${
+          r.baselineDelta === null ? "—"
+            : delta(r.baselineDelta) + " (" + (r.baselineDelta > 0 ? "+" : "−") +
+              Math.round(Math.abs(100 * r.baselineDelta / r.baseline)) + "%)"}</td>
+        <td class="muted">${r.topCategory ? esc(r.topCategory) + " · " + money(r.topCategoryTotal) : "—"}</td>
+        <td class="num muted">${r.n}</td></tr>`).join("")}
+      </tbody></table></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>What moved in ${moLabel(last.month)}</h2>
+        <span class="num ${deltaClass(last.baselineDelta || 0, true)}" style="font-size:13px;font-weight:700">
+          ${last.baselineDelta === null ? "" : delta(last.baselineDelta) + " vs your running average"}</span></div>
+      <div class="card-note">Every category that moved more than $25 against its own history. This is
+        the answer to "why was this month different".</div>
+      ${movers.length ? `<div class="table-scroll"><table><thead><tr>
+        <th>Category</th><th class="num">${moLabel(last.month)}</th><th class="num">Usual</th>
+        <th class="num">Change</th><th class="num">If it sticks</th>
+      </tr></thead><tbody>
+      ${movers.map((v) => `<tr>
+        <td class="name">${esc(v.category)}</td>
+        <td class="num" style="font-weight:600">${money(v.now)}</td>
+        <td class="num muted">${money(v.baseline)}</td>
+        <td class="num ${deltaClass(v.delta, true)}">${delta(v.delta)}${
+          v.pct === null ? "" : " (" + (v.delta > 0 ? "+" : "−") + Math.round(Math.abs(v.pct * 100)) + "%)"}</td>
+        <td class="num muted">${delta(v.delta * 12)}/yr</td></tr>`).join("")}
+      </tbody></table></div>` : `<div class="muted">Nothing moved materially this month.</div>`}
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Category trend</h2>
+        <span class="muted" style="font-size:12px">Top ${cats.length} categories · last ${recent.length} months</span></div>
+      <div class="card-note">Read across a row to see whether a category is drifting up, and down a
+        column to see which month a total came from.</div>
+      <div class="table-scroll"><table><thead><tr><th>Category</th>
+        ${recent.map((r) => `<th class="num">${moLabel(r.month).replace(" ", "&nbsp;")}</th>`).join("")}
+      </tr></thead><tbody>
+      ${cats.map((c) => {
+        const vals = recent.map((r) => r.categories.get(c) || 0);
+        const max = Math.max(...vals, 1);
+        return `<tr><td class="name">${esc(c)}</td>${vals.map((v) => {
+          // Weight of the cell tracks its share of that category's own peak.
+          const share = v / max;
+          const bg = share > 0.05 ? `background:rgba(57,135,229,${(0.07 + share * 0.3).toFixed(3)})` : "";
+          return `<td class="num" style="${bg}">${v ? money(v) : '<span class="muted">—</span>'}</td>`;
+        }).join("")}</tr>`;
+      }).join("")}
+      </tbody></table></div>
+    </div>`;
+}
+
+/* ------------------------------------------------------------- balances */
+
+function renderAccounts(view, m) {
+  const a = m.accounts;
+  if (!a) {
+    view.innerHTML = `<div class="card">
+      <h2>No balances loaded</h2>
+      <div class="card-note">Drop an accounts/balances export — one row per account with a balance
+        column — and this tab shows net worth, what you owe, and how both move month to month.
+        It is tracked separately from transactions, so you can add one without re-adding the other.</div>
+      <button class="btn btn-sm" onclick="document.getElementById('reload').click()">Load a balances file</button>
+    </div>`;
+    return;
+  }
+
+  const runway = m.perMonth > 0 ? a.cash / m.perMonth : 0;
+  const snaps = (m.snapshots || []).slice();
+  const prev = snaps.length > 1 ? snaps[snaps.length - 2] : null;
+
+  view.innerHTML = `
+    ${a.attention.length ? `<div class="banner warn"><span class="ico">!</span><div>
+      <b>${a.attention.length} account${a.attention.length === 1 ? " is" : "s are"} flagged by your institution:</b>
+      ${a.attention.map((x) => esc(x.name) + " (" + money(x.balance) + " — " + esc(x.notes) + ")").join("; ")}.
+      </div></div>` : ""}
+
+    ${a.cardDebt > a.cash * 3 && a.cardDebt > 1000 ? `<div class="banner warn"><span class="ico">!</span><div>
+      <b>Card balances are ${(a.cardDebt / Math.max(a.cash, 1)).toFixed(0)}× your cash.</b>
+      ${money(a.cardDebt)} owed against ${money(a.cash)} available, while you spend
+      ${money(m.perMonth)}/mo. That is roughly ${runway < 1 ? "under a month" : runway.toFixed(1) + " months"}
+      of spending in reach — an unexpected bill has nowhere to go but back onto a card.
+      </div></div>` : ""}
+
+    <div class="kpis">
+      <div class="kpi"><div class="label">Net worth</div>
+        <div class="value">${money(a.netWorth)}</div>
+        <div class="foot">${prev ? delta(a.netWorth - prev.netWorth) + " since " + prev.asOf : "as of " + (a.asOf || "latest")}</div></div>
+      <div class="kpi"><div class="label">Assets</div>
+        <div class="value">${money(a.assets)}</div>
+        <div class="foot">${a.accounts.filter((x) => !x.isLiability).length} accounts</div></div>
+      <div class="kpi"><div class="label">Owed</div>
+        <div class="value" style="color:var(--critical)">${money(a.liabilities)}</div>
+        <div class="foot">${money(a.cardDebt)} on cards</div></div>
+      <div class="kpi"><div class="label">Cash available</div>
+        <div class="value">${money(a.cash)}</div>
+        <div class="foot">${runway < 1 ? "under a month" : runway.toFixed(1) + " months"} of spending</div></div>
+    </div>
+
+    ${snaps.length > 1 ? `<div class="card">
+      <div class="card-head"><h2>Balance history</h2>
+        <span class="muted" style="font-size:12px">${snaps.length} snapshots</span></div>
+      <div class="card-note">One row per balances file you have loaded. Drop a fresh export each
+        month and this becomes your net-worth track record.</div>
+      <div class="table-scroll"><table><thead><tr>
+        <th>As of</th><th class="num">Net worth</th><th class="num">Change</th>
+        <th class="num">Assets</th><th class="num">Owed</th><th class="num">Cash</th>
+      </tr></thead><tbody>
+      ${snaps.map((sn, i) => {
+        const d = i > 0 ? sn.netWorth - snaps[i - 1].netWorth : null;
+        return `<tr><td class="mono">${sn.asOf}</td>
+          <td class="num" style="font-weight:600">${money(sn.netWorth)}</td>
+          <td class="num ${d === null ? "" : deltaClass(d, false)}">${d === null ? "—" : delta(d)}</td>
+          <td class="num muted">${money(sn.assets)}</td>
+          <td class="num muted">${money(sn.liabilities)}</td>
+          <td class="num muted">${money(sn.cash)}</td></tr>`;
+      }).join("")}
+      </tbody></table></div></div>`
+    : `<div class="banner info"><span class="ico">i</span><div>
+        This is your first balances snapshot${a.asOf ? " (" + a.asOf + ")" : ""}. Drop a fresh export
+        each month and this tab will track net worth over time.</div></div>`}
+
+    <div class="card">
+      <h2>Every account</h2>
+      <div class="card-note">Balances as reported by each institution.</div>
+      <div class="table-scroll"><table><thead><tr>
+        <th>Account</th><th>Institution</th><th>Category</th><th>Type</th>
+        <th class="num">Balance</th><th>Updated</th>
+      </tr></thead><tbody>
+      ${a.accounts.map((x) => `<tr>
+        <td class="name">${esc(x.name)}${x.notes ? ' <span class="chip warn">' + esc(x.notes) + "</span>" : ""}</td>
+        <td class="muted">${esc(x.institution) || "—"}</td>
+        <td class="muted">${esc(x.category)}</td>
+        <td class="muted">${esc(x.type)}</td>
+        <td class="num" style="color:${x.isLiability ? "var(--critical)" : "var(--text-bright)"}">${
+          x.hasBalance ? (x.isLiability ? "−" : "") + money(x.balance) : '<span class="muted">—</span>'}</td>
+        <td class="muted" style="font-size:12px">${esc(x.updated)}</td></tr>`).join("")}
+      </tbody></table></div>
+    </div>`;
 }
 
 /* ------------------------------------------------------------- optimize */

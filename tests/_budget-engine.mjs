@@ -21,7 +21,7 @@ export function readScriptBlock() {
 
 // Consts every sliced function may reach for. Missing ones are skipped.
 const CONSTS = ["CITY_RX", "INTERNAL_CATS", "INTERNAL_DESC", "FEE_PATTERNS", "DELIVERY_RX",
-  "PROTECTED_CATS", "MEMBERSHIP_CATS", "CH"];
+  "PROTECTED_CATS", "MEMBERSHIP_CATS", "LIABILITY_CATS", "CASH_CATS", "MONTH_NAMES", "CH"];
 
 // Helpers pulled in unconditionally so callers only name what they test.
 const HELPERS = [
@@ -30,6 +30,8 @@ const HELPERS = [
   "monthSpan", "fullMonths", "netSpend", "groupSpend", "monthlySeries", "cadenceOf",
   "detectRecurring", "modeOf", "auditFees", "detectSpikes", "analyze",
   "capOverlap", "buildRecommendations", "futureValue", "esc", "niceMax",
+  "detectFileKind", "parseAccounts", "analyzeAccounts", "buildSnapshot", "mergeSnapshot",
+  "monthlyBreakdown", "monthMovers",
 ];
 
 /**
@@ -67,4 +69,11 @@ export function monthlyRows(startMo, n, { day = 15, desc, account = "CARD ***111
     m++; if (m > 12) { m = 1; y++; }
   }
   return out;
+}
+
+/** A balances export in the shape the page is built for. */
+export function accountsCSV(rows) {
+  const head = '"Account Name / Nickname","Institution Name","Account Category","Account Type","Account Number","Account Balance","Last Updated","Notes"';
+  const body = rows.map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
+  return "\ufeff" + head + "\n" + body + "\n";
 }
