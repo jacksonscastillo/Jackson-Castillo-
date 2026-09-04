@@ -3,6 +3,11 @@
 -- One-time setup. Paste this whole file into the Supabase SQL
 -- editor (the same project the dashboard and the Granum game
 -- use) and click RUN. Safe to run more than once.
+--
+-- If the project is PAUSED, restore it before running this.
+-- Supabase pauses free-plan projects after about a week of
+-- inactivity; a paused project has no database, so the editor
+-- cannot run and every phone reports "Offline".
 -- =============================================================
 
 -- ---------- TABLE ----------

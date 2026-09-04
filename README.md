@@ -145,6 +145,15 @@ Run [`two-by-four-schema.sql`](two-by-four-schema.sql) once in the Supabase SQL
 editor — the same project the dashboard and the Granum game use. That creates
 `two_by_four_cards` with its policies and grants. Nothing else to configure.
 
+**If the project is paused, restore it first.** Supabase pauses free-plan
+projects after about a week of inactivity, and a paused project has no database
+to talk to — the SQL editor won't run and every phone shows "Offline". The
+dashboard shows a Restore button on the project card. This is also why the
+Granum game board goes dead after a quiet stretch; both apps share the project.
+Normal daily use keeps it awake on its own, since the page polls while anyone
+has it open. A quiet week does not, so if an unexplained dead board would kill
+the habit, that project wants the Pro plan, which does not auto-pause.
+
 ### How the sharing works
 
 - One row per person, the whole card held as a `days` JSON object keyed by date.
